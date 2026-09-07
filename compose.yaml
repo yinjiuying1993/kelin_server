@@ -1,0 +1,27 @@
+name: kelin-server
+
+services:
+  api:
+    build:
+      context: .
+      target: runtime
+    image: kelin-server:runtime
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    init: true
+
+  qa:
+    build:
+      context: .
+      target: toolchain
+    image: kelin-server:toolchain
+    environment:
+      APP_ENV: test
+      LOG_LEVEL: INFO
+    working_dir: /app
+    init: true
+    profiles: ["tools"]
+    command: ["uv", "run", "--frozen", "pytest"]

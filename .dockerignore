@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+.env
+.env.*
+!.env.example
+*.log
+*.md
+CONTRIBUTING.md
+.idea
+.vscode
