@@ -2,6 +2,7 @@ from app.core.config import Settings, get_settings
 from app.main import create_app
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 
 def test_create_app_returns_fastapi() -> None:
@@ -25,7 +26,12 @@ def test_request_id_header_is_echoed_or_generated() -> None:
 
 def test_prod_disables_docs() -> None:
     get_settings.cache_clear()
-    application = create_app(Settings(app_env="prod"))
+    application = create_app(
+        Settings(
+            app_env="prod",
+            database_url_api=SecretStr("postgresql://probe:probe@127.0.0.1:1/kelin"),
+        )
+    )
     client = TestClient(application)
     assert client.get("/docs").status_code == 404
     assert client.get("/openapi.json").status_code == 404
