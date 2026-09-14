@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "data": {
+    "deletion_id": "00000000-0000-4000-8000-0000000000e1",
+    "status": "accepted",
+    "requested_at": "2026-09-12T10:00:00Z"
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000e2",
+  "server_time": "2026-09-12T10:00:00Z"
+}

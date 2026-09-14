@@ -1,0 +1,15 @@
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "QUOTA_EXCEEDED",
+    "message": "quota exceeded",
+    "retryable": false,
+    "details": {
+      "quota": "tts",
+      "reset_at": "2026-09-08T16:00:00Z"
+    }
+  },
+  "request_id": "00000000-0000-4000-8000-0000000000b4",
+  "server_time": "2026-09-08T00:00:00Z"
+}

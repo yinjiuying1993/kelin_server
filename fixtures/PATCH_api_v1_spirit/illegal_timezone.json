@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "INVALID_INPUT",
+    "message": "invalid input",
+    "retryable": false
+  },
+  "request_id": "00000000-0000-4000-8000-0000000000d5",
+  "server_time": "2026-09-12T10:00:00Z"
+}

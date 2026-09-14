@@ -11,7 +11,60 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-dev}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      BAILIAN_API_KEY: ${BAILIAN_API_KEY:-}
+      BAILIAN_WORKSPACE_ID: ${BAILIAN_WORKSPACE_ID:-}
+      BAILIAN_APP_ID: ${BAILIAN_APP_ID:-}
+      BAILIAN_CHAT_MODEL: ${BAILIAN_CHAT_MODEL:-}
+      BAILIAN_EXTRACT_MODEL: ${BAILIAN_EXTRACT_MODEL:-}
+      BAILIAN_ASR_MODEL: ${BAILIAN_ASR_MODEL:-}
+      BAILIAN_TTS_MODEL: ${BAILIAN_TTS_MODEL:-}
+      BAILIAN_TTS_VOICE: ${BAILIAN_TTS_VOICE:-}
+      BAILIAN_VISION_MODEL: ${BAILIAN_VISION_MODEL:-}
+      BAILIAN_SEARCH_MODEL: ${BAILIAN_SEARCH_MODEL:-}
+      BAILIAN_SEARCH_ENABLED: ${BAILIAN_SEARCH_ENABLED:-false}
     init: true
+
+  scheduler:
+    build:
+      context: .
+      target: runtime
+    image: kelin-server:runtime
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    init: true
+    command: ["uv", "run", "--frozen", "--no-dev", "python", "-m", "app.scheduler"]
+
+  worker:
+    build:
+      context: .
+      target: runtime
+    image: kelin-server:runtime
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    init: true
+    command: ["uv", "run", "--frozen", "--no-dev", "python", "-m", "app.worker"]
+
+  postgres-test:
+    image: postgres:16
+    pull_policy: never
+    container_name: kelin-postgres-test
+    environment:
+      POSTGRES_USER: kelin_test
+      POSTGRES_PASSWORD: kelin_test
+      POSTGRES_DB: kelin_test
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kelin_test -d kelin_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+    labels:
+      kelin.env: test
+      kelin.role: disposable-test-database
+    profiles: ["tools"]
 
   qa:
     build:
@@ -21,7 +74,11 @@ services:
     environment:
       APP_ENV: test
       LOG_LEVEL: INFO
+      DATABASE_URL_API: postgresql+asyncpg://kelin_test:kelin_test@postgres-test:5432/kelin_test
     working_dir: /app
     init: true
     profiles: ["tools"]
+    depends_on:
+      postgres-test:
+        condition: service_healthy
     command: ["uv", "run", "--frozen", "pytest"]

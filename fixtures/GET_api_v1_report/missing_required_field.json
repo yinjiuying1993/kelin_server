@@ -1,0 +1,12 @@
+{
+  "report_id": null,
+  "eligibility": {
+    "is_eligible": false,
+    "eligible_at": "2026-09-14T03:46:00Z",
+    "days_remaining": 7,
+    "required_dialogue_rounds": 10,
+    "completed_dialogue_rounds": 0,
+    "dialogue_rounds_remaining": 10
+  },
+  "card": null
+}

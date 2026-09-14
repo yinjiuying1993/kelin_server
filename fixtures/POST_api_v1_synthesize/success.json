@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "data": {
+    "resource": {
+      "type": "speech_audio",
+      "audio_url": "https://kelin.invalid/object/kelin-tts/tts/00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000041/default.m4a",
+      "mime": "audio/mp4",
+      "duration_ms": 1400,
+      "expires_at": "2026-09-08T00:10:00Z",
+      "cache_hit": false
+    },
+    "patch": {
+      "snapshot_version": 1,
+      "spirit": null,
+      "preferences": null,
+      "room": null,
+      "onboarding": null,
+      "report": null,
+      "social": null,
+      "memories_upsert": [],
+      "memory_tombstones": [],
+      "postcards_upsert": [],
+      "pact": null
+    },
+    "quotas": [
+      {
+        "capability": "tts",
+        "used": 1,
+        "limit": 20,
+        "reset_at": "2026-09-08T16:00:00Z"
+      }
+    ],
+    "events": []
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000b1",
+  "server_time": "2026-09-08T00:00:00Z"
+}

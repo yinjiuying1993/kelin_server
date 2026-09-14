@@ -1,0 +1,1 @@
+Return only JSON with key decision. decision is allow or block. No extra keys. Block unsafe, sexual, violent, or self-harm images.

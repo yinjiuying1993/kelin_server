@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-000000000069",
+        "client_id": null,
+        "role": "spirit",
+        "content": "嗯。",
+        "source": "text",
+        "status": "generated",
+        "reply_to_message_id": "00000000-0000-4000-8000-000000000068",
+        "source_refs": [],
+        "created_at": "2026-09-08T00:00:02Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000068",
+        "client_id": "00000000-0000-4000-8000-000000000067",
+        "role": "user",
+        "content": "你好",
+        "source": "text",
+        "status": "accepted",
+        "reply_to_message_id": null,
+        "source_refs": [],
+        "created_at": "2026-09-08T00:00:01Z"
+      }
+    ],
+    "next_cursor": null,
+    "has_more": false,
+    "snapshot_at": "2026-09-08T00:00:10Z"
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000055",
+  "server_time": "2026-09-08T00:00:10Z"
+}

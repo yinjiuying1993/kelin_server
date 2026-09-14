@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "UPLOAD_EXPIRED",
+    "message": "upload expired",
+    "retryable": false
+  },
+  "request_id": "00000000-0000-4000-8000-000000000092",
+  "server_time": "2026-09-08T00:10:00Z"
+}

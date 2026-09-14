@@ -1,0 +1,11 @@
+{
+  "client_message_id": "00000000-0000-4000-8000-000000000044",
+  "content": "你好",
+  "source": "text",
+  "context": {
+    "timezone": "Asia/Shanghai",
+    "local_hour": 21,
+    "weather": "cloudy",
+    "city": null
+  }
+}

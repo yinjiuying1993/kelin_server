@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "data": {
+    "items": [],
+    "tombstones": [],
+    "next_cursor": null,
+    "has_more": false,
+    "snapshot_at": "2026-09-08T00:00:10Z"
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000a2",
+  "server_time": "2026-09-08T00:00:10Z"
+}

@@ -1,0 +1,162 @@
+{
+  "version": "interview-v1",
+  "categories": [
+    "self_intro",
+    "strengths",
+    "project",
+    "conflict",
+    "star"
+  ],
+  "questions": [
+    {
+      "question_id": "interview-v1-q1",
+      "category": "self_intro",
+      "text": "请用两分钟介绍你自己。"
+    },
+    {
+      "question_id": "interview-v1-q2",
+      "category": "self_intro",
+      "text": "你为什么想加入这家公司？"
+    },
+    {
+      "question_id": "interview-v1-q3",
+      "category": "self_intro",
+      "text": "你最近在关注什么行业变化？"
+    },
+    {
+      "question_id": "interview-v1-q4",
+      "category": "self_intro",
+      "text": "你希望三年后成为什么样的人？"
+    },
+    {
+      "question_id": "interview-v1-q5",
+      "category": "self_intro",
+      "text": "同事通常会怎样描述你？"
+    },
+    {
+      "question_id": "interview-v1-q6",
+      "category": "self_intro",
+      "text": "你为什么离开上一段经历？"
+    },
+    {
+      "question_id": "interview-v1-q7",
+      "category": "strengths",
+      "text": "你认为自己最突出的优点是什么？"
+    },
+    {
+      "question_id": "interview-v1-q8",
+      "category": "strengths",
+      "text": "你的一个真实缺点，以及你怎么补。"
+    },
+    {
+      "question_id": "interview-v1-q9",
+      "category": "strengths",
+      "text": "什么工作会让你状态最好？"
+    },
+    {
+      "question_id": "interview-v1-q10",
+      "category": "strengths",
+      "text": "什么工作会让你明显吃力？"
+    },
+    {
+      "question_id": "interview-v1-q11",
+      "category": "strengths",
+      "text": "别人会高估你哪一点？"
+    },
+    {
+      "question_id": "interview-v1-q12",
+      "category": "strengths",
+      "text": "你如何避免优点变成盲区？"
+    },
+    {
+      "question_id": "interview-v1-q13",
+      "category": "project",
+      "text": "讲一个你负责过的项目。"
+    },
+    {
+      "question_id": "interview-v1-q14",
+      "category": "project",
+      "text": "这个项目里你做了哪些别人没做的决定？"
+    },
+    {
+      "question_id": "interview-v1-q15",
+      "category": "project",
+      "text": "项目结果用什么数字衡量？"
+    },
+    {
+      "question_id": "interview-v1-q16",
+      "category": "project",
+      "text": "如果重来一次，你会改哪一步？"
+    },
+    {
+      "question_id": "interview-v1-q17",
+      "category": "project",
+      "text": "你怎么拆分任务并跟进风险？"
+    },
+    {
+      "question_id": "interview-v1-q18",
+      "category": "project",
+      "text": "资源不够时你怎么取舍范围？"
+    },
+    {
+      "question_id": "interview-v1-q19",
+      "category": "conflict",
+      "text": "讲一次和同事意见不合。"
+    },
+    {
+      "question_id": "interview-v1-q20",
+      "category": "conflict",
+      "text": "你如何处理上级的紧急插单？"
+    },
+    {
+      "question_id": "interview-v1-q21",
+      "category": "conflict",
+      "text": "跨部门目标冲突时你怎么对齐？"
+    },
+    {
+      "question_id": "interview-v1-q22",
+      "category": "conflict",
+      "text": "对方情绪激动时你怎么收口？"
+    },
+    {
+      "question_id": "interview-v1-q23",
+      "category": "conflict",
+      "text": "你坚持过一次正确但不受欢迎的判断吗？"
+    },
+    {
+      "question_id": "interview-v1-q24",
+      "category": "conflict",
+      "text": "冲突结束后你如何修复合作关系？"
+    },
+    {
+      "question_id": "interview-v1-q25",
+      "category": "star",
+      "text": "用情景、任务、行动、结果讲一件事。"
+    },
+    {
+      "question_id": "interview-v1-q26",
+      "category": "star",
+      "text": "当时的情景约束是什么？"
+    },
+    {
+      "question_id": "interview-v1-q27",
+      "category": "star",
+      "text": "你接到的任务边界在哪里？"
+    },
+    {
+      "question_id": "interview-v1-q28",
+      "category": "star",
+      "text": "你采取的关键行动有哪三步？"
+    },
+    {
+      "question_id": "interview-v1-q29",
+      "category": "star",
+      "text": "结果如何验证，谁因此受益？"
+    },
+    {
+      "question_id": "interview-v1-q30",
+      "category": "star",
+      "text": "如果缺少结果数字，你还能怎样证明影响？"
+    }
+  ]
+}

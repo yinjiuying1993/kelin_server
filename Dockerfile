@@ -16,13 +16,20 @@ COPY pyproject.toml uv.lock ./
 
 FROM deps AS toolchain
 RUN uv sync --frozen --no-install-project
+COPY alembic.ini ./
 COPY app ./app
+COPY scripts ./scripts
+COPY fixtures ./fixtures
 COPY tests ./tests
 RUN chown -R app:app /app
 USER app
 
 FROM deps AS runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 RUN uv sync --frozen --no-install-project --no-dev
+COPY alembic.ini ./
 COPY app ./app
 RUN chown -R app:app /app
 USER app

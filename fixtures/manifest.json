@@ -1,0 +1,433 @@
+{
+  "api_version": "v1",
+  "entries": [
+    {
+      "endpoint": null,
+      "id": "envelope",
+      "kind": "envelope_schema",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "DELETE /api/v1/account",
+      "id": "DELETE_api_v1_account",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "idempotent_replay",
+        "confirm_mismatch",
+        "pending"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/bootstrap",
+      "id": "GET_api_v1_bootstrap",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/chat",
+      "id": "POST_api_v1_chat",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/devices",
+      "id": "POST_api_v1_devices",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "token_rotate",
+        "environment_mismatch",
+        "enabled_false",
+        "idempotent_replay"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/extract",
+      "id": "POST_api_v1_extract",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/feed",
+      "id": "POST_api_v1_feed",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "PATCH /api/v1/feeds/{feed_id}",
+      "id": "PATCH_api_v1_feeds_{feed_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/feeds/{feed_id}/cancel",
+      "id": "POST_api_v1_feeds_{feed_id}_cancel",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/feeds/{feed_id}/complete",
+      "id": "POST_api_v1_feeds_{feed_id}_complete",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/friends",
+      "id": "GET_api_v1_friends",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "page_empty",
+        "page_first",
+        "page_middle",
+        "page_last",
+        "invalid_or_expired_cursor"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/friends",
+      "id": "POST_api_v1_friends",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "self_friend",
+        "invalid_invite",
+        "idempotent_replay"
+      ]
+    },
+    {
+      "endpoint": "DELETE /api/v1/friends/{friend_id}",
+      "id": "DELETE_api_v1_friends_{friend_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "not_found",
+        "idempotency_conflict"
+      ]
+    },
+    {
+      "endpoint": "DELETE /api/v1/memories",
+      "id": "DELETE_api_v1_memories",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "idempotency_conflict"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/memories",
+      "id": "GET_api_v1_memories",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "page_empty",
+        "page_first",
+        "page_middle",
+        "page_last",
+        "invalid_or_expired_cursor",
+        "filter_mismatch_cursor"
+      ]
+    },
+    {
+      "endpoint": "DELETE /api/v1/memories/{memory_id}",
+      "id": "DELETE_api_v1_memories_{memory_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "idempotency_conflict",
+        "version_conflict",
+        "not_found"
+      ]
+    },
+    {
+      "endpoint": "PATCH /api/v1/memories/{memory_id}",
+      "id": "PATCH_api_v1_memories_{memory_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "idempotency_conflict",
+        "version_conflict",
+        "not_found",
+        "illegal_state"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/messages",
+      "id": "GET_api_v1_messages",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "page_empty",
+        "page_first",
+        "page_middle",
+        "page_last",
+        "invalid_or_expired_cursor"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/moderate-sight",
+      "id": "POST_api_v1_moderate-sight",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/onboarding/complete",
+      "id": "POST_api_v1_onboarding_complete",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/pact-answer",
+      "id": "POST_api_v1_pact-answer",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "last_question_finalize",
+        "already_answered",
+        "question_not_found",
+        "version_conflict",
+        "out_of_order",
+        "last_question_in_progress",
+        "provider_fallback"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/pact-session",
+      "id": "POST_api_v1_pact-session",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "day_closed",
+        "idempotent_replay"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/pact-skip",
+      "id": "POST_api_v1_pact-skip",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "already_submitted",
+        "skip_replay",
+        "completeness"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/pacts",
+      "id": "POST_api_v1_pacts",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "active_conflict",
+        "notes_not_found"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/postcards",
+      "id": "GET_api_v1_postcards",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "page_empty",
+        "page_first",
+        "page_middle",
+        "page_last",
+        "invalid_or_expired_cursor"
+      ]
+    },
+    {
+      "endpoint": "PATCH /api/v1/postcards/{postcard_id}/read",
+      "id": "PATCH_api_v1_postcards_{postcard_id}_read",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "not_found",
+        "read_replay"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/recall",
+      "id": "POST_api_v1_recall",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "idempotent_replay",
+        "not_lost",
+        "sealed_memory",
+        "deleted_memory",
+        "wrong_owner",
+        "non_sight",
+        "quota_full_food"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/report",
+      "id": "GET_api_v1_report",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "generating",
+        "partial",
+        "ready",
+        "failed"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/report/line",
+      "id": "POST_api_v1_report_line",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "idempotent_replay",
+        "version_conflict",
+        "max_attempts",
+        "provider_fail"
+      ]
+    },
+    {
+      "endpoint": "PATCH /api/v1/spirit",
+      "id": "PATCH_api_v1_spirit",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "idempotent_replay",
+        "version_conflict",
+        "illegal_timezone",
+        "illegal_dnd",
+        "name_too_long"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/spirits",
+      "id": "POST_api_v1_spirits",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/storage/sight-upload-url",
+      "id": "POST_api_v1_storage_sight-upload-url",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/synthesize",
+      "id": "POST_api_v1_synthesize",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "cache_hit",
+        "quota_exceeded"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/transcribe",
+      "id": "POST_api_v1_transcribe",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "empty_result",
+        "invalid_mime",
+        "too_large",
+        "duration_exceeded"
+      ]
+    }
+  ],
+  "generated_at": "2026-09-14T02:50:01Z",
+  "openapi_sha256": "fed40c13c30d2203f20ed83c7ad208042c13f35e330d3491e407f22be0593230",
+  "schema_version": 2,
+  "source_app": "app.main:create_app",
+  "source_commit": null
+}

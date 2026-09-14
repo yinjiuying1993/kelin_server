@@ -1,0 +1,74 @@
+{
+  "ok": true,
+  "data": {
+    "resource": {
+      "type": "spirit",
+      "id": "00000000-0000-4000-8000-000000000010",
+      "version": 2
+    },
+    "patch": {
+      "snapshot_version": 2,
+      "spirit": {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "name": "未名",
+        "egg": "warm",
+        "invite_code": "ABCD2345",
+        "closeness": 65,
+        "curiosity": 55,
+        "sharpness": 35,
+        "nocturnal": 40,
+        "stubborn": 40,
+        "hunger": 80,
+        "energy": 80,
+        "mood": 60,
+        "bond": 0,
+        "stage": "whelp",
+        "status": "home",
+        "scholar_marks": [],
+        "version": 2,
+        "onboarding_step": 5,
+        "onboarding_completed_at": "2026-09-08T00:00:00Z",
+        "hatched_at": "2026-09-08T00:00:00Z",
+        "created_at": "2026-09-08T00:00:00Z"
+      },
+      "preferences": null,
+      "room": {
+        "weather": "cloudy",
+        "layers": ["spirit"],
+        "letter": null,
+        "pending_sight": null,
+        "unread_footprint_count": 0,
+        "updated_at": "2026-09-08T00:00:00Z"
+      },
+      "onboarding": {
+        "required": false,
+        "step": 5,
+        "total_steps": 5,
+        "completed_at": "2026-09-08T00:00:00Z"
+      },
+      "report": {
+        "status": "locked",
+        "report_id": null,
+        "eligibility": {
+          "is_eligible": false,
+          "eligible_at": "2026-09-14T03:46:00Z",
+          "days_remaining": 7,
+          "required_dialogue_rounds": 10,
+          "completed_dialogue_rounds": 0,
+          "dialogue_rounds_remaining": 10
+        },
+        "card": null
+      },
+      "social": null,
+      "memories_upsert": [],
+      "memory_tombstones": [],
+      "postcards_upsert": [],
+      "pact": null
+    },
+    "quotas": [],
+    "events": []
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000051",
+  "server_time": "2026-09-08T00:00:00Z"
+}

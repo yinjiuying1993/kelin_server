@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "data": {
+    "status": "ready",
+    "report_id": "00000000-0000-4000-8000-0000000000c1",
+    "eligibility": {
+      "is_eligible": true,
+      "eligible_at": "2026-09-14T03:46:00Z",
+      "days_remaining": 0,
+      "required_dialogue_rounds": 10,
+      "completed_dialogue_rounds": 10,
+      "dialogue_rounds_remaining": 0
+    },
+    "card": {
+      "id": "00000000-0000-4000-8000-0000000000c1",
+      "status": "ready",
+      "rules_version": "report-rules-v1",
+      "title": "阴天收集者 · 学者",
+      "spirit": {
+        "id": "00000000-0000-4000-8000-0000000000b1",
+        "name": "雾生",
+        "stage": "formed",
+        "public_layers": ["spirit", "scholar"]
+      },
+      "room_weather": "cloudy",
+      "top_traits": [
+        {"dimension": "closeness", "value": 78},
+        {"dimension": "nocturnal", "value": 66}
+      ],
+      "top_memories": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000d1",
+          "type": "sight",
+          "summary": "雨夜路灯",
+          "unavailable": false
+        },
+        {
+          "id": "00000000-0000-4000-8000-0000000000d2",
+          "type": null,
+          "summary": null,
+          "unavailable": true
+        }
+      ],
+      "scholar_marks": ["interview-v1"],
+      "signature_line": "它最像你的地方，是安静里仍肯靠近。",
+      "invite_code": "ABCD2345",
+      "generated_at": "2026-09-14T04:00:00Z",
+      "version": 3
+    }
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000e5",
+  "server_time": "2026-09-14T04:02:00Z"
+}

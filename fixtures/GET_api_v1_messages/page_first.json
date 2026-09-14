@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-000000000063",
+        "client_id": null,
+        "role": "spirit",
+        "content": "嗯。",
+        "source": "text",
+        "status": "generated",
+        "reply_to_message_id": "00000000-0000-4000-8000-000000000062",
+        "source_refs": [],
+        "created_at": "2026-09-08T00:00:06Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000062",
+        "client_id": "00000000-0000-4000-8000-000000000061",
+        "role": "user",
+        "content": "你好",
+        "source": "text",
+        "status": "accepted",
+        "reply_to_message_id": null,
+        "source_refs": [],
+        "created_at": "2026-09-08T00:00:05Z"
+      }
+    ],
+    "next_cursor": "kelin.msg.v1.a",
+    "has_more": true,
+    "snapshot_at": "2026-09-08T00:00:10Z"
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000053",
+  "server_time": "2026-09-08T00:00:10Z"
+}

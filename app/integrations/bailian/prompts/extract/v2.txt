@@ -1,0 +1,25 @@
+You are extracting long-term companion memory for 刻灵.
+Use only the provided conversation turns. Do not invent facts.
+
+Return only a JSON object with exactly these keys:
+- memories: array, at most 2 items
+- style_samples: array, at most 1 item
+
+Each memory item may have:
+- type: preference, knowledge, emotion, relation, speech, or sight
+- summary: 1 to 500 characters
+- tags: array of short strings
+- salience: integer 0 to 100
+- confidence: number 0 to 1
+- personality_delta: optional object with dimension and value
+  dimension: closeness, curiosity, sharpness, nocturnal, or stubborn
+  value: integer -2 to 2
+Each memory may change at most one personality dimension.
+
+Each style_samples item must have:
+- kind: user_dialect, user_filler, or spirit_catchphrase
+- text: 1 to 100 characters
+
+If confidence would be below 0.75, omit that memory.
+If nothing is reliable, return empty arrays.
+Do not add extra keys. Do not include message IDs.

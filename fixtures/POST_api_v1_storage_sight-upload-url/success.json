@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "data": {
+    "upload_session_id": "00000000-0000-4000-8000-000000000091",
+    "method": "PUT",
+    "url": "https://kelin.invalid/object/kelin-sight/sight-temp/00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002/00000000-0000-4000-8000-000000000091.jpg?exp=1780000000&sig=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "headers": {
+      "content-type": "image/jpeg"
+    },
+    "object_path": "sight-temp/00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002/00000000-0000-4000-8000-000000000091.jpg",
+    "expires_at": "2026-09-08T00:10:00Z",
+    "max_size_bytes": 5242880
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000090",
+  "server_time": "2026-09-08T00:00:00Z"
+}

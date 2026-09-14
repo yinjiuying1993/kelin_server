@@ -1,0 +1,60 @@
+{
+  "ok": true,
+  "data": {
+    "resource": {
+      "friend_id": "00000000-0000-4000-8000-0000000000d1",
+      "spirit": {
+        "id": "00000000-0000-4000-8000-0000000000d2",
+        "title": "阴天收集者",
+        "stage": "formed",
+        "public_marks": [
+          "interview-v1"
+        ],
+        "status": "home"
+      },
+      "created_at": "2026-09-08T00:00:08Z"
+    },
+    "patch": {
+      "snapshot_version": 4,
+      "spirit": null,
+      "preferences": null,
+      "room": null,
+      "onboarding": null,
+      "report": null,
+      "social": {
+        "friends_upsert": [
+          {
+            "friend_id": "00000000-0000-4000-8000-0000000000d1",
+            "spirit": {
+              "id": "00000000-0000-4000-8000-0000000000d2",
+              "title": "阴天收集者",
+              "stage": "formed",
+              "public_marks": [
+                "interview-v1"
+              ],
+              "status": "home"
+            },
+            "created_at": "2026-09-08T00:00:08Z"
+          }
+        ],
+        "friends_removed": [],
+        "visit_plan": null
+      },
+      "memories_upsert": [],
+      "memory_tombstones": [],
+      "postcards_upsert": [],
+      "pact": null
+    },
+    "quotas": [],
+    "events": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000d5",
+        "type": "friend.added",
+        "occurred_at": "2026-09-08T00:00:00Z"
+      }
+    ]
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000fb",
+  "server_time": "2026-09-08T00:00:00Z"
+}

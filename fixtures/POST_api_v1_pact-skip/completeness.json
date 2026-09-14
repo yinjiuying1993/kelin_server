@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "data": {
+    "resource": {
+      "type": "pact_session",
+      "id": "00000000-0000-4000-8000-0000000000c1",
+      "pact_id": "00000000-0000-4000-8000-0000000000c0",
+      "date": "2026-09-09",
+      "day_index": 2,
+      "status": "skipped",
+      "row_version": 2
+    },
+    "patch": {
+      "snapshot_version": 3,
+      "spirit": null,
+      "preferences": null,
+      "room": null,
+      "onboarding": null,
+      "report": null,
+      "social": null,
+      "memories_upsert": [],
+      "memory_tombstones": [],
+      "postcards_upsert": [],
+      "pact": {
+        "type": "pact",
+        "id": "00000000-0000-4000-8000-0000000000c0",
+        "theme": "interview",
+        "title": "面试准备",
+        "notes_memory_id": null,
+        "question_bank_version": "interview-v1",
+        "status": "active",
+        "completed_sessions": 0,
+        "skipped_sessions": 1,
+        "completeness": 80,
+        "scholar_mark": null,
+        "week_start": "2026-09-08",
+        "starts_at": "2026-09-08T00:00:00Z",
+        "ends_at": "2026-09-15T00:00:00Z",
+        "version": 2,
+        "created_at": "2026-09-08T00:00:00Z"
+      }
+    },
+    "quotas": [],
+    "events": []
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000e4",
+  "server_time": "2026-09-08T00:00:00Z"
+}

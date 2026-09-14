@@ -1,0 +1,91 @@
+{
+  "ok": true,
+  "data": {
+    "resource": {
+      "type": "feed",
+      "id": "00000000-0000-4000-8000-000000000070",
+      "version": 2,
+      "kind": "sight",
+      "status": "accepted",
+      "promise_status": null
+    },
+    "prop": "lamp",
+    "patch": {
+      "snapshot_version": 3,
+      "spirit": {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "name": "未名",
+        "egg": "warm",
+        "invite_code": "ABCD2345",
+        "closeness": 65,
+        "curiosity": 55,
+        "sharpness": 35,
+        "nocturnal": 40,
+        "stubborn": 40,
+        "hunger": 50,
+        "energy": 50,
+        "mood": 50,
+        "bond": 0,
+        "stage": "whelp",
+        "status": "home",
+        "scholar_marks": [],
+        "version": 3,
+        "onboarding_step": 0,
+        "onboarding_completed_at": null,
+        "hatched_at": "2026-09-08T00:00:00Z",
+        "created_at": "2026-09-08T00:00:00Z"
+      },
+      "preferences": null,
+      "room": {
+        "weather": "cloudy",
+        "layers": ["spirit"],
+        "letter": null,
+        "pending_sight": null,
+        "unread_footprint_count": 0,
+        "updated_at": "2026-09-08T00:00:00Z"
+      },
+      "onboarding": {
+        "required": false,
+        "step": 5,
+        "total_steps": 5,
+        "completed_at": "2026-09-08T00:00:00Z"
+      },
+      "report": null,
+      "social": null,
+      "memories_upsert": [
+        {
+          "id": "00000000-0000-4000-8000-000000000071",
+          "type": "sight",
+          "summary": "窗台上的见闻",
+          "tags": ["lamp"],
+          "salience": 70,
+          "confidence": 1.0,
+          "status": "active",
+          "version": 1,
+          "created_at": "2026-09-08T00:00:00Z"
+        }
+      ],
+      "memory_tombstones": [],
+      "postcards_upsert": [],
+      "pact": null
+    },
+    "quotas": [
+      {
+        "capability": "sight",
+        "used": 1,
+        "limit": 2,
+        "reset_at": "2026-09-08T16:00:00Z"
+      }
+    ],
+    "events": [
+      {
+        "id": "00000000-0000-4000-8000-000000000072",
+        "type": "feed.accepted",
+        "occurred_at": "2026-09-08T00:00:00Z"
+      }
+    ]
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000073",
+  "server_time": "2026-09-08T00:00:00Z"
+}

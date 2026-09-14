@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-000000000084",
+        "type": "speech",
+        "summary": "口头禅是「那就这样」",
+        "tags": ["口癖"],
+        "salience": 50,
+        "confidence": 0.84,
+        "status": "active",
+        "version": 1,
+        "created_at": "2026-09-08T00:00:04Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000085",
+        "type": "sight",
+        "summary": "雨夜里的一盏路灯",
+        "tags": ["见闻"],
+        "salience": 65,
+        "confidence": 0.86,
+        "status": "active",
+        "version": 1,
+        "created_at": "2026-09-08T00:00:03Z"
+      }
+    ],
+    "tombstones": [],
+    "next_cursor": null,
+    "has_more": false,
+    "snapshot_at": "2026-09-08T00:00:10Z"
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000a5",
+  "server_time": "2026-09-08T00:00:10Z"
+}

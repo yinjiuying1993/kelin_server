@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "IDEMPOTENCY_CONFLICT",
+    "message": "request failed",
+    "retryable": false
+  },
+  "request_id": "00000000-0000-4000-8000-0000000000ff",
+  "server_time": "2026-09-08T00:00:00Z"
+}

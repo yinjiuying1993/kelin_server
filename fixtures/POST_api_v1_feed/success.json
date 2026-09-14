@@ -1,0 +1,78 @@
+{
+  "ok": true,
+  "data": {
+    "resource": {
+      "type": "feed",
+      "id": "00000000-0000-4000-8000-000000000060",
+      "version": 1,
+      "kind": "food",
+      "status": "accepted",
+      "promise_status": null
+    },
+    "patch": {
+      "snapshot_version": 2,
+      "spirit": {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "name": "未名",
+        "egg": "warm",
+        "invite_code": "ABCD2345",
+        "closeness": 65,
+        "curiosity": 55,
+        "sharpness": 35,
+        "nocturnal": 40,
+        "stubborn": 40,
+        "hunger": 90,
+        "energy": 90,
+        "mood": 60,
+        "bond": 0,
+        "stage": "whelp",
+        "status": "home",
+        "scholar_marks": [],
+        "version": 2,
+        "onboarding_step": 0,
+        "onboarding_completed_at": null,
+        "hatched_at": null,
+        "created_at": "2026-09-08T00:00:00Z"
+      },
+      "preferences": null,
+      "room": {
+        "weather": "cloudy",
+        "layers": ["spirit"],
+        "letter": null,
+        "pending_sight": null,
+        "unread_footprint_count": 0,
+        "updated_at": "2026-09-08T00:00:00Z"
+      },
+      "onboarding": {
+        "required": true,
+        "step": 0,
+        "total_steps": 5,
+        "completed_at": null
+      },
+      "report": null,
+      "social": null,
+      "memories_upsert": [],
+      "memory_tombstones": [],
+      "postcards_upsert": [],
+      "pact": null
+    },
+    "quotas": [
+      {
+        "capability": "food",
+        "used": 1,
+        "limit": 3,
+        "reset_at": "2026-09-08T16:00:00Z"
+      }
+    ],
+    "events": [
+      {
+        "id": "00000000-0000-4000-8000-000000000061",
+        "type": "feed.accepted",
+        "occurred_at": "2026-09-08T00:00:00Z"
+      }
+    ]
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000062",
+  "server_time": "2026-09-08T00:00:00Z"
+}

@@ -1,0 +1,1 @@
+Return only JSON with keys summary and prop. summary is 1-500 characters in Chinese describing the room-sill sight. prop is one of lamp, plant, book, object, other. No extra keys. Do not invent GPS, addresses, or people names.

@@ -1,0 +1,12 @@
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "CONFLICT",
+    "message": "conflict",
+    "retryable": false,
+    "details": {"current_snapshot_version": 3}
+  },
+  "request_id": "00000000-0000-4000-8000-0000000000d2",
+  "server_time": "2026-09-12T10:00:00Z"
+}

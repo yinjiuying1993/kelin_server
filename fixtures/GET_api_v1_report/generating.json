@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "data": {
+    "status": "generating",
+    "report_id": "00000000-0000-4000-8000-0000000000c1",
+    "eligibility": {
+      "is_eligible": true,
+      "eligible_at": "2026-09-14T03:46:00Z",
+      "days_remaining": 0,
+      "required_dialogue_rounds": 10,
+      "completed_dialogue_rounds": 10,
+      "dialogue_rounds_remaining": 0
+    },
+    "card": null
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000e3",
+  "server_time": "2026-09-14T04:00:00Z"
+}

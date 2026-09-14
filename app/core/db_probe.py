@@ -26,19 +26,29 @@ class OkDatabaseProbe:
         return None
 
 
+def asyncpg_connect_dsn(url: str) -> str:
+    """asyncpg rejects SQLAlchemy's postgresql+asyncpg scheme."""
+    if url.startswith("postgresql+asyncpg://"):
+        return f"postgresql://{url.removeprefix('postgresql+asyncpg://')}"
+    return url
+
+
 class AsyncpgDatabaseProbe:
     def __init__(self, url: SecretStr) -> None:
         self._url = url
 
     async def ping(self) -> None:
         try:
-            import asyncpg  # type: ignore[import-not-found]
+            import asyncpg  # type: ignore[import-untyped]
         except ImportError:
             raise DatabaseUnavailable("database_driver_unavailable") from None
 
         connection = None
         try:
-            connection = await asyncpg.connect(self._url.get_secret_value(), timeout=2)
+            connection = await asyncpg.connect(
+                asyncpg_connect_dsn(self._url.get_secret_value()),
+                timeout=2,
+            )
             await connection.execute("select 1")
         except DatabaseUnavailable:
             raise
