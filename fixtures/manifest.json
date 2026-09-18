@@ -425,9 +425,9 @@
       ]
     }
   ],
-  "generated_at": "2026-09-14T02:50:01Z",
-  "openapi_sha256": "fed40c13c30d2203f20ed83c7ad208042c13f35e330d3491e407f22be0593230",
+  "generated_at": "2026-09-14T08:37:16Z",
+  "openapi_sha256": "98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af",
   "schema_version": 2,
   "source_app": "app.main:create_app",
-  "source_commit": null
+  "source_commit": "023a9ef8a95e89b19d685d02715ad7f5fbde3410"
 }

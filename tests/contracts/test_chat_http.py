@@ -100,7 +100,7 @@ async def _seed_user(url: str, user_id: UUID) -> None:
 def test_router_does_not_contain_settlement_sql() -> None:
     source = ROUTER_PATH.read_text(encoding="utf-8")
     assert "INSERT INTO" not in source
-    assert "settle_chat_turn" in source
+    assert "complete_chat_turn" in source
     assert "chat_turn_result_from_settlement" in source
     assert "INTERNAL_ERROR" not in source
     assert "httpx" not in source
@@ -154,11 +154,16 @@ async def _assert_chat_http(url: str) -> None:
         version = ChatTurnResult.model_validate(first.json()["data"]).patch.spirit
         assert version is not None
         current_version = version.version
-        for _ in range(4):
-            turn = client.post("/api/v1/chat", json=_chat_body(), headers=auth)
+        for index in range(4):
+            body = _chat_body()
+            if index == 0:
+                body["source"] = "voice"
+            turn = client.post("/api/v1/chat", json=body, headers=auth)
             assert turn.status_code == 200, turn.text
             parsed = ChatTurnResult.model_validate(turn.json()["data"])
             assert parsed.patch.spirit is not None
+            if index == 0:
+                assert parsed.resource.speech_audio is None
             current_version = parsed.patch.spirit.version
         complete = client.post(
             "/api/v1/onboarding/complete",
@@ -177,6 +182,7 @@ async def _assert_chat_http(url: str) -> None:
     assert data.resource.usage.input_units == 0
     assert data.resource.usage.output_units == 0
     assert data.resource.spirit_message.content == "嗯。"
+    assert data.resource.speech_audio is None
     assert data.patch.room is None
     assert data.patch.onboarding is not None
     assert data.patch.onboarding.required is True

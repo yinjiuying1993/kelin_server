@@ -28,6 +28,11 @@ def test_timeouts_match_spec_and_stay_below_client_chat_budget() -> None:
     assert PROVIDER_TIMEOUT_SECONDS["safety"] == 28
     assert PROVIDER_TIMEOUT_SECONDS["search"] == 12
     assert PROVIDER_TIMEOUT_SECONDS["chat"] < CLIENT_CHAT_TIMEOUT_SECONDS
+    assert (
+        PROVIDER_TIMEOUT_SECONDS["chat"] + PROVIDER_TIMEOUT_SECONDS["tts"]
+        < CLIENT_CHAT_TIMEOUT_SECONDS
+    )
+    assert CLIENT_CHAT_TIMEOUT_SECONDS == 48
     assert PROVIDER_CONDITIONAL_RETRY_COUNT == 1
     assert PROVIDER_RETRY_ON == frozenset({"connect", "http_429", "http_5xx"})
 

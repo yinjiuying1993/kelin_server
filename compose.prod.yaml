@@ -1,0 +1,66 @@
+name: kelin-server-prod
+
+x-runtime: &runtime
+  build:
+    context: .
+    target: runtime
+  image: kelin-server:runtime
+  env_file:
+    - .env
+  restart: unless-stopped
+  init: true
+
+services:
+  api:
+    <<: *runtime
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=2).read()",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+
+  scheduler:
+    <<: *runtime
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["uv", "run", "--frozen", "--no-dev", "python", "-m", "app.scheduler"]
+
+  worker:
+    <<: *runtime
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["uv", "run", "--frozen", "--no-dev", "python", "-m", "app.worker"]
+
+  # Self-hosted business DB (same split as local: Postgres here, Supabase Auth only).
+  # DATABASE_URL_API host is `postgres`. Do not publish 5432. Never use compose.yaml postgres-test.
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kelin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-kelin}
+    volumes:
+      - kelin-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  kelin-pgdata:

@@ -3,12 +3,12 @@
 V0 全量入口：[`ios-integration.md`](ios-integration.md)。
 
 面向 iOS ↔ 本机 FastAPI，覆盖 **社交串门、设备通知、七日鉴定、设置/注销、找回与 Debug**。  
-前置：已按 [`p01-p07-integration.md`](p01-p07-integration.md) 孵化（`hatched_at` 有值）。房间/Chat [`p08-p10-integration.md`](p08-p10-integration.md)；记忆 [`p11-integration.md`](p11-integration.md)；投喂 [`p12-integration.md`](p12-integration.md)；成长 [`p13-integration.md`](p13-integration.md)；语音 [`p14-integration.md`](p14-integration.md)；共学 [`p15-integration.md`](p15-integration.md)。  
+前置：已按 [`p01-p07-integration.md`](p01-p07-integration.md) 孵化（`hatched_at` 有值）。房间/Chat [`p08-p10-integration.md`](p08-p10-integration.md)；记忆 [`p11-integration.md`](p11-integration.md)；投喂 [`p12-integration.md`](p12-integration.md)；成长 [`p13-integration.md`](p13-integration.md)；语音 [`p14-integration.md`](p14-integration.md) / 语音 Chat TTS [`p14-chat-voice-tts.md`](p14-chat-voice-tts.md)；共学 [`p15-integration.md`](p15-integration.md)。  
 **不是阶段验收**；`1_plan/STATUS.md` 仍由人工更新。本机工作区 `3_ios/` 仍无 App 源码，本文给 **192.168.100.205** 上的 iOS 工程改。
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `fed40c13c30d2203f20ed83c7ad208042c13f35e330d3491e407f22be0593230` |
+| OpenAPI SHA-256 | `98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af` |
 | Alembic head | `20260908_0019`（P20 **未改库**） |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/`（与 SHA 同锁） |

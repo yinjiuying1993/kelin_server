@@ -23,7 +23,7 @@ MIGRATION = ROOT / "app" / "db" / "migrations" / "versions" / "20260908_0015_vis
 REPO = ROOT / "app" / "repositories" / "visits.py"
 SERVICE = ROOT / "app" / "services" / "visit_settle.py"
 ROUTER = ROOT / "app" / "api" / "v1" / "social.py"
-_OPENAPI_SHA = "fed40c13c30d2203f20ed83c7ad208042c13f35e330d3491e407f22be0593230"
+_OPENAPI_SHA = "98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af"
 
 
 def test_settle_keys_and_templates_are_public_only() -> None:

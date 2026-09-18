@@ -17,6 +17,7 @@
       },
       "conversation_window_id": "00000000-0000-4000-8000-000000000042",
       "should_extract": false,
+      "speech_audio": null,
       "usage": {
         "input_units": 0,
         "output_units": 0

@@ -36,7 +36,8 @@ PROVIDER_CIRCUIT_WINDOW_SECONDS = 300
 PROVIDER_CIRCUIT_OPEN_SECONDS = 120
 PROVIDER_CIRCUIT_MIN_SAMPLES = 2
 PROVIDER_CIRCUIT_ERROR_RATE = 0.5
-CLIENT_CHAT_TIMEOUT_SECONDS = 25
+# Voice turns synthesize after chat; client budget must cover both upstream deadlines.
+CLIENT_CHAT_TIMEOUT_SECONDS = 48
 
 _FAILURE_MAP: dict[ProviderFailureKind, tuple[str, int, bool]] = {
     "timeout": ("PROVIDER_TIMEOUT", 504, True),

@@ -239,7 +239,10 @@ Authorization: Bearer <access_token>
 | `user_message` / `spirit_message` | 成对；失败不推进 round |
 | `conversation_window_id` | 服务端窗口；不足 3 普通轮也可能是 **open** 窗口 |
 | `should_extract` | **仅**窗口 `ready` 时为 true |
+| `speech_audio` | `source=voice` 时可能带合成短链；文字回合为 `null`。TTS 失败不改变 Chat 200 |
 | `usage` | 单位计数；不要当计费 UI |
+
+`source=voice` 时 `speech_audio` 的解码、48s 超时、播放改 host：见 [`p14-chat-voice-tts.md`](p14-chat-voice-tts.md)。
 
 Composer：一条在途、最多三条 FIFO；达上限禁用发送。超时/失败 **原 ID 重试**。新句子新 UUID。  
 本阶段 Chat UI **不要**加录音/TTS 控件。
@@ -259,7 +262,7 @@ iOS **只看响应**：
 - `generation_source === "provider"` → 可标真实陪伴（不要写具体模型名）  
 - `"stub"` → 仍是占位，不得宣传百炼  
 
-上游 Chat 约 **18s**（S04 与普通轮相同）；超时 `504 PROVIDER_TIMEOUT`（`retryable=true`），同一 `client_message_id` 重试。  
+上游 Chat 约 **18s**（S04 与普通轮相同）；语音回合还要合成 TTS，客户端超时按 **48s**。超时 `504 PROVIDER_TIMEOUT`（`retryable=true`），同一 `client_message_id` 重试。  
 其它：`503 MODEL_UNAVAILABLE`、`429 RATE_LIMITED` / `QUOTA_EXCEEDED`。  
 
 智能体应用 HTTP 200 但 `output.text` 是自然语言、或 JSON 带 extra 字段时：服务端只收下白名单（`reply` / `intent` / `citations` / `safety` / `search_query`），其余丢掉，**会落成有效回复**。`safety` 非 `allow` 仍 503。compatible-mode 的严格 JSON Schema **不变**。  

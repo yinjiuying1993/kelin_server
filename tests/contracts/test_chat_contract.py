@@ -94,6 +94,7 @@ def test_openapi_post_chat_locks_onboarding_stub_errors_and_counts() -> None:
     assert "spirit_message" in resource_names
     assert "conversation_window_id" in resource_names
     assert "should_extract" in resource_names
+    assert "speech_audio" in resource_names
     assert "usage" in resource_names
     generation = _resolve_property(spec, resource, "generation_source")
     assert set(generation.get("enum", [])) == {"stub", "provider"}
@@ -104,6 +105,12 @@ def test_openapi_post_chat_locks_onboarding_stub_errors_and_counts() -> None:
     assert "message IDs" in window_description
     extract = _resolve_property(spec, resource, "should_extract")
     assert "ready" in (extract.get("description") or "")
+    raw_speech = _raw_property(spec, resource, "speech_audio")
+    speech_desc = raw_speech.get("description") or ""
+    assert "source=voice" in speech_desc
+    assert "null" in speech_desc.lower()
+    resource_required = set(_resolve_schema(spec, resource).get("required", []))
+    assert "speech_audio" in resource_required
     resource_onboarding = _resolve_property(spec, resource, "onboarding")
     assert "ordinary_dialogue_rounds" in (resource_onboarding.get("description") or "")
     type_schema = _resolve_property(spec, resource, "type")
@@ -112,6 +119,8 @@ def test_openapi_post_chat_locks_onboarding_stub_errors_and_counts() -> None:
     assert "PROVIDER_TIMEOUT" in description
     assert "ordinary_dialogue_rounds" in description
     assert "onboarding_step" in description
+    assert "speech_audio" in description
+    assert "48s" in description
 
 
 def test_success_fixture_is_stub_onboarding_turn() -> None:
@@ -126,6 +135,7 @@ def test_success_fixture_is_stub_onboarding_turn() -> None:
     assert result.resource.onboarding is True
     assert result.resource.generation_source == "stub"
     assert result.resource.should_extract is False
+    assert result.resource.speech_audio is None
     assert result.resource.usage.input_units == 0
     assert result.patch.onboarding is not None
     assert result.patch.onboarding.step == 1
@@ -150,6 +160,15 @@ def _schema_property_names(spec: dict[str, Any], schema: dict[str, Any]) -> set[
         if isinstance(item, dict):
             names |= _schema_property_names(spec, item)
     return names
+
+
+def _raw_property(spec: dict[str, Any], schema: dict[str, Any], name: str) -> dict[str, Any]:
+    resolved = _resolve_schema(spec, schema)
+    properties = resolved.get("properties", {})
+    raw = properties.get(name)
+    if isinstance(raw, dict):
+        return raw
+    raise AssertionError(f"schema property {name} not found")
 
 
 def _resolve_property(spec: dict[str, Any], schema: dict[str, Any], name: str) -> dict[str, Any]:

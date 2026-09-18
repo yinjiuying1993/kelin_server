@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from app.domain.speech import TTS_OUTPUT_MIME
 from app.schemas.speech import (
-    SpeechAudioResource,
     SynthesizeResult,
     TranscribeResult,
     TranscriptResource,
 )
+from app.schemas.speech_audio import SpeechAudioResource
 from app.schemas.spirit import MutationPatch
 from app.services.speech import SynthesizeSettlement, TranscribeSettlement
 

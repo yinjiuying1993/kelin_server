@@ -8,7 +8,7 @@
 
 | 项 | 当前值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `fed40c13c30d2203f20ed83c7ad208042c13f35e330d3491e407f22be0593230` |
+| OpenAPI SHA-256 | `98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af` |
 | Alembic head | `20260908_0019` |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/`（与 SHA 同锁，见 `manifest.json`） |
@@ -118,7 +118,7 @@ ViewModel 禁止对 `bond/hunger/status/stage/quota.used/score` 做乐观加减�
 | P11 | [`p11-integration.md`](p11-integration.md) | 记忆 list / correct / seal / delete / clear |
 | P12 | [`p12-integration.md`](p12-integration.md) | 五类 Feed、Promise、地点见闻。照片 PUT 本机桶仍是内存，真机上传常落不到 |
 | P13 | [`p13-integration.md`](p13-integration.md) | 无新写接口。成长/进化/18h/72h/配额只合 patch |
-| P14 | [`p14-integration.md`](p14-integration.md) | `POST /transcribe`、`POST /synthesize`；播放 URL 有签名过期 |
+| P14 | [`p14-integration.md`](p14-integration.md) | `POST /transcribe`、`POST /synthesize`；播放 URL 有签名过期。语音 Chat 带回 TTS：[`p14-chat-voice-tts.md`](p14-chat-voice-tts.md) |
 | P15 | [`p15-integration.md`](p15-integration.md) | Pact create/session/answer/skip；完成只发生在末题 answer 事务内 |
 | P16 | [`p16-integration.md`](p16-integration.md) | 好友、明信片；串门 worker-only |
 | P17 | [`p17-integration.md`](p17-integration.md) | `POST /devices`；**不发 APNs**；Promise 仍用 iOS 本地通知 |
@@ -191,6 +191,7 @@ launching → restoringSession / signingInAnonymously
   → POST /onboarding/complete → hatched_at 有值 → ready
   → S01 房间（spirit.status + room）
   → S05 Chat：GET /messages + POST /chat；should_extract → POST /extract
+       source=voice 的成功包带 speech_audio（见 p14-chat-voice-tts.md）
   → S07 记忆 / S06 投喂 / S05 语音 / S08 共学
   → S09 好友明信片（串门等 worker）
   → 设备登记；S10 鉴定；S11 设置；走失 POST /recall
@@ -229,7 +230,7 @@ S02：AI 声明不可预勾。孵化完成以服务端 `hatched_at` 为准，不
 
 - [ ] `health/live` 真机可达；ATS 已放行 `192.168.100.212`
 - [ ] 匿名 JWT `alg=RS256`；无 token 业务接口 401
-- [ ] DTO / fixture 锁 SHA `fed40c13…`，不是分册里的历史值
+- [ ] DTO / fixture 锁 SHA `98d1c742…`，不是分册里的历史值；语音 Chat 解 `speech_audio`
 - [ ] Envelope 用 `error.code`；日志无 JWT / token / Prompt
 - [ ] `client_id` 稳定；未知字段解码失败可观测
 - [ ] SessionStore：bootstrap 整包；patch 按版本合入；null 不当清空

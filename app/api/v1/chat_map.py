@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from app.api.v1.spirit_map import utc_z, utc_z_optional
 from app.domain.chat import ChatTurnSettlement
+from app.domain.speech import TTS_OUTPUT_MIME
 from app.schemas.chat import ChatMessagePublic, ChatTurnResource, ChatTurnResult, ChatUsage
+from app.schemas.speech_audio import SpeechAudioResource
 from app.schemas.spirit import MutationPatch, OnboardingState, SpiritPublic
 
 
@@ -53,6 +55,7 @@ def chat_turn_result_from_settlement(settlement: ChatTurnSettlement) -> ChatTurn
             ),
             conversation_window_id=settlement.conversation_window_id,
             should_extract=settlement.should_extract,
+            speech_audio=_speech_audio_resource(settlement),
             usage=ChatUsage(
                 input_units=settlement.input_units,
                 output_units=settlement.output_units,
@@ -69,4 +72,18 @@ def chat_turn_result_from_settlement(settlement: ChatTurnSettlement) -> ChatTurn
             ),
         ),
         quotas=list(settlement.quotas),
+    )
+
+
+def _speech_audio_resource(settlement: ChatTurnSettlement) -> SpeechAudioResource | None:
+    attached = settlement.speech_audio
+    if attached is None:
+        return None
+    return SpeechAudioResource(
+        type="speech_audio",
+        audio_url=attached.audio_url,
+        mime=TTS_OUTPUT_MIME,
+        duration_ms=attached.duration_ms,
+        expires_at=attached.expires_at,
+        cache_hit=attached.cache_hit,
     )

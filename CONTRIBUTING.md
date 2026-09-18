@@ -10,9 +10,9 @@
 
 ## 开始前
 
-- 一次只执行一个 `Pxx-Txx`；非计划缺陷使用 `BUG-<id>`。
-- 检查当前分支、`git status` 和 `git diff`，保护用户已有修改。
-- 从最新 `main` 创建分支，禁止直接向 `main` 提交。
+- 一次只执行一个 `Sxx-Txx` 或 `Pxx-Txx`；非计划缺陷使用 `BUG-<id>`。
+- 检查当前是否在 `main`、`git status` 和 `git diff`，保护用户已有修改。
+- **V1 上线前**：直接在 `main` 上开发，不新建功能分支，不开 PR。上线后恢复分支与 PR，见统一 Git 规范第 0 节。
 - 涉及 API 时先评审 OpenAPI，固定 SHA，再实现兼容服务端、fixture 和消费者。
 - 数据库结构与数据迁移只允许通过 Alembic revision 管理。
 - 不得修改工作区的 `1_plan/` 或 `0_kelin/`。
@@ -27,9 +27,9 @@ chore(repo): 建立仓库协作基线
 Refs: GOV-001
 ```
 
-首次提交不得包含业务代码。远端 `main` 建立并配置保护后，P01 及后续所有代码必须从任务分支经 PR 合并。AI 未获用户明确授权时仍不得自行 commit 或 push。
+首次提交不得包含业务代码。AI 未获用户明确授权时仍不得自行 commit 或 push。V1 上线前后续功能继续在 `main` 上开发；上线后再恢复分支与 PR。
 
-## 分支
+## 分支（V1 上线后恢复）
 
 格式：
 
@@ -75,9 +75,9 @@ fix(rls): 阻止跨账号读取记忆
 Refs: BUG-142
 ```
 
-## Pull Request
+## Pull Request（V1 上线后恢复）
 
-标题：
+V1 上线前不新建 PR。上线后标题：
 
 ```text
 [Pxx-Txx][Server] 目标

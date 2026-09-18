@@ -137,7 +137,7 @@ def test_t01_does_not_change_openapi_sha() -> None:
     exported = export_openapi(create_app(Settings(app_env="test")))
     manifest = json.loads((_FIXTURES / "manifest.json").read_text(encoding="utf-8"))
     assert exported.sha256 == manifest["openapi_sha256"]
-    assert exported.sha256 == "fed40c13c30d2203f20ed83c7ad208042c13f35e330d3491e407f22be0593230"
+    assert exported.sha256 == "98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af"
 
 
 def test_client_delta_field_names_cover_payload_keys() -> None:

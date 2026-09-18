@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.envelope import EnvelopeError
 from app.schemas.jsonb import SourceRef
+from app.schemas.speech_audio import SpeechAudioResource
 from app.schemas.spirit import MutationEvent, MutationPatch, QuotaUsage
 
 ChatSource = Literal["text", "voice", "onboarding"]
@@ -77,6 +78,13 @@ class ChatTurnResource(_ForbidExtra):
     )
     should_extract: bool = Field(
         description="True only when the conversation window status is ready for extract."
+    )
+    speech_audio: SpeechAudioResource | None = Field(
+        description=(
+            "Filled after source=voice chat persists the spirit reply. Null for text turns, "
+            "replies over 200 characters, TTS quota exhaustion, or synthesis failure. Chat "
+            "still returns 200; clients play audio_url or fall back to text."
+        )
     )
     usage: ChatUsage
 

@@ -11,7 +11,8 @@
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/`（与 SHA 同锁） |
 
-P13 文档里的 SHA `4297869e…` 在 **P14-T01 加语音端点后作废**。P08/P11 旧 SHA 也不要再用。语音联调解码请用上表。P15-T01 起 Pact 解码改用 [`p15-integration.md`](p15-integration.md) 的 SHA。P16 起当前全量锁见 [`p16-p20-integration.md`](p16-p20-integration.md)（`fed40c13…`）。
+P13 文档里的 SHA `4297869e…` 在 **P14-T01 加语音端点后作废**。P08/P11 旧 SHA 也不要再用。当前全量锁见 [`p16-p20-integration.md`](p16-p20-integration.md)（`98d1c742…`）。  
+**语音回合 Chat 带回 TTS**：按 [`p14-chat-voice-tts.md`](p14-chat-voice-tts.md) 改 DTO / 超时 / 播放，不要沿用下文「Chat 后再打 `/synthesize`」当主路径。
 
 P13 文末「不要打 ASR/TTS」已被本文取代：本机 **可以**打 `/transcribe` 与 `/synthesize`。T04–T08 仍是 iOS 工程；T09 真机真实百炼未做。Pact 不要按本文「不要打」——改看 P15。
 
@@ -21,7 +22,7 @@ P13 文末「不要打 ASR/TTS」已被本文取代：本机 **可以**打 `/tra
 | :--- | :--- | :--- |
 | P14-T01 契约 | **OpenAPI / fixture / m4a 格式已锁** | `POST /api/v1/transcribe`、`POST /api/v1/synthesize` |
 | P14-T02 ASR | **已接线**。MIME/容器/5MiB/30s → 短事务预留配额 → 唯一 Provider → 提交/释放。Router 不直调百炼。临时 m4a `finally` 删除 | `POST /api/v1/transcribe` |
-| P14-T03 TTS | **已接线**。owner 校验 → 正文 ≤200 字 → 24h 进程内缓存 → Provider 合成 → 10min 签名 GET。Router 不直调百炼。API 重启会丢缓存 | `POST /api/v1/synthesize` |
+| P14-T03 TTS | **已接线**。owner 校验 → 正文 ≤200 字 → 24h 进程内缓存 → Provider 合成 → 10min 签名 GET。`source=voice` 的 `POST /chat` 在文字落库后合成，把同一套 `speech_audio` 带回 Chat 响应；失败为 null，Chat 仍 200 | `POST /api/v1/synthesize`、`POST /api/v1/chat` |
 | 播放 GET | **已接线，不进 OpenAPI** | `GET /object/{bucket}/{object_path}`（`include_in_schema=False`） |
 | P14-T04…T08 | **本机不做** | iOS Audio / 手势 / FIFO / 播放 / 权限 |
 | P14-T09 | **未做** | 真机 + 真实百炼复查 |
@@ -99,7 +100,10 @@ ready（hatched_at 有值）
        松开发送 → POST /transcribe
          非空 text → POST /chat source=voice（P09 FIFO）
          ASR_EMPTY_RESULT → 文案「没听清，再说一次」，零消息
-       最新 spirit 回复 → POST /synthesize → 改写 host 后 GET 播放
+       source=voice 成功包带 speech_audio（可空）
+         有 audio_url → 改写 host 后 GET 播放
+         null → 只显示文字（超 200 字 / 配额 / TTS 失败）
+       文字模式点播或短链过期 → POST /synthesize
 ```
 
 录音与 TTS **必须互斥**（T04）：按下停播；播放前取消录音。本文只保证服务端两端点可联。
@@ -112,8 +116,8 @@ ready（hatched_at 有值）
 4. **alias 被清空**：合法 m4a 仍 `503 MODEL_UNAVAILABLE`  
 5. 本机已配 ASR alias：合法 m4a → 200，`resource.text`，`quotas.asr.used` +1，limit=60  
 6. 空结果 → `422 ASR_EMPTY_RESULT`，`retryable=false`，**仍计** ASR 配额，不插消息  
-7. 非空 text → `POST /chat`，`source=voice`，**新的** `client_message_id`（不是 transcribe 的 `client_id`）  
-8. `POST /synthesize` 只带 `client_id` + spirit `message_id` + `voice_profile=default`（不要传上游音色名）  
+7. 非空 text → `POST /chat`，`source=voice`，**新的** `client_message_id`（不是 transcribe 的 `client_id`）；成功包读 `speech_audio`  
+8. 文字点播或 `speech_audio` 短链过期：`POST /synthesize` 只带 `client_id` + spirit `message_id` + `voice_profile=default`（不要传上游音色名）  
 9. **alias 被清空**：仍 `503`。有 TTS alias 时 200，`cache_hit=false`，`tts.used=1`，limit=20  
 10. 同一 `message_id` 再请求（可换 synthesize `client_id`）→ `cache_hit=true`，`used` 仍为 1  
 11. 把 `audio_url` 的 `https://kelin.invalid` 换成 `http://192.168.100.212:8000`，保留 path 与 query，GET → `audio/mp4`  
@@ -172,7 +176,8 @@ POST /api/v1/chat
   context            = 与文本 Chat 相同
 ```
 
-**禁止**把 `text` 写入输入框。重试 Chat 用同一个 `client_message_id`。
+**禁止**把 `text` 写入输入框。重试 Chat 用同一个 `client_message_id`。  
+`source=voice` 成功时 `data.resource.speech_audio` 为合成结果或 `null`。`quotas` 可能含 `tts`。客户端超时按 **48s**（Chat 18s + TTS 18s + 余量）。文字回合 `speech_audio` 恒为 null。
 
 ---
 

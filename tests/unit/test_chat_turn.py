@@ -9,6 +9,7 @@ from app.domain.chat import (
     ONBOARDING_STUB_REPLIES,
     OnboardingStubGenerator,
     chat_turn_request_hash,
+    chat_voice_tts_client_id,
     conversation_window_status,
     next_onboarding_step,
     next_ordinary_dialogue_rounds,
@@ -104,6 +105,15 @@ def test_chat_turn_hash_ignores_client_id_and_changes_with_content() -> None:
     assert chat_turn_request_hash(first) == chat_turn_request_hash(second)
     assert chat_turn_request_hash(first) != chat_turn_request_hash(changed)
     assert len(chat_turn_request_hash(first)) == 64
+
+
+def test_voice_tts_client_id_is_stable_and_derived() -> None:
+    message_id = uuid4()
+    first = chat_voice_tts_client_id(message_id)
+    again = chat_voice_tts_client_id(message_id)
+    assert first == again
+    assert first != message_id
+    assert chat_voice_tts_client_id(uuid4()) != first
 
 
 def test_settle_command_does_not_accept_user_id() -> None:

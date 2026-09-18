@@ -17,6 +17,7 @@ from app.schemas.spirit import QuotaUsage
 GenerationSource = Literal["stub", "provider"]
 
 CHAT_TURN_OPERATION = "chat.turn"
+CHAT_VOICE_TTS_CLIENT_NS = "kelin://chat/voice-tts"
 CHAT_TURN_LEASE_SECONDS = 120
 CHAT_TURN_RETRY_AFTER_MS = 500
 ORDINARY_WINDOW_READY_ROUNDS = 3
@@ -31,6 +32,15 @@ class GeneratedTurn:
     input_units: int
     output_units: int
     source_refs: tuple[SourceRef, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class AttachedSpeechAudio:
+    audio_url: str
+    mime: str
+    duration_ms: int
+    expires_at: str
+    cache_hit: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +64,7 @@ class ChatTurnSettlement:
     spirit: SpiritCreateResult
     spirit_source_refs: tuple[SourceRef, ...] = ()
     quotas: tuple[QuotaUsage, ...] = ()
+    speech_audio: AttachedSpeechAudio | None = None
 
 
 class ChatGenerationError(Exception):
@@ -89,6 +100,10 @@ def next_onboarding_step(
     if current >= 5:
         return current
     return current + 1
+
+
+def chat_voice_tts_client_id(client_message_id: uuid.UUID) -> uuid.UUID:
+    return uuid.uuid5(uuid.NAMESPACE_URL, f"{CHAT_VOICE_TTS_CLIENT_NS}/{client_message_id}")
 
 
 def chat_turn_request_hash(request: ChatRequest) -> str:

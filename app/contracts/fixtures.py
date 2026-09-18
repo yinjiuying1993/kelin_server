@@ -637,6 +637,8 @@ def _evaluate_chat_entry(root: Path) -> None:
         raise FixtureValidationError("chat success fixture must identify generation_source=stub")
     if result.resource.onboarding is not True:
         raise FixtureValidationError("chat success fixture must be an onboarding turn")
+    if result.resource.speech_audio is not None:
+        raise FixtureValidationError("chat success fixture must keep speech_audio null")
     mapped = load_business_error(root, CHAT_ENTRY_ID)
     if mapped.code not in CHAT_BUSINESS_CODES:
         raise FixtureValidationError(

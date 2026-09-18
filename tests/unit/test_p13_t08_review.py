@@ -23,7 +23,7 @@ _MIGRATION_0009 = (
     _ROOT / "app" / "db" / "migrations" / "versions" / "20260908_0009_state_settle_scheduler.py"
 )
 _MIGRATION_0011 = _ROOT / "app" / "db" / "migrations" / "versions" / "20260908_0011_usage_rollup.py"
-_OPENAPI_SHA = "fed40c13c30d2203f20ed83c7ad208042c13f35e330d3491e407f22be0593230"
+_OPENAPI_SHA = "98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af"
 _SETTLEMENT_MODULES = (
     growth_service,
     quota_service,

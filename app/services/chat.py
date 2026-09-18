@@ -10,25 +10,31 @@ start/end message IDs.
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
 from datetime import datetime, timedelta
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError, public_error_message
+from app.core.logging import get_logger, hash_user_id
 from app.core.security import CurrentUser
+from app.db.session import claimed_transaction
 from app.domain.ai_usage import UsageSample, prompt_version_for
 from app.domain.builtin_bank import match_builtin_bank
 from app.domain.chat import (
     CHAT_TURN_LEASE_SECONDS,
     CHAT_TURN_RETRY_AFTER_MS,
     UNKNOWN_SOURCE_REPLY,
+    AttachedSpeechAudio,
     ChatGenerationError,
     ChatTurnGenerator,
     ChatTurnSettlement,
     GeneratedTurn,
     GenerationSource,
     chat_turn_request_hash,
+    chat_voice_tts_client_id,
     conversation_window_status,
     next_onboarding_step,
     next_ordinary_dialogue_rounds,
@@ -38,7 +44,9 @@ from app.domain.chat import (
 from app.domain.memory_recall import memory_ids_of, visible_source_refs
 from app.domain.quota import quota_usage
 from app.domain.retrieval import plan_retrieval
+from app.domain.speech import TTS_VOICE_DEFAULT
 from app.domain.spirit_state import require_aware
+from app.integrations.storage import PrivateTtsStorage
 from app.providers.chat_schema import require_chat_output, verified_memory_ids
 from app.providers.contract import http_status_for_provider_code, model_alias
 from app.providers.errors import ProviderCancelled, ProviderError
@@ -61,6 +69,9 @@ from app.schemas.spirit import QuotaUsage
 from app.services.ai_usage import record_ai_usage
 from app.services.growth import record_and_apply
 from app.services.quota import consume as consume_quota
+from app.services.speech import SynthesizeSettlement, synthesize_audio
+
+_LOGGER = get_logger(component="chat")
 
 
 def _api_error(code: str, *, status_code: int, retryable: bool = False) -> ApiError:
@@ -69,6 +80,89 @@ def _api_error(code: str, *, status_code: int, retryable: bool = False) -> ApiEr
         public_error_message(code),
         status_code=status_code,
         retryable=retryable,
+    )
+
+
+def _merge_quotas(
+    base: tuple[QuotaUsage, ...], extra: tuple[QuotaUsage, ...]
+) -> tuple[QuotaUsage, ...]:
+    by_capability = {item.capability: item for item in base}
+    for item in extra:
+        by_capability[item.capability] = item
+    return tuple(by_capability.values())
+
+
+def _attached_speech(settlement: SynthesizeSettlement) -> AttachedSpeechAudio:
+    return AttachedSpeechAudio(
+        audio_url=settlement.audio_url,
+        mime=settlement.mime,
+        duration_ms=settlement.duration_ms,
+        expires_at=settlement.expires_at,
+        cache_hit=settlement.cache_hit,
+    )
+
+
+async def complete_chat_turn(
+    factory: async_sessionmaker[AsyncSession],
+    user: CurrentUser,
+    request: ChatRequest,
+    *,
+    now: datetime,
+    settings: Settings | None = None,
+    tts_storage: PrivateTtsStorage | None = None,
+    signing_key: bytes | None = None,
+    provider: BailianProvider | None = None,
+    tts_provider: BailianProvider | None = None,
+    generator: ChatTurnGenerator | None = None,
+) -> ChatTurnSettlement:
+    """Settle a chat pair, then optionally synthesize the spirit reply for voice turns.
+
+    TTS runs after the chat transaction commits. Synthesis failure leaves speech_audio
+    null and does not fail the chat turn.
+    """
+    async with claimed_transaction(factory, user) as session:
+        settled = await settle_chat_turn(
+            session,
+            user,
+            request,
+            now=now,
+            generator=generator,
+            provider=provider,
+            settings=settings,
+        )
+    if request.source != "voice" or tts_storage is None or signing_key is None:
+        return replace(settled, speech_audio=None)
+    try:
+        synthesized = await synthesize_audio(
+            factory,
+            user,
+            client_id=chat_voice_tts_client_id(request.client_message_id),
+            message_id=settled.spirit_message_id,
+            voice_profile=TTS_VOICE_DEFAULT,
+            now=now,
+            storage=tts_storage,
+            signing_key=signing_key,
+            provider=tts_provider if tts_provider is not None else provider,
+            settings=settings,
+        )
+    except ApiError as exc:
+        _LOGGER.warning(
+            "chat_voice_tts_skipped",
+            user_id_hash=hash_user_id(user.id),
+            code=exc.code,
+        )
+        return replace(settled, speech_audio=None)
+    except (DBAPIError, OSError, TimeoutError):
+        _LOGGER.warning(
+            "chat_voice_tts_skipped",
+            user_id_hash=hash_user_id(user.id),
+            code="MODEL_UNAVAILABLE",
+        )
+        return replace(settled, speech_audio=None)
+    return replace(
+        settled,
+        speech_audio=_attached_speech(synthesized),
+        quotas=_merge_quotas(settled.quotas, synthesized.quotas),
     )
 
 

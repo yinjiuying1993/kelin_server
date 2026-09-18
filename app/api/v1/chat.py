@@ -5,14 +5,13 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, status
 
-from app.api.deps import session_factory_from_app
+from app.api.deps import session_factory_from_app, tts_storage_from_app
 from app.api.v1.chat_map import chat_turn_result_from_settlement
 from app.core.config import Settings
 from app.core.envelope import request_id_of, utc_server_time
 from app.core.security import CurrentUser, require_current_user
-from app.db.session import claimed_transaction
 from app.schemas.chat import ChatErrorEnvelope, ChatRequest, ChatSuccessEnvelope
-from app.services.chat import settle_chat_turn
+from app.services.chat import complete_chat_turn
 
 router = APIRouter(prefix="/api/v1", tags=["chat"])
 
@@ -59,15 +58,29 @@ async def post_chat(
 
     Request onboarding is required and must match server state; onboarding=true
     does not increment ordinary_dialogue_rounds. Only a complete user+spirit pair
-    advances onboarding_step. Upstream chat deadline is 18s; timeout maps to
-    PROVIDER_TIMEOUT. Missing Bailian secret/alias keeps the in-process stub.
+    advances onboarding_step. Upstream chat deadline is 18s; voice turns then
+    synthesize TTS in the same response. Combined client budget is 48s. Timeout
+    maps to PROVIDER_TIMEOUT. TTS failure leaves speech_audio null. Missing
+    Bailian secret/alias keeps the in-process stub.
     """
     factory = session_factory_from_app(request.app)
     now = datetime.now(UTC)
     settings = request.app.state.settings
     provider_settings = settings if isinstance(settings, Settings) else None
-    async with claimed_transaction(factory, _user) as session:
-        settled = await settle_chat_turn(session, _user, _body, now=now, settings=provider_settings)
+    signing_key = (
+        provider_settings.cursor_signing_key()
+        if provider_settings is not None
+        else Settings(app_env="test").cursor_signing_key()
+    )
+    settled = await complete_chat_turn(
+        factory,
+        _user,
+        _body,
+        now=now,
+        settings=provider_settings,
+        tts_storage=tts_storage_from_app(request.app),
+        signing_key=signing_key,
+    )
     return ChatSuccessEnvelope(
         data=chat_turn_result_from_settlement(settled),
         request_id=request_id_of(request),

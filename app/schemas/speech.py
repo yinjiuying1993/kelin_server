@@ -10,10 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.domain.speech import (
     ASR_MAX_DURATION_MS,
     ASR_MIN_DURATION_MS,
-    TTS_OUTPUT_MIME,
     TTS_VOICE_DEFAULT,
 )
 from app.schemas.envelope import EnvelopeError
+from app.schemas.speech_audio import SpeechAudioResource
 from app.schemas.spirit import MutationEvent, MutationPatch, QuotaUsage
 
 
@@ -43,15 +43,6 @@ class TranscriptResource(_ForbidExtra):
     duration_ms: int = Field(ge=ASR_MIN_DURATION_MS, le=ASR_MAX_DURATION_MS)
     language: str = Field(min_length=2, max_length=16)
     provider_request_id: str | None = Field(default=None, max_length=128)
-
-
-class SpeechAudioResource(_ForbidExtra):
-    type: Literal["speech_audio"] = "speech_audio"
-    audio_url: str = Field(min_length=1, max_length=2048)
-    mime: Literal["audio/mp4"] = TTS_OUTPUT_MIME
-    duration_ms: int = Field(ge=1)
-    expires_at: str
-    cache_hit: bool
 
 
 class TranscribeResult(_ForbidExtra):
