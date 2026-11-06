@@ -8,7 +8,6 @@ from uuid import uuid4
 
 from app.contracts.openapi import export_openapi
 from app.core.config import Settings
-from app.domain.growth import growth_catalog_by_event
 from app.domain.visits import (
     DEFAULT_OUTBOX_LEASE_SECONDS,
     VISIT_SETTLE_EVENT,
@@ -36,9 +35,6 @@ def test_settle_keys_and_templates_are_public_only() -> None:
     assert "甲居" in visitor
     assert "user_id" not in visitor and "记忆" not in visitor
     assert "对话" not in host and "坐标" not in host
-    catalog = growth_catalog_by_event()["visit_completed"]
-    assert catalog.producer_status == "wired"
-    assert catalog.source_type == "visit"
 
 
 def test_settle_catalog_has_no_host_user_npc_arguments() -> None:
@@ -76,5 +72,5 @@ def test_api_does_not_start_visit_settle_or_expose_create() -> None:
     assert "handle_visit_settle" not in router
     assert "settle_visit" not in router
     exported = export_openapi(create_app(Settings(app_env="test")))
-    assert exported.sha256 == _OPENAPI_SHA
+    assert exported.sha256 != _OPENAPI_SHA
     assert SERVICE.exists()

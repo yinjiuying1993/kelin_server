@@ -17,7 +17,7 @@ def require_chat_output(value: object) -> ChatOutput:
             return ChatOutput.model_validate(value.model_dump())
         return ChatOutput.model_validate(value)
     except ValidationError as exc:
-        raise ProviderError("MODEL_UNAVAILABLE") from exc
+        raise ProviderError("CHAT_OUTPUT_INVALID") from exc
 
 
 def verified_memory_ids(

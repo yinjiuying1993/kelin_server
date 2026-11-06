@@ -12,7 +12,7 @@ from pydantic import ValidationError
 def test_require_chat_output_rejects_natural_language_extra_and_enums() -> None:
     with pytest.raises(ProviderError) as natural:
         require_chat_output("知道了，阿年。")
-    assert natural.value.code == "MODEL_UNAVAILABLE"
+    assert natural.value.code == "CHAT_OUTPUT_INVALID"
     with pytest.raises(ProviderError):
         require_chat_output({"reply": "嗯。", "extra": True})
     with pytest.raises(ProviderError):

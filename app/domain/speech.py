@@ -17,11 +17,12 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 from uuid import UUID
 
 from app.domain.quota import ASR_DAILY_LIMIT, TTS_DAILY_LIMIT
+from app.domain.visit_card import VISIT_CARD_BUCKET, VISIT_CARD_KEY_PREFIX
 
 ASR_MAX_SIZE_BYTES = 5 * 1024 * 1024
 ASR_MAX_DURATION_MS = 30_000
 ASR_MIN_DURATION_MS = 1
-TTS_MAX_CHARS = 200
+ASR_AGENT_MIN_MS = 800
 TTS_VOICE_DEFAULT: Final[Literal["default"]] = "default"
 TTS_OUTPUT_MIME: Final[Literal["audio/mp4"]] = "audio/mp4"
 TTS_CACHE_TTL = timedelta(hours=24)
@@ -158,6 +159,17 @@ def require_transcript_text(text: str) -> str:
     return stripped
 
 
+def asr_agent_block(*, cancelled: bool, duration_ms: int, text: str | None) -> str | None:
+    """Cancel, clips under 0.8s, and blank recognition never become a chat turn."""
+    if cancelled:
+        return "cancelled"
+    if duration_ms < ASR_AGENT_MIN_MS:
+        return "too_short"
+    if text is not None and not text.strip():
+        return "empty"
+    return None
+
+
 def require_voice_profile(value: str) -> str:
     if value != TTS_VOICE_DEFAULT:
         raise InvalidSpeech("voice_profile is not allowed")
@@ -168,8 +180,6 @@ def require_tts_text(text: str) -> str:
     stripped = text.strip()
     if not stripped:
         raise InvalidSpeech("tts text is empty")
-    if len(stripped) > TTS_MAX_CHARS:
-        raise InvalidSpeech("tts text exceeds 200 characters")
     return stripped
 
 
@@ -273,7 +283,13 @@ def verify_signed_playback_url(url: str, *, secret: bytes, now: datetime) -> tup
     expected = hmac.new(secret, material, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(sig_values[0], expected):
         raise InvalidPlaybackUrl("playback url signature is invalid")
-    if not object_path.startswith(f"{TTS_PATH_PREFIX}/"):
+    if object_path.startswith(f"{TTS_PATH_PREFIX}/"):
+        if bucket != TTS_BUCKET:
+            raise InvalidPlaybackUrl("playback url path is invalid")
+    elif bucket == VISIT_CARD_BUCKET and object_path.startswith(VISIT_CARD_KEY_PREFIX):
+        if ".." in object_path.split("/"):
+            raise InvalidPlaybackUrl("playback url path is invalid")
+    else:
         raise InvalidPlaybackUrl("playback url path is invalid")
     return bucket, object_path
 

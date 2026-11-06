@@ -22,7 +22,7 @@ _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     },
     409: {
         "model": ChatErrorEnvelope,
-        "description": "CONFLICT or IDEMPOTENCY_IN_PROGRESS",
+        "description": "CONFLICT, SPIRIT_NOT_HOME, or IDEMPOTENCY_IN_PROGRESS",
     },
     422: {
         "model": ChatErrorEnvelope,
@@ -58,8 +58,8 @@ async def post_chat(
 
     Request onboarding is required and must match server state; onboarding=true
     does not increment ordinary_dialogue_rounds. Only a complete user+spirit pair
-    advances onboarding_step. Upstream chat deadline is 18s; voice turns then
-    synthesize TTS in the same response. Combined client budget is 48s. Timeout
+    advances onboarding_step. Upstream chat deadline is 60s; voice turns then
+    synthesize TTS in the same response. Combined client budget is 80s. Timeout
     maps to PROVIDER_TIMEOUT. TTS failure leaves speech_audio null. Missing
     Bailian secret/alias keeps the in-process stub.
     """

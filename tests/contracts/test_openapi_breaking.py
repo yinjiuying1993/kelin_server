@@ -131,5 +131,8 @@ def test_cli_exits_nonzero_for_breaking_sample(tmp_path: Path) -> None:
     new_path = tmp_path / "new.json"
     old_path.write_text(json.dumps(old), encoding="utf-8")
     new_path.write_text(json.dumps(new), encoding="utf-8")
-    assert check_main(["--old", str(old_path), "--new", str(new_path)]) == 1
+    out = tmp_path / "breaking.txt"
+    assert check_main(["--old", str(old_path), "--new", str(new_path), "--out", str(out)]) == 1
+    written = out.read_text(encoding="utf-8")
+    assert "field_removed" in written
     assert check_main(["--old", str(old_path), "--new", str(old_path)]) == 0

@@ -40,7 +40,7 @@ class _SearchProvider(ControllableProviderStub):
 
     async def chat(self, value: ChatInput) -> ChatOutput:
         del value
-        return ChatOutput(reply=FABRICATED, search_query=QUESTION)
+        return ChatOutput(reply=FABRICATED, search_query=QUESTION, intent="knowledge")
 
     async def search(self, value: SearchInput) -> list[SearchResult]:
         self.search_calls.append(value)

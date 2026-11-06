@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000a4",
+        "question": "fixture",
+        "spirit_name": "fixture",
+        "spirit_id": "00000000-0000-4000-8000-0000000000a8",
+        "rank_name": "上手匠人",
+        "skill_title": "茶室品茗冲泡手记",
+        "rated": false,
+        "rating": null
+      }
+    ],
+    "next_cursor": "kelin.ask.v1.middle",
+    "has_more": true
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000a35",
+  "server_time": "2026-11-03T00:00:00Z"
+}

@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     bailian_safety_model: str | None = None
     bailian_search_model: str | None = None
     bailian_search_enabled: bool = False
+    bailian_mcp_enabled: bool = True
+    oss_endpoint: str | None = None
+    oss_bucket: str | None = None
+    oss_image_prefix: str | None = None
+    oss_voice_prefix: str | None = None
+    oss_access_key_id: SecretStr | None = None
+    oss_access_key_secret: SecretStr | None = None
     ai_daily_budget_micros: int = 10_000_000
     ai_budget_warning_percent: int = 70
     ai_budget_critical_percent: int = 100
@@ -82,6 +89,12 @@ class Settings(BaseSettings):
         "bailian_vision_model",
         "bailian_safety_model",
         "bailian_search_model",
+        "oss_endpoint",
+        "oss_bucket",
+        "oss_image_prefix",
+        "oss_voice_prefix",
+        "oss_access_key_id",
+        "oss_access_key_secret",
         mode="before",
     )
     @classmethod
@@ -180,6 +193,13 @@ class Settings(BaseSettings):
             "bailian_safety_model": _presence(self.bailian_safety_model),
             "bailian_search_model": _presence(self.bailian_search_model),
             "bailian_search_enabled": "true" if self.bailian_search_enabled else "false",
+            "bailian_mcp_enabled": "true" if self.bailian_mcp_enabled else "false",
+            "oss_endpoint": _presence(self.oss_endpoint),
+            "oss_bucket": _presence(self.oss_bucket),
+            "oss_image_prefix": _presence(self.oss_image_prefix),
+            "oss_voice_prefix": _presence(self.oss_voice_prefix),
+            "oss_access_key_id": _presence(self.oss_access_key_id),
+            "oss_access_key_secret": _presence(self.oss_access_key_secret),
             "ai_daily_budget_micros": str(self.ai_daily_budget_micros),
             "ai_budget_warning_percent": str(self.ai_budget_warning_percent),
             "ai_budget_critical_percent": str(self.ai_budget_critical_percent),

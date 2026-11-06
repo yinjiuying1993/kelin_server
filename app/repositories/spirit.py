@@ -9,11 +9,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.spirit import (
-    SPIRIT_CREATE_OPERATION,
-    EggTraits,
-    SpiritCreateResult,
-)
+from app.domain.spirit import SPIRIT_CREATE_OPERATION, SpiritCreateResult
 
 CREATE_LOCK_NS = 5389876
 SPIRIT_USER_UNIQUE = "spirits_user_id_key"
@@ -21,8 +17,8 @@ SPIRIT_USER_CLIENT_UNIQUE = "uq_spirits_user_id_client_id"
 
 _SPIRIT_COLUMNS = (
     "s.id, s.client_id, s.name, s.egg, s.invite_code, "
-    "s.closeness, s.curiosity, s.sharpness, s.nocturnal, s.stubborn, "
-    "s.hunger, s.energy, s.mood, s.bond, s.stage, s.status, s.scholar_marks, "
+    "50 AS closeness, 50 AS curiosity, 50 AS sharpness, 50 AS nocturnal, 50 AS stubborn, "
+    "60 AS mood, 0 AS bond, s.stage, s.status, s.scholar_marks, "
     "s.version, s.onboarding_step, s.onboarding_completed_at, s.hatched_at, s.created_at, "
     "p.tts_on, p.push_on, p.visit_on, p.dnd_start, p.dnd_end, p.timezone, "
     "p.default_city, p.location_weather_on, p.remote_search_on"
@@ -244,16 +240,13 @@ async def insert_spirit(
     name: str,
     egg: str,
     invite_code: str,
-    traits: EggTraits,
 ) -> None:
     await session.execute(
         text(
             "INSERT INTO public.spirits ("
-            "user_id, client_id, name, egg, invite_code, "
-            "closeness, curiosity, sharpness, nocturnal, stubborn"
+            "user_id, client_id, name, egg, invite_code"
             ") VALUES ("
-            ":user_id, :client_id, :name, :egg, :invite, "
-            ":closeness, :curiosity, :sharpness, :nocturnal, :stubborn)"
+            ":user_id, :client_id, :name, :egg, :invite)"
         ),
         {
             "user_id": owner_id,
@@ -261,11 +254,6 @@ async def insert_spirit(
             "name": name,
             "egg": egg,
             "invite": invite_code,
-            "closeness": traits.closeness,
-            "curiosity": traits.curiosity,
-            "sharpness": traits.sharpness,
-            "nocturnal": traits.nocturnal,
-            "stubborn": traits.stubborn,
         },
     )
 
@@ -324,8 +312,8 @@ def _row_to_result(row: Any) -> SpiritCreateResult:
         sharpness=int(row.sharpness),
         nocturnal=int(row.nocturnal),
         stubborn=int(row.stubborn),
-        hunger=int(row.hunger),
-        energy=int(row.energy),
+        hunger=80,
+        energy=80,
         mood=int(row.mood),
         bond=int(row.bond),
         stage=str(row.stage),

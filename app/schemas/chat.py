@@ -12,7 +12,7 @@ from app.schemas.jsonb import SourceRef
 from app.schemas.speech_audio import SpeechAudioResource
 from app.schemas.spirit import MutationEvent, MutationPatch, QuotaUsage
 
-ChatSource = Literal["text", "voice", "onboarding"]
+ChatSource = Literal["text", "voice"]
 GenerationSource = Literal["stub", "provider"]
 
 
@@ -31,21 +31,14 @@ class ChatContext(_ForbidExtra):
 
 class ChatRequest(_ForbidExtra):
     client_message_id: UUID
-    content: str = Field(min_length=1, max_length=4000)
+    content: str = Field(min_length=1)
     source: ChatSource
-    onboarding: bool = Field(
-        description=(
-            "Required so the server can distinguish S04 hatch turns from ordinary chat. "
-            "Must match server onboarding state. onboarding=true must not increment "
-            "ordinary_dialogue_rounds. Only a complete user+spirit pair advances onboarding_step."
-        )
-    )
     context: ChatContext
 
 
 class ChatMessagePublic(_ForbidExtra):
     id: UUID
-    content: str = Field(min_length=1, max_length=4000)
+    content: str = Field(min_length=1)
     source_refs: list[SourceRef] = Field(default_factory=list)
 
 
@@ -56,12 +49,6 @@ class ChatUsage(_ForbidExtra):
 
 class ChatTurnResource(_ForbidExtra):
     type: Literal["chat_turn"] = "chat_turn"
-    onboarding: bool = Field(
-        description=(
-            "Echo of the settled turn kind. onboarding=true must not increment "
-            "ordinary_dialogue_rounds."
-        )
-    )
     generation_source: GenerationSource = Field(
         description=(
             "stub is a deterministic stand-in and must not be presented as the live chat provider. "
@@ -81,9 +68,8 @@ class ChatTurnResource(_ForbidExtra):
     )
     speech_audio: SpeechAudioResource | None = Field(
         description=(
-            "Filled after source=voice chat persists the spirit reply. Null for text turns, "
-            "replies over 200 characters, TTS quota exhaustion, or synthesis failure. Chat "
-            "still returns 200; clients play audio_url or fall back to text."
+            "Filled after source=voice chat persists the spirit reply. Null for text turns "
+            "or synthesis failure. Chat still returns 200; clients play audio_url or fall back to text."
         )
     )
     usage: ChatUsage

@@ -2,38 +2,26 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.bootstrap import RoomPublic
 from app.schemas.envelope import EnvelopeError
 from app.schemas.memory import MemoryPublic
-from app.schemas.spirit import MutationEvent, OnboardingState, QuotaUsage, SpiritPublic
+from app.schemas.room import RoomPublic
+from app.schemas.spirit import MutationEvent, QuotaUsage, SpiritPublic
 
-RecallMethod = Literal["food", "sight_memory"]
+RecallMethod = Literal["food"]
 
 
 class _ForbidExtra(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class RecallFoodRequest(_ForbidExtra):
+class RecallRequest(_ForbidExtra):
     client_id: UUID
-    method: Literal["food"]
-
-
-class RecallSightRequest(_ForbidExtra):
-    client_id: UUID
-    method: Literal["sight_memory"]
-    memory_id: UUID
-
-
-RecallRequest = Annotated[
-    RecallFoodRequest | RecallSightRequest,
-    Field(discriminator="method"),
-]
+    method: Literal["food"] = "food"
 
 
 class RecallResource(_ForbidExtra):
@@ -48,7 +36,6 @@ class RecallPatch(_ForbidExtra):
     spirit: SpiritPublic | None = None
     preferences: None = None
     room: RoomPublic | None = None
-    onboarding: OnboardingState | None = None
     report: None = None
     social: None = None
     memories_upsert: list[MemoryPublic] = Field(default_factory=list)

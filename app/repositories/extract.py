@@ -11,16 +11,8 @@ from sqlalchemy import Text, bindparam, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.extract import MemoryRecord, StyleSampleRecord
-from app.providers.types import ExtractTurn, TraitDimension
-
-TRAIT_COLUMNS: tuple[TraitDimension, ...] = (
-    "closeness",
-    "curiosity",
-    "sharpness",
-    "nocturnal",
-    "stubborn",
-)
+from app.domain.extract import MemoryRecord
+from app.providers.types import ExtractTurn
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +132,30 @@ async def claim_extracting(
     return row is not None
 
 
+async def mark_extract_failed(
+    session: AsyncSession,
+    *,
+    spirit_id: uuid.UUID,
+    window_id: uuid.UUID,
+    client_id: uuid.UUID,
+    error_code: str,
+) -> None:
+    await session.execute(
+        text(
+            "UPDATE public.conversation_windows "
+            "SET status = 'failed', last_error_code = :error_code "
+            "WHERE id = :window_id AND spirit_id = :spirit_id "
+            "AND status = 'extracting' AND extract_client_id = :client_id"
+        ),
+        {
+            "spirit_id": spirit_id,
+            "window_id": window_id,
+            "client_id": client_id,
+            "error_code": error_code,
+        },
+    )
+
+
 async def mark_extracted(
     session: AsyncSession,
     *,
@@ -203,48 +219,6 @@ async def insert_memory(
     return _memory_record(row)
 
 
-async def insert_style_sample(
-    session: AsyncSession,
-    *,
-    sample_id: uuid.UUID,
-    spirit_id: uuid.UUID,
-    kind: str,
-    text_value: str,
-    window_id: uuid.UUID,
-) -> StyleSampleRecord:
-    inserted = (
-        await session.execute(
-            text(
-                "INSERT INTO public.style_samples ("
-                "id, spirit_id, kind, text, source_window_id"
-                ") VALUES ("
-                ":id, :spirit_id, :kind, :text, :window_id"
-                ") ON CONFLICT (spirit_id, kind, text) DO NOTHING "
-                "RETURNING id, kind, text, weight, status"
-            ),
-            {
-                "id": sample_id,
-                "spirit_id": spirit_id,
-                "kind": kind,
-                "text": text_value,
-                "window_id": window_id,
-            },
-        )
-    ).first()
-    if inserted is not None:
-        return _style_record(inserted)
-    existing = (
-        await session.execute(
-            text(
-                "SELECT id, kind, text, weight, status FROM public.style_samples "
-                "WHERE spirit_id = :spirit_id AND kind = :kind AND text = :text"
-            ),
-            {"spirit_id": spirit_id, "kind": kind, "text": text_value},
-        )
-    ).one()
-    return _style_record(existing)
-
-
 async def fetch_window_memories(
     session: AsyncSession,
     *,
@@ -269,57 +243,6 @@ async def fetch_window_memories(
     return [_memory_record(row) for row in rows]
 
 
-async def fetch_window_style_samples(
-    session: AsyncSession,
-    *,
-    spirit_id: uuid.UUID,
-    window_id: uuid.UUID,
-) -> list[StyleSampleRecord]:
-    rows = (
-        await session.execute(
-            text(
-                "SELECT id, kind, text, weight, status FROM public.style_samples "
-                "WHERE spirit_id = :spirit_id AND source_window_id = :window_id "
-                "ORDER BY created_at ASC, id ASC"
-            ),
-            {"spirit_id": spirit_id, "window_id": window_id},
-        )
-    ).all()
-    return [_style_record(row) for row in rows]
-
-
-async def apply_trait_patch(
-    session: AsyncSession,
-    *,
-    owner_id: uuid.UUID,
-    spirit_id: uuid.UUID,
-    deltas: dict[TraitDimension, int],
-    bump_version: bool,
-) -> None:
-    assignments: list[str] = []
-    params: dict[str, Any] = {"id": spirit_id, "user_id": owner_id}
-    for dimension in TRAIT_COLUMNS:
-        delta = int(deltas.get(dimension, 0))
-        if delta == 0:
-            continue
-        assignments.append(
-            f"{dimension} = GREATEST(0, LEAST(100, {dimension} + :{dimension}_delta))"
-        )
-        params[f"{dimension}_delta"] = delta
-    if not assignments and not bump_version:
-        return
-    if bump_version:
-        assignments.append("version = version + 1")
-    await session.execute(
-        text(
-            "UPDATE public.spirits SET "
-            + ", ".join(assignments)
-            + " WHERE id = :id AND user_id = :user_id"
-        ),
-        params,
-    )
-
-
 def _memory_record(row: Any) -> MemoryRecord:
     tags = row.tags
     return MemoryRecord(
@@ -332,14 +255,4 @@ def _memory_record(row: Any) -> MemoryRecord:
         status=str(row.status),
         version=int(row.version),
         created_at=row.created_at,
-    )
-
-
-def _style_record(row: Any) -> StyleSampleRecord:
-    return StyleSampleRecord(
-        id=row.id,
-        kind=str(row.kind),
-        text=str(row.text),
-        weight=int(row.weight),
-        status=str(row.status),
     )

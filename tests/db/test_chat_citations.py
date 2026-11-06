@@ -4,8 +4,6 @@ import asyncio
 import uuid
 from datetime import UTC, datetime
 
-import pytest
-from app.core.errors import ApiError
 from app.core.security import CurrentUser
 from app.db.session import claimed_transaction, create_runtime_engine, create_session_factory
 from app.providers.stub import ControllableProviderStub
@@ -15,7 +13,7 @@ from app.schemas.spirit import CreateSpiritRequest
 from app.services.chat import settle_chat_turn
 from app.services.spirit import create_spirit_if_absent
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from tests.db.harness import upgrade_empty_kelin_test_to_head
 
@@ -51,13 +49,12 @@ def _spirit_request() -> CreateSpiritRequest:
     )
 
 
-def _chat_request() -> ChatRequest:
+def _chat_request(content: str = "你好") -> ChatRequest:
     return ChatRequest.model_validate(
         {
             "client_message_id": str(uuid.uuid4()),
-            "content": "你好",
+            "content": content,
             "source": "text",
-            "onboarding": True,
             "context": {
                 "timezone": "Asia/Shanghai",
                 "local_hour": 21,
@@ -75,15 +72,7 @@ async def _insert_auth_user(url: str, user_id: uuid.UUID) -> None:
     await engine.dispose()
 
 
-async def _message_count(session: AsyncSession, spirit_id: uuid.UUID) -> int:
-    count = await session.scalar(
-        text("SELECT count(*) FROM public.messages WHERE spirit_id = :id"),
-        {"id": spirit_id},
-    )
-    return int(count or 0)
-
-
-def test_unauthorized_and_inactive_citations_do_not_persist_reply() -> None:
+def test_citations_outside_the_pack_are_dropped() -> None:
     url = upgrade_empty_kelin_test_to_head()
     asyncio.run(_assert_citation_owner_gate(url))
 
@@ -99,28 +88,22 @@ async def _assert_citation_owner_gate(url: str) -> None:
         spirit_id = created.spirit_id
 
     foreign = uuid.uuid4()
-    with pytest.raises(ApiError) as unauthorized:
-        async with claimed_transaction(factory, user) as session:
-            await settle_chat_turn(
-                session,
-                user,
-                _chat_request(),
-                now=NOW,
-                provider=_CitedProvider(
-                    ChatOutput(
-                        reply=FAKE_REPLY,
-                        citations=[ChatCitation(type="memory", id=foreign)],
-                    )
-                ),
-            )
-    assert unauthorized.value.code == "MODEL_UNAVAILABLE"
     async with claimed_transaction(factory, user) as session:
-        assert await _message_count(session, spirit_id) == 0
-        stored = await session.scalar(
-            text("SELECT count(*) FROM public.messages WHERE content = :content"),
-            {"content": FAKE_REPLY},
+        dropped = await settle_chat_turn(
+            session,
+            user,
+            _chat_request(),
+            now=NOW,
+            provider=_CitedProvider(
+                ChatOutput(
+                    reply=FAKE_REPLY,
+                    intent="companion",
+                    citations=[ChatCitation(type="memory", id=foreign)],
+                )
+            ),
         )
-        assert int(stored or 0) == 0
+    assert dropped.spirit_content == FAKE_REPLY
+    assert dropped.spirit_source_refs == ()
 
     sealed_id = uuid.uuid4()
     async with claimed_transaction(factory, user) as session:
@@ -134,23 +117,22 @@ async def _assert_citation_owner_gate(url: str) -> None:
             ),
             {"id": sealed_id, "spirit_id": spirit_id, "now": NOW},
         )
-    with pytest.raises(ApiError) as inactive:
-        async with claimed_transaction(factory, user) as session:
-            await settle_chat_turn(
-                session,
-                user,
-                _chat_request(),
-                now=NOW,
-                provider=_CitedProvider(
-                    ChatOutput(
-                        reply=FAKE_REPLY,
-                        citations=[ChatCitation(type="memory", id=sealed_id)],
-                    )
-                ),
-            )
-    assert inactive.value.code == "MODEL_UNAVAILABLE"
     async with claimed_transaction(factory, user) as session:
-        assert await _message_count(session, spirit_id) == 0
+        sealed_turn = await settle_chat_turn(
+            session,
+            user,
+            _chat_request(),
+            now=NOW,
+            provider=_CitedProvider(
+                ChatOutput(
+                    reply=FAKE_REPLY,
+                    intent="companion",
+                    citations=[ChatCitation(type="memory", id=sealed_id)],
+                )
+            ),
+        )
+    assert sealed_turn.spirit_content == FAKE_REPLY
+    assert sealed_turn.spirit_source_refs == ()
 
     owned_id = uuid.uuid4()
     async with claimed_transaction(factory, user) as session:
@@ -167,11 +149,12 @@ async def _assert_citation_owner_gate(url: str) -> None:
         settled = await settle_chat_turn(
             session,
             user,
-            _chat_request(),
+            _chat_request("阿年你好"),
             now=NOW,
             provider=_CitedProvider(
                 ChatOutput(
                     reply=FAKE_REPLY,
+                    intent="companion",
                     citations=[ChatCitation(type="memory", id=owned_id)],
                 )
             ),

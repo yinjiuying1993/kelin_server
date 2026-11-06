@@ -20,7 +20,7 @@ from tests.db.harness import upgrade_empty_kelin_test_to_head
 INVITE_A = "MEMTABCD"
 INVITE_B = "MEMTEFGH"
 REPO = Path(__file__).resolve().parents[2] / "app" / "repositories" / "memory.py"
-ACTIVE_TYPES = ("preference", "knowledge", "emotion", "relation", "speech", "sight")
+ACTIVE_TYPES = ("preference", "knowledge", "emotion", "relationship")
 
 
 def test_repository_sql_is_keyset_without_offset() -> None:
@@ -114,7 +114,7 @@ async def _assert_keyset(url: str) -> None:
                 "INSERT INTO public.memories ("
                 "id, spirit_id, type, summary, salience, confidence, status, deleted_at"
                 ") VALUES ("
-                ":id, :spirit_id, 'speech', '已删除正文', 80, 0.900, 'deleted', now())"
+                ":id, :spirit_id, 'preference', '已删除正文', 80, 0.900, 'deleted', now())"
             ),
             {"id": deleted_id, "spirit_id": spirit_id},
         )
@@ -167,7 +167,7 @@ async def _assert_keyset(url: str) -> None:
             spirit_id=spirit_id,
             snapshot_at=snapshot,
             fetch_limit=20,
-            types=("preference", "relation", "emotion"),
+            types=("preference", "relationship", "emotion"),
         )
         knowledge = await memory_repo.list_active_memories_keyset(
             session,
@@ -176,29 +176,29 @@ async def _assert_keyset(url: str) -> None:
             fetch_limit=20,
             types=("knowledge",),
         )
-        speech_tombs = await memory_repo.list_deleted_tombstones(
-            session,
-            spirit_id=spirit_id,
-            snapshot_at=snapshot,
-            types=("speech",),
-        )
         knowledge_tombs = await memory_repo.list_deleted_tombstones(
             session,
             spirit_id=spirit_id,
             snapshot_at=snapshot,
             types=("knowledge",),
         )
+        preference_tombs = await memory_repo.list_deleted_tombstones(
+            session,
+            spirit_id=spirit_id,
+            snapshot_at=snapshot,
+            types=("preference",),
+        )
     first_ids = [row.id for row in first[:2]]
     rest_ids = [row.id for row in rest]
     assert not set(first_ids) & set(rest_ids)
-    assert len(first_ids) + len(rest_ids) == 6
+    assert len(first_ids) + len(rest_ids) == 4
     assert set(first_ids + rest_ids) == set(active_ids)
     assert [row.id for row in tombstones] == [deleted_id]
-    assert {row.type for row in relationship} == {"preference", "relation", "emotion"}
+    assert {row.type for row in relationship} == {"preference", "relationship", "emotion"}
     assert len(relationship) == 3
     assert {row.type for row in knowledge} == {"knowledge"}
     assert sealed_id not in {row.id for row in knowledge}
-    assert [row.id for row in speech_tombs] == [deleted_id]
+    assert [row.id for row in preference_tombs] == [deleted_id]
     assert knowledge_tombs == []
 
     async with claimed_read_transaction(factory, other_user) as session:

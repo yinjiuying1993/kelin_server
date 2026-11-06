@@ -10,7 +10,6 @@ from app.api.v1.extract_map import extract_result_from_settlement
 from app.core.config import Settings
 from app.core.envelope import request_id_of, utc_server_time
 from app.core.security import CurrentUser, require_current_user
-from app.db.session import claimed_transaction
 from app.schemas.extract import ExtractErrorEnvelope, ExtractRequest, ExtractSuccessEnvelope
 from app.services.extract import settle_extract
 
@@ -23,7 +22,7 @@ _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     },
     409: {
         "model": ExtractErrorEnvelope,
-        "description": "CONFLICT or IDEMPOTENCY_IN_PROGRESS",
+        "description": "CONFLICT, IDEMPOTENCY_CONFLICT or IDEMPOTENCY_IN_PROGRESS",
     },
     422: {
         "model": ExtractErrorEnvelope,
@@ -66,8 +65,7 @@ async def post_extract(
     now = datetime.now(UTC)
     settings = request.app.state.settings
     provider_settings = settings if isinstance(settings, Settings) else None
-    async with claimed_transaction(factory, user) as session:
-        settled = await settle_extract(session, user, body, now=now, settings=provider_settings)
+    settled = await settle_extract(factory, user, body, now=now, settings=provider_settings)
     return ExtractSuccessEnvelope(
         data=extract_result_from_settlement(settled),
         request_id=request_id_of(request),

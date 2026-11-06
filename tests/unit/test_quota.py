@@ -5,22 +5,13 @@ from inspect import getsource
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from app.domain.feed import (
-    EMOTION_DAILY_LIMIT,
-    FOOD_DAILY_LIMIT,
-    KNOWLEDGE_DAILY_LIMIT,
-    SIGHT_DAILY_LIMIT,
-)
 from app.domain.quota import (
     ASR_DAILY_LIMIT,
     CHAT_DAILY_LIMIT,
     DEFAULT_DAILY_LIMITS,
     DEFAULT_TIMEZONE,
-    PACT_DAILY_LIMIT,
     QUOTA_CAPABILITIES,
-    SEARCH_DAILY_LIMIT,
     TTS_DAILY_LIMIT,
-    VISIT_DAILY_LIMIT,
     QuotaSnapshot,
     coerce_timezone,
     daily_limit,
@@ -38,18 +29,14 @@ from pytest import raises
 NOW = datetime(2026, 9, 10, 2, 0, tzinfo=UTC)
 
 
-def test_catalog_locks_feed_limits_and_named_defaults() -> None:
+def test_catalog_keeps_chat_and_voice() -> None:
     assert QUOTA_CAPABILITIES == frozenset(DEFAULT_DAILY_LIMITS)
-    assert daily_limit("food") == FOOD_DAILY_LIMIT == 3
-    assert daily_limit("sight") == SIGHT_DAILY_LIMIT == 2
-    assert daily_limit("knowledge") == KNOWLEDGE_DAILY_LIMIT == 10
-    assert daily_limit("emotion") == EMOTION_DAILY_LIMIT == 10
-    assert daily_limit("chat") == CHAT_DAILY_LIMIT == 100
+    assert daily_limit("chat") == CHAT_DAILY_LIMIT == 1000
     assert daily_limit("asr") == ASR_DAILY_LIMIT == 60
     assert daily_limit("tts") == TTS_DAILY_LIMIT == 20
-    assert daily_limit("search") == SEARCH_DAILY_LIMIT == 20
-    assert daily_limit("visit") == VISIT_DAILY_LIMIT == 3
-    assert daily_limit("pact") == PACT_DAILY_LIMIT == 1
+    for retired in ("food", "sight", "search", "knowledge", "emotion", "visit", "pact"):
+        with raises(ValueError, match="catalog"):
+            daily_limit(retired)
 
 
 def test_unknown_capability_is_rejected() -> None:
@@ -92,7 +79,7 @@ def test_timezone_hop_would_mint_a_different_local_date() -> None:
 
 def test_exceeded_details_are_stable() -> None:
     snapshot = QuotaSnapshot(
-        capability="knowledge",
+        capability="chat",
         used=10,
         reserved=0,
         limit=10,
@@ -102,7 +89,7 @@ def test_exceeded_details_are_stable() -> None:
     )
     details = exceeded_details(snapshot)
     assert details == {
-        "quota": "knowledge",
+        "quota": "chat",
         "reset_at": quota_usage(snapshot).reset_at,
     }
     assert details["reset_at"].endswith("Z")

@@ -82,11 +82,10 @@ def test_register_logs_and_source_omit_plaintext_token() -> None:
     assert TOKEN not in str(redacted)
 
 
-def test_openapi_has_devices_and_lifespan_is_not_a_worker() -> None:
+def test_openapi_hides_devices_and_lifespan_is_not_a_worker() -> None:
     exported = export_openapi(create_app(Settings(app_env="test")))
     paths = exported.document["paths"]
-    assert "/api/v1/devices" in paths
-    assert "post" in paths["/api/v1/devices"]
+    assert "/api/v1/devices" not in paths
     boot = getsource(create_app) + getsource(_lifespan)
     assert "run_scheduler_tick" not in boot
     assert "run_worker_tick" not in boot

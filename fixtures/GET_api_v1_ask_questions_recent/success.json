@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000a1",
+        "question": "fixture",
+        "spirit_name": "fixture",
+        "spirit_id": "00000000-0000-4000-8000-0000000000a8",
+        "rank_name": "门边学徒",
+        "skill_title": "茶室品茗冲泡手记",
+        "rated": false,
+        "rating": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-0000000000a2",
+        "question": "fixture",
+        "spirit_name": "fixture",
+        "spirit_id": "00000000-0000-4000-8000-0000000000a8",
+        "rank_name": "搭手帮工",
+        "skill_title": "温杯",
+        "rated": true,
+        "rating": "满意"
+      },
+      {
+        "id": "00000000-0000-4000-8000-0000000000a3",
+        "question": "fixture",
+        "spirit_name": "fixture",
+        "spirit_id": null,
+        "rank_name": null,
+        "skill_title": null,
+        "rated": false,
+        "rating": null
+      }
+    ]
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000a41",
+  "server_time": "2026-11-03T00:00:00Z"
+}

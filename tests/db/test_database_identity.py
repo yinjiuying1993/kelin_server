@@ -1,15 +1,23 @@
 from app.db.identity import assert_disposable_kelin_test_database
 from pytest import raises
 
-TEST_URL = "postgresql+asyncpg://kelin_test:kelin_test@postgres-test:5432/kelin_test"
+TEST_URL = "postgresql+asyncpg://kelin_test:kelin_test@postgres-test:5432/kelin_pytest"
 
 
 def test_accepts_explicit_kelin_test_identity() -> None:
     ident = assert_disposable_kelin_test_database(TEST_URL, "test")
-    assert ident["database"] == "kelin_test"
+    assert ident["database"] == "kelin_pytest"
     assert ident["username"] == "kelin_test"
     assert ident["host"] == "postgres-test"
     assert "password" not in ident
+
+
+def test_rejects_api_database() -> None:
+    with raises(ValueError, match="API database"):
+        assert_disposable_kelin_test_database(
+            "postgresql+asyncpg://kelin_test:kelin_test@postgres-test:5432/kelin_test",
+            "test",
+        )
 
 
 def test_rejects_prod_looking_host() -> None:
@@ -21,7 +29,7 @@ def test_rejects_prod_looking_host() -> None:
 
 
 def test_rejects_wrong_database_name() -> None:
-    with raises(ValueError, match="kelin_test"):
+    with raises(ValueError, match="kelin_pytest"):
         assert_disposable_kelin_test_database(
             "postgresql+asyncpg://kelin_test:kelin_test@postgres-test:5432/postgres",
             "test",

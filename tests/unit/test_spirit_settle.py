@@ -37,5 +37,6 @@ def test_patch_bumps_only_matching_version_and_does_not_touch_last_interact() ->
 def test_service_does_not_write_client_status() -> None:
     assert "body.status" not in SERVICE_SOURCE
     assert "request.status" not in SERVICE_SOURCE
-    assert "desired_spirit_state_at" in SERVICE_SOURCE
-    assert "expected_version=locked.version" in SERVICE_SOURCE
+    assert "settle_now" in SERVICE_SOURCE
+    assert "desired_spirit_state" not in SERVICE_SOURCE
+    assert "maybe_advance_stage" not in SERVICE_SOURCE

@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "data": {
+    "id": "00000000-0000-4000-8000-0000000000c1",
+    "title": "fixture",
+    "visibility": "private",
+    "points": 120,
+    "rank_name": "搭手帮工",
+    "points_to_next": 180,
+    "at_max_rank": false,
+    "updated_at": "2026-11-03T02:00:00Z",
+    "keywords": [
+      "fixture"
+    ],
+    "description": "fixture",
+    "reference_links": []
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000c1a",
+  "server_time": "2026-11-03T00:00:00Z"
+}

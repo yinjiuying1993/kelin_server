@@ -1,14 +1,14 @@
 # 刻灵 P01–P07 联调说明
 
 面向 iOS ↔ 本机 FastAPI，覆盖 **P0 能力门禁里本阶段相关行** 以及 **P01→P07**。  
-当前 **全量契约锁、进程、SessionStore** 以 [`ios-integration.md`](ios-integration.md) 为准（OpenAPI SHA `fed40c13…`，Alembic `20260908_0019`）。本文 SHA 是加后续路由 **之前** 的快照，只服务孵化这一截。  
+现行字段以 [`ios-integration.md`](ios-integration.md) 为准。本文 SHA 是加后续路由 **之前** 的历史快照，只服务孵化这一截，不能当作现行锁。  
 Chat 孵化句在本机可能已是百炼（`generation_source=provider`）；fixture 样例仍可能是 `stub`，不得把 stub 显示成百炼。  
 **不是阶段验收**；`1_plan/STATUS.md` 仍由人工更新。本机 `3_ios` 工程若尚未接线，可先用本文契约 + curl / 抓包客户端。  
 P08 起见总说明分册表。
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `fc79081f5b0bfb3e15be0994324bdbacdc930dd1f27e7c23487432895b9565b5` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | Alembic head | `20260908_0007` |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/`（与 SHA 同锁） |
@@ -79,7 +79,7 @@ iOS 匿名登录后直接打 API 即可。本机库会在第一次 `claimed_tran
 
 ### 必须改：DTO 对齐 SHA（P04）
 
-锁定 SHA：`fc79081f5b0bfb3e15be0994324bdbacdc930dd1f27e7c23487432895b9565b5`。  
+锁定 SHA：`d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e`。  
 DTO 按 `4_server/fixtures/` 解码，未知字段/缺字段要失败可观测。fixture 里的 version/时间是样例，**live 以响应为准**（第一轮 chat 的 `spirit.version` 是 **2** 不是 1）。
 
 `SessionStore` 用 bootstrap **整包替换**；mutation 只合入服务端 `patch`，客户端不算成长/配额/孵化。

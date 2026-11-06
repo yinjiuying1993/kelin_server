@@ -155,21 +155,14 @@ class Spirit(Base):
         CheckConstraint("char_length(name) BETWEEN 1 AND 20", name="ck_spirits_name_length"),
         CheckConstraint("egg IN ('warm', 'cold', 'wild')", name="ck_spirits_egg"),
         CheckConstraint("stage IN ('whelp', 'formed', 'awake')", name="ck_spirits_stage"),
-        CheckConstraint("status IN ('home', 'away', 'study', 'lost')", name="ck_spirits_status"),
+        CheckConstraint("status IN ('home', 'away')", name="ck_spirits_status"),
         CheckConstraint(
             "invite_code ~ '^[A-HJ-NP-Z2-9]{8}$'",
             name="ck_spirits_invite_code",
         ),
-        CheckConstraint(
-            "closeness BETWEEN 0 AND 100 AND curiosity BETWEEN 0 AND 100 "
-            "AND sharpness BETWEEN 0 AND 100 AND nocturnal BETWEEN 0 AND 100 "
-            "AND stubborn BETWEEN 0 AND 100 AND hunger BETWEEN 0 AND 100 "
-            "AND energy BETWEEN 0 AND 100 AND mood BETWEEN 0 AND 100 "
-            "AND bond BETWEEN 0 AND 100",
-            name="ck_spirits_trait_ranges",
-        ),
         CheckConstraint("onboarding_step BETWEEN 0 AND 5", name="ck_spirits_onboarding_step"),
         CheckConstraint("ordinary_dialogue_rounds >= 0", name="ck_spirits_ordinary_rounds"),
+        CheckConstraint("snapshot_version >= 1", name="ck_spirits_snapshot_version"),
         CheckConstraint(
             "(onboarding_completed_at IS NULL) OR (onboarding_step = 5 AND hatched_at IS NOT NULL)",
             name="ck_spirits_onboarding_complete",
@@ -192,15 +185,6 @@ class Spirit(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'未名'"))
     egg: Mapped[str] = mapped_column(Text, nullable=False)
     invite_code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    closeness: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    curiosity: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    sharpness: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    nocturnal: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    stubborn: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    hunger: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("80"))
-    energy: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("80"))
-    mood: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("60"))
-    bond: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("0"))
     stage: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'whelp'"))
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'home'"))
     scholar_marks: Mapped[list[str]] = mapped_column(
@@ -230,6 +214,9 @@ class Spirit(Base):
         Boolean, nullable=False, server_default=text("false")
     )
     version: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("1"))
+    snapshot_version: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("1")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

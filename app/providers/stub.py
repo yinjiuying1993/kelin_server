@@ -7,6 +7,7 @@ Does not call a live model. Call records never include content or replies.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections import deque
 from time import perf_counter
 from typing import Literal
@@ -23,8 +24,6 @@ from app.providers.types import (
     ExtractInput,
     ExtractMemoryDraft,
     ExtractOutput,
-    ExtractStyleSample,
-    PersonalityDelta,
     ProviderCallRecord,
     SafetyInput,
     SafetyOutput,
@@ -81,21 +80,18 @@ class ControllableProviderStub:
         summary = user_turns[0].content.strip()[:500]
         if not summary:
             return ExtractOutput()
-        sample_text = summary[:100]
         memories = [
             ExtractMemoryDraft(
                 type="preference",
                 summary=summary,
+                normalized_topic_key="preference:user:habit:general",
+                source_quote=summary,
                 tags=["extract"],
-                salience=90,
+                signal="explicit",
                 confidence=0.96,
-                personality_delta=PersonalityDelta(dimension="closeness", value=1),
             )
         ]
-        style_samples: list[ExtractStyleSample] = []
-        if sample_text:
-            style_samples = [ExtractStyleSample(kind="user_dialect", text=sample_text)]
-        return ExtractOutput(memories=memories, style_samples=style_samples)
+        return ExtractOutput(memories=memories)
 
     async def transcribe(self, value: ASRInput | object) -> Transcript:
         del value
@@ -117,14 +113,57 @@ class ControllableProviderStub:
 
     async def moderate(self, value: SafetyInput | object) -> SafetyOutput:
         del value
+        return SafetyOutput(decision=await self._moderation_decision())
+
+    async def moderate_text(self, text: str) -> str:
+        del text
+        return await self._moderation_decision()
+
+    async def complete_self_test(self, instruction: str, user_text: str) -> str:
+        del instruction, user_text
+        return "自测回复"
+
+    async def complete_ask(self, instruction: str, user_text: str) -> str:
+        del instruction, user_text
+        return "问艺回复"
+
+    async def complete_match(self, instruction: str, user_text: str) -> list[str]:
+        del instruction
+        try:
+            payload = json.loads(user_text)
+        except json.JSONDecodeError:
+            return []
+        skills = payload.get("skills") if isinstance(payload, dict) else None
+        if not isinstance(skills, list):
+            return []
+        found: list[str] = []
+        for item in skills:
+            if isinstance(item, dict):
+                skill_id = item.get("skill_id")
+                if isinstance(skill_id, str) and skill_id not in found:
+                    found.append(skill_id)
+        return found
+
+    async def _moderation_decision(self) -> Literal["allow", "block"]:
         outcome = self._moderation.popleft() if self._moderation else "allow"
         if outcome == "error":
             raise ProviderError("PROVIDER_TIMEOUT")
-        return SafetyOutput(decision="block" if outcome == "block" else "allow")
+        return "block" if outcome == "block" else "allow"
 
     async def search(self, value: SearchInput) -> list[SearchResult]:
         del value
         raise ProviderStubUnsupported("search")
+
+    async def extend(
+        self,
+        *,
+        query: str,
+        argument: str | None = None,
+        default_city: str | None = None,
+        user_text: str | None = None,
+    ) -> str:
+        del query, argument, default_city, user_text
+        raise ProviderStubUnsupported("extend")
 
     async def _chat_locked(self, value: ChatInput) -> ChatOutput:
         step = self._script.popleft() if self._script else StubStep(mode="success")
@@ -136,7 +175,7 @@ class ControllableProviderStub:
                 raise ProviderCancelled
             elif step.mode == "error":
                 raise ProviderError("MODEL_UNAVAILABLE")
-            output = ChatOutput(reply=_stub_reply(value.onboarding_step))
+            output = ChatOutput(reply=_stub_reply(), intent="companion")
             self._finish(step, outcome="success", started=started)
             return output
         except asyncio.CancelledError:
@@ -171,6 +210,5 @@ class ControllableProviderStub:
         )
 
 
-def _stub_reply(onboarding_step: int) -> str:
-    index = min(max(onboarding_step, 0), len(ONBOARDING_STUB_REPLIES) - 1)
-    return ONBOARDING_STUB_REPLIES[index]
+def _stub_reply() -> str:
+    return ONBOARDING_STUB_REPLIES[0]

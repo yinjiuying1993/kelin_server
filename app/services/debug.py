@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,15 +14,14 @@ from app.core.security import CurrentUser
 from app.debug.failures import DebugFailure, set_failure
 from app.domain.cursor import utc_iso
 from app.domain.debug import DEBUG_RESET_CONFIRM
+from app.domain.memory_list import require_public_memory_type
 from app.domain.quota import QuotaSnapshot, quota_usage
-from app.providers.types import MemoryType
 from app.repositories import bootstrap as bootstrap_repo
 from app.repositories import debug as debug_repo
-from app.repositories.feed import MemoryRow
+from app.repositories.memory_rows import MemoryRow
 from app.schemas.debug import (
     DebugFailureRequest,
     DebugMemoryCreateRequest,
-    DebugReportEligibilityRequest,
     DebugResetRequest,
     DebugSpiritStateRequest,
     DebugSpiritTimeRequest,
@@ -62,17 +61,9 @@ async def apply_spirit_state(
     spirit_id = await debug_repo.lock_owned_spirit_id(session, user.id)
     if spirit_id is None:
         raise _api_error("NOT_FOUND", status_code=404)
-    fields: dict[str, Any] = {}
-    for column in ("status", "hunger", "energy", "mood", "bond"):
-        value = getattr(body, column)
-        if value is not None:
-            fields[column] = value
-    if body.traits is not None:
-        for column in ("closeness", "curiosity", "sharpness", "nocturnal", "stubborn"):
-            value = getattr(body.traits, column)
-            if value is not None:
-                fields[column] = value
-    version = await debug_repo.update_spirit_fields(session, owner_id=user.id, fields=fields)
+    version = await debug_repo.update_spirit_fields(
+        session, owner_id=user.id, fields={"status": body.status}
+    )
     if version is None:
         raise _api_error("NOT_FOUND", status_code=404)
     return await _project(session, user, now=now)
@@ -136,31 +127,6 @@ async def create_memory(
         memories=(_public_memory(row),),
         quotas=settlement.quotas,
     )
-
-
-async def apply_report_eligibility(
-    session: AsyncSession,
-    user: CurrentUser,
-    body: DebugReportEligibilityRequest,
-    *,
-    now: datetime,
-) -> DebugSettlement:
-    await debug_repo.assert_writable_transaction(session)
-    spirit_id = await debug_repo.lock_owned_spirit_id(session, user.id)
-    if spirit_id is None:
-        raise _api_error("NOT_FOUND", status_code=404)
-    hatched_at = now - timedelta(days=body.hatched_days_ago)
-    version = await debug_repo.update_spirit_fields(
-        session,
-        owner_id=user.id,
-        fields={
-            "hatched_at": hatched_at,
-            "ordinary_dialogue_rounds": body.ordinary_dialogue_rounds,
-        },
-    )
-    if version is None:
-        raise _api_error("NOT_FOUND", status_code=404)
-    return await _project(session, user, now=now)
 
 
 def inject_failure(user: CurrentUser, body: DebugFailureRequest) -> DebugFailure:
@@ -240,14 +206,6 @@ def _quotas(rows: bootstrap_repo.BootstrapAggregateRows) -> tuple[QuotaUsage, ..
 
 
 def _public_memory(row: MemoryRow) -> MemoryPublic:
-    mapped: dict[str, MemoryType] = {
-        "preference": "preference",
-        "knowledge": "knowledge",
-        "emotion": "emotion",
-        "relation": "relation",
-        "speech": "speech",
-        "sight": "sight",
-    }
     status: MemoryStatus
     if row.status == "active":
         status = "active"
@@ -259,7 +217,7 @@ def _public_memory(row: MemoryRow) -> MemoryPublic:
         raise RuntimeError("invalid memory status")
     return MemoryPublic(
         id=row.id,
-        type=mapped[row.type],
+        type=require_public_memory_type(row.type),
         summary=row.summary,
         tags=list(row.tags),
         salience=row.salience,

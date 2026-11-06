@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "CARD_TEXT_REJECTED",
+    "message": "card text rejected",
+    "retryable": false
+  },
+  "request_id": "00000000-0000-4000-8000-0000000000c5",
+  "server_time": "2026-10-20T00:00:00Z"
+}

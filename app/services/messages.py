@@ -115,6 +115,7 @@ def _public_message(
     *,
     source_refs: tuple[SourceRef, ...],
 ) -> MessagePublic:
+    del source_refs
     if row.role not in ("user", "spirit"):
         raise RuntimeError("system message must not be listed")
     role: MessageRole = "user" if row.role == "user" else "spirit"
@@ -126,7 +127,7 @@ def _public_message(
         source=_message_source(row.source),
         status=_message_status(row.status),
         reply_to_message_id=row.reply_to_message_id,
-        source_refs=list(source_refs),
+        source_refs=[],
         created_at=utc_iso(row.created_at),
     )
 

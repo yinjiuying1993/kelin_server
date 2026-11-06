@@ -1,6 +1,6 @@
 """Worker process entry. Independent of the API process. Spec §17.1–17.2.
 
-Does not send APNs. Notification planning still enforces DND and the daily cap.
+Does not send APNs. Notification planning is not part of the worker tick.
 """
 
 from __future__ import annotations
@@ -35,6 +35,10 @@ async def _loop(*, once: bool, interval_seconds: int) -> None:
                 notification_plan=result.notification_plan,
                 report_generate=result.report_generate,
                 account_delete=result.account_delete,
+                extract=result.extract,
+                stale=result.stale,
+                rating_settle=result.rating_settle,
+                self_test_cleanup=result.self_test_cleanup,
             )
             if once:
                 return

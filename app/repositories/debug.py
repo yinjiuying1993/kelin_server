@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.types import Text
 
-from app.repositories.feed import MemoryRow
+from app.repositories.memory_rows import MemoryRow
 
 
 async def assert_writable_transaction(session: AsyncSession) -> None:
@@ -30,6 +30,11 @@ async def lock_owned_spirit_id(session: AsyncSession, owner_id: uuid.UUID) -> uu
     return uuid.UUID(str(spirit_id))
 
 
+_WRITABLE_SPIRIT_FIELDS = frozenset(
+    {"status", "last_interact_at", "away_until", "study_until", "hatched_at"}
+)
+
+
 async def update_spirit_fields(
     session: AsyncSession,
     *,
@@ -38,6 +43,9 @@ async def update_spirit_fields(
 ) -> int | None:
     if not fields:
         raise ValueError("debug spirit update requires fields")
+    unknown = set(fields) - _WRITABLE_SPIRIT_FIELDS
+    if unknown:
+        raise ValueError("debug spirit update rejected fields")
     assignments = [f"{column} = :{column}" for column in fields]
     assignments.append("version = version + 1")
     params = {"user_id": owner_id, **fields}
@@ -113,7 +121,6 @@ async def reset_spirit(session: AsyncSession, *, owner_id: uuid.UUID, now: datet
     version = await session.scalar(
         text(
             "UPDATE public.spirits SET "
-            "hunger = 80, energy = 80, mood = 60, bond = 0, "
             "status = 'home', away_until = NULL, study_until = NULL, "
             "last_interact_at = :now, version = version + 1 "
             "WHERE user_id = :user_id RETURNING version"

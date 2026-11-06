@@ -9,10 +9,11 @@ from typing import cast
 from uuid import UUID
 
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.errors import ApiError, public_error_message
 from app.core.security import CurrentUser
+from app.db.session import claimed_read_transaction
 from app.domain.cursor import (
     CURSOR_VERSION,
     InvalidCursor,
@@ -30,6 +31,7 @@ from app.domain.friends import (
     friend_add_hash,
     friend_remove_hash,
 )
+from app.domain.spirit_state import require_aware
 from app.repositories import friends as friend_repo
 from app.repositories.friends import FriendPublicRow, IdempotencyClaim
 from app.schemas.social_api import (
@@ -39,6 +41,7 @@ from app.schemas.social_api import (
     PublicSpiritProfile,
 )
 from app.schemas.spirit import MutationEvent, SpiritStage, SpiritStatus
+from app.services.central.visit_target import settle_visit_spirit_targets
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,9 +92,11 @@ def _stage(value: str) -> SpiritStage:
 
 
 def _status(value: str) -> SpiritStatus:
-    if value not in {"home", "away", "study", "lost"}:
-        raise RuntimeError("unexpected spirit status")
-    return cast(SpiritStatus, value)
+    if value == "study":
+        return "away"
+    if value in {"home", "away"}:
+        return value
+    return "home"
 
 
 def public_friend_from_row(row: FriendPublicRow) -> FriendPublic:
@@ -101,7 +106,7 @@ def public_friend_from_row(row: FriendPublicRow) -> FriendPublic:
             id=row.peer_id,
             title=row.title,
             stage=_stage(row.stage),
-            public_marks=list(row.public_marks),
+            public_marks=[],
             status=_status(row.status),
         ),
         created_at=utc_iso(row.created_at),
@@ -170,6 +175,28 @@ async def load_friend_page(
         has_more=has_more,
         snapshot_at=utc_iso(snapshot_at),
     )
+
+
+async def load_settled_friend_page(
+    factory: async_sessionmaker[AsyncSession],
+    user: CurrentUser,
+    *,
+    cursor: str | None,
+    limit: int,
+    secret: bytes,
+    now: datetime,
+) -> FriendPage:
+    require_aware(now, field="now")
+    async with claimed_read_transaction(factory, user) as session:
+        page = await load_friend_page(
+            session, user, cursor=cursor, limit=limit, secret=secret
+        )
+        peer_ids = tuple(item.spirit.id for item in page.items)
+    await settle_visit_spirit_targets(factory, peer_ids, now=now)
+    async with claimed_read_transaction(factory, user) as session:
+        return await load_friend_page(
+            session, user, cursor=cursor, limit=limit, secret=secret
+        )
 
 
 async def add_owned_friend(

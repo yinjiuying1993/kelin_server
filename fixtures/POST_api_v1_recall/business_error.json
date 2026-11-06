@@ -2,8 +2,8 @@
   "ok": false,
   "data": null,
   "error": {
-    "code": "SPIRIT_NOT_LOST",
-    "message": "spirit is not lost",
+    "code": "SPIRIT_NOT_AWAY",
+    "message": "spirit is not away",
     "retryable": false,
     "details": null
   },

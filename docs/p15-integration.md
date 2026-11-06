@@ -6,7 +6,7 @@
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `743b462becbdce5d2ea062632e776318277c05c36007bfa718867e40bad0bb27` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | 题库 SHA-256 | `ece1b114f5017149ddf0b93bc46951f3858205ae0e038df3a9606ab151a7cab4`（`interview-v1`） |
 | Alembic head | `20260908_0011`（P15 **未改库**） |
 | `schema_version` / `api_version` | `2` / `v1` |
@@ -14,7 +14,7 @@
 
 P14 文档里的 SHA `cdb52009…` 在 **P15-T01 加四条 Pact 路由后作废**。Pact 解码请用上表。P13 文末「不要打 Pact」已被本文取代：本机 **可以**打下面四个端点。
 
-P16 起公开契约继续加路由，OpenAPI SHA 换成 [`p16-p20-integration.md`](p16-p20-integration.md) 的 `fed40c13…`。社交 / 鉴定 / 设置 / 注销 / 找回以那一套为准；**不要**再把本文 SHA 当当前全量锁。进程模型也以 P16–P20 为准（现有独立 **scheduler / worker**）。
+P16 起的社交 / 鉴定 / 设置 / 注销 / 找回见 [`p16-p20-integration.md`](p16-p20-integration.md)。不要把本文 SHA 或 `fed40c13…` 当现行锁。现行字段以 [`ios-integration.md`](ios-integration.md) 为准。进程模型仍是独立的 scheduler / worker。
 
 公开 API **没有** `POST /pacts/{id}/complete` 或任何同义 complete。完成只由使三题齐全的最后一次 `POST /pact-answer` 在服务端事务内 finalize 隐式发生。
 
@@ -58,7 +58,7 @@ Pact 联调仍打 `kelin-server-api`（`0.0.0.0:8000`）。当前 compose 已有
 
 ### 必须改：DTO 对齐 SHA
 
-锁定 SHA：`743b462becbdce5d2ea062632e776318277c05c36007bfa718867e40bad0bb27`。
+锁定 SHA：`d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e`。
 
 新增解码：
 
@@ -276,7 +276,7 @@ JSON，`extra=forbid`。
 
 ## 9. 人工联调清单
 
-- [ ] Pact 解码 SHA 是 `743b462b…`，不是 P14 的 `cdb52009…`；当前全量锁是 P16–P20 的 `fed40c13…`  
+- [ ] 不要用本文 SHA 或 `fed40c13…` 做全量解码；现行字段见 `ios-integration.md`  
 - [ ] 路由表无 `/pacts/{id}/complete`；客户端无 complete 请求  
 - [ ] 题库 `question_id` 与 `interview-v1` / SHA `ece1b114…` 一致  
 - [ ] 公开题面只有 `text`，没有 `prompt`  

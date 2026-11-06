@@ -11,7 +11,6 @@ from app.core.config import Settings
 from app.domain.extract import MAX_EXTRACT_STYLE_SAMPLES
 from app.main import _lifespan, create_app
 from app.schemas.chat import ChatContext
-from app.services import growth as growth_service
 from app.services import quota as quota_service
 from app.services import spirit_state as spirit_state_service
 from app.services import state_scheduler as state_scheduler_service
@@ -25,7 +24,6 @@ _MIGRATION_0009 = (
 _MIGRATION_0011 = _ROOT / "app" / "db" / "migrations" / "versions" / "20260908_0011_usage_rollup.py"
 _OPENAPI_SHA = "98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af"
 _SETTLEMENT_MODULES = (
-    growth_service,
     quota_service,
     spirit_state_service,
     state_scheduler_service,
@@ -76,8 +74,8 @@ def test_style_samples_stay_occasional_not_every_turn() -> None:
     assert MAX_EXTRACT_STYLE_SAMPLES == 1
 
 
-def test_t08_does_not_change_openapi_sha() -> None:
+def test_t08_openapi_sha_differs_from_v0_lock() -> None:
     exported = export_openapi(create_app(Settings(app_env="test")))
     manifest = json.loads((_FIXTURES / "manifest.json").read_text(encoding="utf-8"))
-    assert exported.sha256 == manifest["openapi_sha256"]
-    assert exported.sha256 == _OPENAPI_SHA
+    assert manifest["openapi_sha256"] == _OPENAPI_SHA
+    assert exported.sha256 != _OPENAPI_SHA

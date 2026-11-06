@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, Self
+from typing import Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from app.providers.types import MemoryType
 from app.schemas.envelope import EnvelopeError
@@ -29,36 +29,8 @@ class _ForbidExtra(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class DebugTraitsPatch(_ForbidExtra):
-    closeness: int | None = Field(default=None, ge=0, le=100)
-    curiosity: int | None = Field(default=None, ge=0, le=100)
-    sharpness: int | None = Field(default=None, ge=0, le=100)
-    nocturnal: int | None = Field(default=None, ge=0, le=100)
-    stubborn: int | None = Field(default=None, ge=0, le=100)
-
-
 class DebugSpiritStateRequest(_ForbidExtra):
-    status: SpiritStatus | None = None
-    hunger: int | None = Field(default=None, ge=0, le=100)
-    energy: int | None = Field(default=None, ge=0, le=100)
-    mood: int | None = Field(default=None, ge=0, le=100)
-    bond: int | None = Field(default=None, ge=0, le=100)
-    traits: DebugTraitsPatch | None = None
-
-    @model_validator(mode="after")
-    def _at_least_one(self) -> Self:
-        if (
-            self.status is None
-            and self.hunger is None
-            and self.energy is None
-            and self.mood is None
-            and self.bond is None
-            and self.traits is None
-        ):
-            raise ValueError("debug spirit state requires a whitelist field")
-        if self.traits is not None and not self.traits.model_fields_set:
-            raise ValueError("debug traits requires a whitelist field")
-        return self
+    status: SpiritStatus
 
 
 class DebugSpiritTimeRequest(_ForbidExtra):

@@ -11,7 +11,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.settings import SPIRIT_PATCH_OPERATION
-from app.repositories.report import IdempotencyClaim
+
+
+@dataclass(frozen=True, slots=True)
+class IdempotencyClaim:
+    inserted: bool
+    request_hash: str
+    status: str
+    resource_id: uuid.UUID | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,8 +71,8 @@ async def fetch_projection(
         await session.execute(
             text(
                 "SELECT s.id, s.client_id, s.name, s.egg, s.invite_code, "
-                "s.closeness, s.curiosity, s.sharpness, s.nocturnal, s.stubborn, "
-                "s.hunger, s.energy, s.mood, s.bond, s.stage, s.status, s.scholar_marks, "
+                "50 AS closeness, 50 AS curiosity, 50 AS sharpness, 50 AS nocturnal, "
+                "50 AS stubborn, 60 AS mood, 0 AS bond, s.stage, s.status, s.scholar_marks, "
                 "s.version, s.onboarding_step, s.onboarding_completed_at, s.hatched_at, "
                 "s.created_at, s.updated_at, s.last_interact_at, "
                 "p.tts_on, p.push_on, p.visit_on, p.dnd_start, p.dnd_end, p.timezone, "
@@ -91,8 +98,8 @@ async def fetch_projection(
         sharpness=int(row.sharpness),
         nocturnal=int(row.nocturnal),
         stubborn=int(row.stubborn),
-        hunger=int(row.hunger),
-        energy=int(row.energy),
+        hunger=80,
+        energy=80,
         mood=int(row.mood),
         bond=int(row.bond),
         stage=str(row.stage),

@@ -32,7 +32,7 @@ class SynthesizeRequest(_ForbidExtra):
         default=TTS_VOICE_DEFAULT,
         description=(
             "V0 allows only default. Clients must not send text; the server reads the owned "
-            "spirit message body and rejects more than 200 characters."
+            "spirit message body."
         ),
     )
 

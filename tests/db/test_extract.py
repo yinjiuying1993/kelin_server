@@ -16,7 +16,6 @@ from app.providers.types import (
     ExtractInput,
     ExtractMemoryDraft,
     ExtractOutput,
-    PersonalityDelta,
     SearchInput,
     SearchResult,
     Transcript,
@@ -162,9 +161,10 @@ async def _assert_repeat_extract(url: str) -> None:
     client_id = uuid.uuid4()
     async with claimed_transaction(factory, user) as session:
         window_id = await _ready_window(session, user)
-        request = ExtractRequest(client_id=client_id, conversation_window_id=window_id)
-        first = await settle_extract(session, user, request, now=NOW)
-        second = await settle_extract(session, user, request, now=NOW)
+    request = ExtractRequest(client_id=client_id, conversation_window_id=window_id)
+    first = await settle_extract(factory, user, request, now=NOW)
+    second = await settle_extract(factory, user, request, now=NOW)
+    async with claimed_transaction(factory, user) as session:
         counts = (
             await session.execute(
                 text(
@@ -186,8 +186,6 @@ async def _assert_repeat_extract(url: str) -> None:
     assert len(first.style_samples) <= 1
     assert [item.id for item in first.memories] == [item.id for item in second.memories]
     assert [item.id for item in first.style_samples] == [item.id for item in second.style_samples]
-    assert first.spirit.closeness == 66
-    assert second.spirit.closeness == 66
     assert counts.memories == len(first.memories)
     assert counts.styles == len(first.style_samples)
     assert int(counts.closeness) == 66
@@ -211,22 +209,24 @@ async def _assert_low_confidence(url: str) -> None:
                 ExtractMemoryDraft(
                     type="preference",
                     summary="弱信号",
-                    salience=10,
+                    normalized_topic_key="preference:user:item:weak",
+                    source_quote="弱信号",
+                    signal="explicit",
                     confidence=0.74,
-                    personality_delta=PersonalityDelta(dimension="closeness", value=2),
                 )
             ]
         )
     )
     async with claimed_transaction(factory, user) as session:
         window_id = await _ready_window(session, user)
-        settled = await settle_extract(
-            session,
-            user,
-            ExtractRequest(client_id=uuid.uuid4(), conversation_window_id=window_id),
-            now=NOW,
-            provider=provider,
-        )
+    settled = await settle_extract(
+        factory,
+        user,
+        ExtractRequest(client_id=uuid.uuid4(), conversation_window_id=window_id),
+        now=NOW,
+        provider=provider,
+    )
+    async with claimed_transaction(factory, user) as session:
         closeness = await session.scalar(
             text("SELECT closeness FROM public.spirits WHERE id = :id"),
             {"id": settled.spirit.spirit_id},
@@ -256,13 +256,14 @@ async def _assert_client_id_conflict(url: str) -> None:
     client_id = uuid.uuid4()
     async with claimed_transaction(factory, user) as session:
         first_window = await _ready_window(session, user)
-        await settle_extract(
-            session,
-            user,
-            ExtractRequest(client_id=client_id, conversation_window_id=first_window),
-            now=NOW,
-        )
-        second_window: uuid.UUID | None = None
+    await settle_extract(
+        factory,
+        user,
+        ExtractRequest(client_id=client_id, conversation_window_id=first_window),
+        now=NOW,
+    )
+    second_window: uuid.UUID | None = None
+    async with claimed_transaction(factory, user) as session:
         for index in range(3):
             turned = await settle_chat_turn(
                 session,
@@ -271,19 +272,19 @@ async def _assert_client_id_conflict(url: str) -> None:
                 now=NOW,
             )
             second_window = turned.conversation_window_id
-        assert second_window is not None
-        assert second_window != first_window
-        try:
-            await settle_extract(
-                session,
-                user,
-                ExtractRequest(client_id=client_id, conversation_window_id=second_window),
-                now=NOW,
-            )
-        except ApiError as exc:
-            assert exc.code == "CONFLICT"
-        else:
-            raise AssertionError("same extract client_id must not claim two windows")
+    assert second_window is not None
+    assert second_window != first_window
+    try:
+        await settle_extract(
+            factory,
+            user,
+            ExtractRequest(client_id=client_id, conversation_window_id=second_window),
+            now=NOW,
+        )
+    except ApiError as exc:
+        assert exc.code == "IDEMPOTENCY_CONFLICT"
+    else:
+        raise AssertionError("same extract client_id must not claim two windows")
     await engine.dispose()
 
 
@@ -303,20 +304,20 @@ async def _assert_open_window(url: str) -> None:
         opened = await settle_chat_turn(
             session, user, _chat_request(onboarding=False, content="第一轮"), now=NOW
         )
-        try:
-            await settle_extract(
-                session,
-                user,
-                ExtractRequest(
-                    client_id=uuid.uuid4(),
-                    conversation_window_id=opened.conversation_window_id,
-                ),
-                now=NOW,
-            )
-        except ApiError as exc:
-            assert exc.code == "INVALID_INPUT"
-        else:
-            raise AssertionError("open windows must not extract")
+    try:
+        await settle_extract(
+            factory,
+            user,
+            ExtractRequest(
+                client_id=uuid.uuid4(),
+                conversation_window_id=opened.conversation_window_id,
+            ),
+            now=NOW,
+        )
+    except ApiError as exc:
+        assert exc.code == "INVALID_INPUT"
+    else:
+        raise AssertionError("open windows must not extract")
     await engine.dispose()
 
 
@@ -342,12 +343,12 @@ async def _assert_processing(url: str) -> None:
             ),
             {"id": window_id, "client_id": client_id},
         )
-        settled = await settle_extract(
-            session,
-            user,
-            ExtractRequest(client_id=client_id, conversation_window_id=window_id),
-            now=NOW,
-        )
+    settled = await settle_extract(
+        factory,
+        user,
+        ExtractRequest(client_id=client_id, conversation_window_id=window_id),
+        now=NOW,
+    )
     assert settled.status == "processing"
     assert settled.memories == ()
     await engine.dispose()

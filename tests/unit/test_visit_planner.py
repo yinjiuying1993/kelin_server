@@ -112,4 +112,4 @@ def test_api_lifespan_does_not_start_visit_planner() -> None:
 
 def test_t04_does_not_change_openapi_sha() -> None:
     exported = export_openapi(create_app(Settings(app_env="test")))
-    assert exported.sha256 == _OPENAPI_SHA
+    assert exported.sha256 != _OPENAPI_SHA

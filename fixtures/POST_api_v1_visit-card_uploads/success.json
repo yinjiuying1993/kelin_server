@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "data": {
+    "object_key": "visit-cards/00000000-0000-4000-8000-0000000000e8/00000000-0000-4000-8000-0000000000e9-image.jpg",
+    "put_url": "https://kelin.invalid/object/visit-cards/pending",
+    "expires_at": "2026-10-20T00:10:00Z"
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000e5",
+  "server_time": "2026-10-20T00:00:00Z"
+}

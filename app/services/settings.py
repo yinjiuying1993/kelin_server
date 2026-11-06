@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ApiError, public_error_message
 from app.core.security import CurrentUser
-from app.domain.settings import parse_hhmm, patch_spirit_request_hash
+from app.domain.settings import patch_spirit_request_hash
 from app.domain.spirit_state import require_aware
 from app.repositories import chat as chat_repo
 from app.repositories import settings as settings_repo
@@ -96,10 +96,7 @@ def _preference_fields(patch: PreferencesPatch | None) -> dict[str, Any]:
         return {}
     mapping = {
         "tts_on": patch.tts_on,
-        "push_on": patch.push_on,
         "visit_on": patch.visit_on,
-        "dnd_start": patch.dnd_start,
-        "dnd_end": patch.dnd_end,
         "timezone": patch.timezone,
         "default_city": patch.default_city,
         "location_weather_on": patch.location_weather_on,
@@ -108,9 +105,6 @@ def _preference_fields(patch: PreferencesPatch | None) -> dict[str, Any]:
     fields: dict[str, Any] = {}
     for column, value in mapping.items():
         if column not in patch.model_fields_set:
-            continue
-        if column in {"dnd_start", "dnd_end"} and value is not None:
-            fields[column] = parse_hhmm(str(value))
             continue
         fields[column] = value
     return fields

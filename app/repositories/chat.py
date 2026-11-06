@@ -26,6 +26,7 @@ class LockedChatSpirit:
     hatched_at: datetime | None
     onboarding_completed_at: datetime | None
     last_interact_at: datetime
+    status: str
 
 
 class SpiritLockBusy(Exception):
@@ -64,9 +65,14 @@ class WindowRow:
 
 
 @dataclass(frozen=True, slots=True)
-class ActivePactRow:
-    id: uuid.UUID
-    title: str
+class PromptProfile:
+    closeness: int
+    curiosity: int
+    sharpness: int
+    nocturnal: int
+    stubborn: int
+    stage: str
+    timezone: str
 
 
 async def assert_writable_transaction(session: AsyncSession) -> None:
@@ -81,7 +87,7 @@ async def lock_spirit_for_owner(
     clause = "FOR UPDATE OF s NOWAIT" if nowait else "FOR UPDATE OF s"
     statement = (
         "SELECT s.id, s.onboarding_step, s.ordinary_dialogue_rounds, s.version, "
-        "s.hatched_at, s.onboarding_completed_at, s.last_interact_at "
+        "s.hatched_at, s.onboarding_completed_at, s.last_interact_at, s.status "
         "FROM public.spirits s WHERE s.user_id = :user_id "
         f"{clause}"
     )
@@ -101,6 +107,81 @@ async def lock_spirit_for_owner(
         hatched_at=row.hatched_at,
         onboarding_completed_at=row.onboarding_completed_at,
         last_interact_at=row.last_interact_at,
+        status=str(row.status),
+    )
+
+
+async def fetch_recent_turns(
+    session: AsyncSession,
+    *,
+    spirit_id: uuid.UUID,
+    limit: int = 8,
+) -> tuple[tuple[str, str], ...]:
+    rows = (
+        await session.execute(
+            text(
+                "SELECT role, content FROM public.messages "
+                "WHERE spirit_id = :spirit_id AND status IN ('accepted', 'generated') "
+                "AND role IN ('user', 'spirit') "
+                "ORDER BY created_at DESC, id DESC "
+                "LIMIT :limit"
+            ),
+            {"spirit_id": spirit_id, "limit": limit},
+        )
+    ).all()
+    return tuple((str(row.role), str(row.content)) for row in reversed(rows))
+
+
+async def fetch_overlay_payload(session: AsyncSession, spirit_id: uuid.UUID) -> dict[str, Any]:
+    raw = await session.scalar(
+        text("SELECT payload FROM public.chat_overlays WHERE spirit_id = :spirit_id"),
+        {"spirit_id": spirit_id},
+    )
+    if isinstance(raw, str):
+        raw = json.loads(raw)
+    if isinstance(raw, dict):
+        return raw
+    return {}
+
+
+async def fetch_sealed_topics(session: AsyncSession, spirit_id: uuid.UUID) -> frozenset[str]:
+    rows = (
+        await session.execute(
+            text(
+                "SELECT topic_key, summary FROM public.memories "
+                "WHERE spirit_id = :spirit_id AND status = 'sealed'"
+            ),
+            {"spirit_id": spirit_id},
+        )
+    ).all()
+    topics: set[str] = set()
+    for row in rows:
+        if row.topic_key:
+            topics.add(str(row.topic_key))
+        if row.summary:
+            topics.add(str(row.summary))
+    return frozenset(topics)
+
+
+async def save_overlay_payload(
+    session: AsyncSession,
+    *,
+    spirit_id: uuid.UUID,
+    payload: dict[str, object],
+) -> None:
+    await session.execute(
+        text(
+            "INSERT INTO public.chat_overlays (spirit_id, payload) "
+            "VALUES (:spirit_id, CAST(:payload AS jsonb)) "
+            "ON CONFLICT (spirit_id) DO UPDATE SET "
+            "payload = EXCLUDED.payload, "
+            "overlay_version = chat_overlays.overlay_version + 1, "
+            "updated_at = now()"
+        ),
+        {
+            "spirit_id": spirit_id,
+            "payload": json.dumps(payload, ensure_ascii=True, separators=(",", ":")),
+        },
     )
 
 
@@ -341,6 +422,24 @@ async def attach_window(
     )
 
 
+async def spirit_display_name(session: AsyncSession, spirit_id: uuid.UUID) -> str:
+    row = await session.scalar(
+        text("SELECT name FROM public.spirits WHERE id = :spirit_id"),
+        {"spirit_id": spirit_id},
+    )
+    name = "" if row is None else str(row).strip()
+    return name or "未名"
+
+
+async def set_spirit_display_name(
+    session: AsyncSession, spirit_id: uuid.UUID, name: str
+) -> None:
+    await session.execute(
+        text("UPDATE public.spirits SET name = :name WHERE id = :spirit_id"),
+        {"spirit_id": spirit_id, "name": name},
+    )
+
+
 async def apply_complete_turn(
     session: AsyncSession,
     owner_id: uuid.UUID,
@@ -357,7 +456,8 @@ async def apply_complete_turn(
                 "onboarding_step = :onboarding_step, "
                 "ordinary_dialogue_rounds = :ordinary_rounds, "
                 "last_interact_at = GREATEST(last_interact_at, :now), "
-                "version = version + 1 "
+                "version = version + 1, "
+                "snapshot_version = snapshot_version + 1 "
                 "WHERE id = :id AND user_id = :user_id "
                 "RETURNING version, last_interact_at"
             ),
@@ -373,29 +473,6 @@ async def apply_complete_turn(
     if row is None:
         raise RuntimeError("chat turn update matched no owner row")
     return int(row.version), row.last_interact_at
-
-
-async def insert_chat_completed_event(
-    session: AsyncSession,
-    *,
-    spirit_id: uuid.UUID,
-    user_message_id: uuid.UUID,
-    occurred_at: datetime,
-) -> None:
-    await session.execute(
-        text(
-            "INSERT INTO public.growth_events ("
-            "spirit_id, source_type, source_id, event_type, occurred_at"
-            ") VALUES ("
-            ":spirit_id, 'chat_turn', :source_id, 'chat_completed', :occurred_at"
-            ") ON CONFLICT (source_type, source_id, event_type) DO NOTHING"
-        ),
-        {
-            "spirit_id": spirit_id,
-            "source_id": user_message_id,
-            "occurred_at": occurred_at,
-        },
-    )
 
 
 async def claim_turn_idempotency(
@@ -481,6 +558,26 @@ async def refresh_turn_lease(
     )
 
 
+async def release_turn_idempotency(
+    session: AsyncSession,
+    owner_id: uuid.UUID,
+    client_id: uuid.UUID,
+) -> None:
+    """Drop a claim that never persisted a turn, so the same id can be retried."""
+    await session.execute(
+        text(
+            "DELETE FROM public.idempotency_records "
+            "WHERE user_id = :user_id AND operation = :operation "
+            "AND client_id = :client_id AND status = 'in_progress'"
+        ),
+        {
+            "user_id": owner_id,
+            "operation": CHAT_TURN_OPERATION,
+            "client_id": client_id,
+        },
+    )
+
+
 async def complete_turn_idempotency(
     session: AsyncSession,
     owner_id: uuid.UUID,
@@ -542,26 +639,56 @@ async def fetch_remote_search_on(session: AsyncSession, owner_id: uuid.UUID) -> 
     return bool(value)
 
 
-async def fetch_active_owned_pact(
-    session: AsyncSession,
-    *,
-    owner_id: uuid.UUID,
-    spirit_id: uuid.UUID,
-) -> ActivePactRow | None:
+@dataclass(frozen=True, slots=True)
+class ChatToolPrefs:
+    remote_search_on: bool
+    location_weather_on: bool
+    default_city: str | None
+
+
+async def fetch_chat_tool_prefs(session: AsyncSession, owner_id: uuid.UUID) -> ChatToolPrefs:
     row = (
         await session.execute(
             text(
-                "SELECT p.id, p.title FROM public.pacts p "
-                "JOIN public.spirits s ON s.id = p.spirit_id "
-                "WHERE p.spirit_id = :spirit_id AND s.user_id = :owner_id "
-                "AND p.status = 'active'"
+                "SELECT remote_search_on, location_weather_on, default_city "
+                "FROM public.user_preferences WHERE user_id = :id"
             ),
-            {"spirit_id": spirit_id, "owner_id": owner_id},
+            {"id": owner_id},
+        )
+    ).first()
+    if row is None:
+        return ChatToolPrefs(remote_search_on=True, location_weather_on=True, default_city=None)
+    city = None if row.default_city is None else str(row.default_city).strip() or None
+    return ChatToolPrefs(
+        remote_search_on=bool(row.remote_search_on),
+        location_weather_on=bool(row.location_weather_on),
+        default_city=city,
+    )
+
+
+async def load_prompt_profile(session: AsyncSession, owner_id: uuid.UUID) -> PromptProfile | None:
+    row = (
+        await session.execute(
+            text(
+                "SELECT s.stage, COALESCE(p.timezone, 'Asia/Shanghai') AS timezone "
+                "FROM public.spirits s "
+                "LEFT JOIN public.user_preferences p ON p.user_id = s.user_id "
+                "WHERE s.user_id = :user_id"
+            ),
+            {"user_id": owner_id},
         )
     ).first()
     if row is None:
         return None
-    return ActivePactRow(id=row.id, title=str(row.title))
+    return PromptProfile(
+        closeness=50,
+        curiosity=50,
+        sharpness=50,
+        nocturnal=50,
+        stubborn=50,
+        stage=str(row.stage),
+        timezone=str(row.timezone),
+    )
 
 
 def _window_row(row: Any) -> WindowRow:

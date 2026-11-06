@@ -8,6 +8,8 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, TypeAdapter
 
+from app.providers.types import MemoryType
+
 
 class _ForbidExtra(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -58,7 +60,7 @@ class ReportTopTrait(_ForbidExtra):
 
 class ReportMemorySnapshot(_ForbidExtra):
     id: UUID
-    type: Literal["preference", "knowledge", "emotion", "relation", "speech", "sight"] | None = None
+    type: MemoryType | None = None
     summary: str | None = Field(default=None, max_length=500)
 
 
@@ -67,6 +69,7 @@ class OutboxPayload(_ForbidExtra):
 
     resource_id: UUID | None = None
     local_date: date | None = None
+    snapshot_version: int | None = Field(default=None, ge=1)
 
 
 _PACT_QUESTIONS_ADAPTER: TypeAdapter[list[PactQuestion]] = TypeAdapter(list[PactQuestion])

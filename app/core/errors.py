@@ -12,6 +12,7 @@ STATUS_ERROR_CODES: dict[int, str] = {
     422: "INVALID_INPUT",
     429: "RATE_LIMITED",
     500: "INTERNAL_ERROR",
+    501: "NOT_IMPLEMENTED",
     503: "DEPENDENCY_UNAVAILABLE",
     504: "PROVIDER_TIMEOUT",
 }
@@ -31,6 +32,8 @@ KNOWN_ERROR_CODES = frozenset(
         "INVALID_CURSOR",
         "MEMORY_NOT_ACTIVE",
         "SPIRIT_NOT_LOST",
+        "SPIRIT_NOT_AWAY",
+        "SPIRIT_NOT_HOME",
         "RECALL_SOURCE_INVALID",
         "PACT_DAY_CLOSED",
         "PACT_SESSION_ALREADY_SUBMITTED",
@@ -43,6 +46,13 @@ KNOWN_ERROR_CODES = frozenset(
         "PACT_QUESTION_NOT_FOUND",
         "PROMISE_NOT_ACTIVE",
         "ASR_EMPTY_RESULT",
+        "CARD_EMPTY",
+        "CARD_TEXT_REJECTED",
+        "CARD_VOICE_REJECTED",
+        "CARD_IMAGE_REJECTED",
+        "VISIT_CARD_CLOSED",
+        "NOT_VISIT_HOST",
+        "ASK_CLOSED",
     }
 )
 
@@ -101,5 +111,15 @@ def public_error_message(code: str) -> str:
         "REPORT_LINE_UNAVAILABLE": "report line unavailable",
         "ACCOUNT_DELETE_PENDING": "account deletion is pending",
         "SPIRIT_NOT_LOST": "spirit is not lost",
+        "SPIRIT_NOT_AWAY": "spirit is not away",
+        "SPIRIT_NOT_HOME": "spirit is not home",
         "RECALL_SOURCE_INVALID": "recall source is invalid",
+        "CARD_EMPTY": "card is empty",
+        "CARD_TEXT_REJECTED": "card text rejected",
+        "CARD_VOICE_REJECTED": "card voice rejected",
+        "CARD_IMAGE_REJECTED": "card image rejected",
+        "VISIT_CARD_CLOSED": "visit card is closed",
+        "NOT_VISIT_HOST": "not the visit host",
+        "NOT_IMPLEMENTED": "not implemented",
+        "ASK_CLOSED": "question is closed",
     }.get(code, "request failed")

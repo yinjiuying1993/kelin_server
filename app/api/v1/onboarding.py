@@ -40,6 +40,7 @@ _ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     response_model=OnboardingCompleteSuccessEnvelope,
     responses=_ERROR_RESPONSES,
     status_code=status.HTTP_200_OK,
+    include_in_schema=False,
 )
 async def post_onboarding_complete(
     request: Request,

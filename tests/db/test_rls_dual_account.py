@@ -1906,6 +1906,18 @@ async def _run_matrix(url: str) -> None:
     engine = create_runtime_engine(url, pool_size=1, max_overflow=0)
     factory = create_session_factory(engine)
     try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "INSERT INTO public.npc_profiles ("
+                    "npc_id, config_version, display_name, title, template_key, enabled"
+                    ") VALUES "
+                    "('fog', 1, '雾里的那只', '雾里的那只', 'npc_fog_v1', true), "
+                    "('lamp', 1, '守灯的那只', '守灯的那只', 'npc_lamp_v1', true), "
+                    "('silent', 1, '不说话的那只', '不说话的那只', 'npc_silent_v1', true) "
+                    "ON CONFLICT (npc_id, config_version) DO NOTHING"
+                )
+            )
         await _seed_owner_graph(
             factory, world, user_id=world.user_a, spirit_id=world.spirit_a, suffix="a"
         )

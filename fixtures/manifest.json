@@ -25,6 +25,83 @@
       ]
     },
     {
+      "endpoint": "GET /api/v1/ask/helped",
+      "id": "GET_api_v1_ask_helped",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "empty"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/ask/questions",
+      "id": "GET_api_v1_ask_questions",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "page_empty",
+        "page_first",
+        "page_middle",
+        "page_last",
+        "invalid_or_expired_cursor"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/ask/questions",
+      "id": "POST_api_v1_ask_questions",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "unmatched"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/ask/questions/recent",
+      "id": "GET_api_v1_ask_questions_recent",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/ask/questions/{question_id}",
+      "id": "GET_api_v1_ask_questions_{question_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/ask/questions/{question_id}/rating",
+      "id": "POST_api_v1_ask_questions_{question_id}_rating",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/ask/questions/{question_id}/turns",
+      "id": "POST_api_v1_ask_questions_{question_id}_turns",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
       "endpoint": "GET /api/v1/bootstrap",
       "id": "GET_api_v1_bootstrap",
       "kind": "endpoint",
@@ -45,62 +122,103 @@
       ]
     },
     {
-      "endpoint": "POST /api/v1/devices",
-      "id": "POST_api_v1_devices",
+      "endpoint": "GET /api/v1/craft/redeem",
+      "id": "GET_api_v1_craft_redeem",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/craft/self-test/turns",
+      "id": "POST_api_v1_craft_self-test_turns",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/craft/skills",
+      "id": "GET_api_v1_craft_skills",
       "kind": "endpoint",
       "scenarios": [
         "success",
         "business_error",
         "missing_required_field",
-        "token_rotate",
-        "environment_mismatch",
-        "enabled_false",
-        "idempotent_replay"
+        "page_empty",
+        "page_first",
+        "page_middle",
+        "page_last",
+        "invalid_or_expired_cursor"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/craft/skills",
+      "id": "POST_api_v1_craft_skills",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "DELETE /api/v1/craft/skills/{craft_id}",
+      "id": "DELETE_api_v1_craft_skills_{craft_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/craft/skills/{craft_id}",
+      "id": "GET_api_v1_craft_skills_{craft_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "PATCH /api/v1/craft/skills/{craft_id}",
+      "id": "PATCH_api_v1_craft_skills_{craft_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/craft/skills/{craft_id}/self-test",
+      "id": "POST_api_v1_craft_skills_{craft_id}_self-test",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/craft/skills/{craft_id}/visibility",
+      "id": "POST_api_v1_craft_skills_{craft_id}_visibility",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
       ]
     },
     {
       "endpoint": "POST /api/v1/extract",
       "id": "POST_api_v1_extract",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field"
-      ]
-    },
-    {
-      "endpoint": "POST /api/v1/feed",
-      "id": "POST_api_v1_feed",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field"
-      ]
-    },
-    {
-      "endpoint": "PATCH /api/v1/feeds/{feed_id}",
-      "id": "PATCH_api_v1_feeds_{feed_id}",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field"
-      ]
-    },
-    {
-      "endpoint": "POST /api/v1/feeds/{feed_id}/cancel",
-      "id": "POST_api_v1_feeds_{feed_id}_cancel",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field"
-      ]
-    },
-    {
-      "endpoint": "POST /api/v1/feeds/{feed_id}/complete",
-      "id": "POST_api_v1_feeds_{feed_id}_complete",
       "kind": "endpoint",
       "scenarios": [
         "success",
@@ -218,77 +336,13 @@
       ]
     },
     {
-      "endpoint": "POST /api/v1/moderate-sight",
-      "id": "POST_api_v1_moderate-sight",
+      "endpoint": "POST /api/v1/ops/craft-redeem",
+      "id": "POST_api_v1_ops_craft-redeem",
       "kind": "endpoint",
       "scenarios": [
         "success",
         "business_error",
         "missing_required_field"
-      ]
-    },
-    {
-      "endpoint": "POST /api/v1/onboarding/complete",
-      "id": "POST_api_v1_onboarding_complete",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field"
-      ]
-    },
-    {
-      "endpoint": "POST /api/v1/pact-answer",
-      "id": "POST_api_v1_pact-answer",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field",
-        "last_question_finalize",
-        "already_answered",
-        "question_not_found",
-        "version_conflict",
-        "out_of_order",
-        "last_question_in_progress",
-        "provider_fallback"
-      ]
-    },
-    {
-      "endpoint": "POST /api/v1/pact-session",
-      "id": "POST_api_v1_pact-session",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field",
-        "day_closed",
-        "idempotent_replay"
-      ]
-    },
-    {
-      "endpoint": "POST /api/v1/pact-skip",
-      "id": "POST_api_v1_pact-skip",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field",
-        "already_submitted",
-        "skip_replay",
-        "completeness"
-      ]
-    },
-    {
-      "endpoint": "POST /api/v1/pacts",
-      "id": "POST_api_v1_pacts",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field",
-        "active_conflict",
-        "notes_not_found"
       ]
     },
     {
@@ -328,39 +382,7 @@
         "missing_required_field",
         "idempotent_replay",
         "not_lost",
-        "sealed_memory",
-        "deleted_memory",
-        "wrong_owner",
-        "non_sight",
         "quota_full_food"
-      ]
-    },
-    {
-      "endpoint": "GET /api/v1/report",
-      "id": "GET_api_v1_report",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field",
-        "generating",
-        "partial",
-        "ready",
-        "failed"
-      ]
-    },
-    {
-      "endpoint": "POST /api/v1/report/line",
-      "id": "POST_api_v1_report_line",
-      "kind": "endpoint",
-      "scenarios": [
-        "success",
-        "business_error",
-        "missing_required_field",
-        "idempotent_replay",
-        "version_conflict",
-        "max_attempts",
-        "provider_fail"
       ]
     },
     {
@@ -374,7 +396,6 @@
         "idempotent_replay",
         "version_conflict",
         "illegal_timezone",
-        "illegal_dnd",
         "name_too_long"
       ]
     },
@@ -389,8 +410,8 @@
       ]
     },
     {
-      "endpoint": "POST /api/v1/storage/sight-upload-url",
-      "id": "POST_api_v1_storage_sight-upload-url",
+      "endpoint": "GET /api/v1/spirits/{spirit_id}/public",
+      "id": "GET_api_v1_spirits_{spirit_id}_public",
       "kind": "endpoint",
       "scenarios": [
         "success",
@@ -423,11 +444,86 @@
         "too_large",
         "duration_exceeded"
       ]
+    },
+    {
+      "endpoint": "GET /api/v1/visit-card",
+      "id": "GET_api_v1_visit-card",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "PUT /api/v1/visit-card",
+      "id": "PUT_api_v1_visit-card",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/visit-card/uploads",
+      "id": "POST_api_v1_visit-card_uploads",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/visit-cards",
+      "id": "GET_api_v1_visit-cards",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field",
+        "page_empty",
+        "page_first",
+        "page_middle",
+        "page_last",
+        "invalid_or_expired_cursor"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/visit-cards/{card_id}",
+      "id": "GET_api_v1_visit-cards_{card_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/visit-cards/{card_id}/read",
+      "id": "POST_api_v1_visit-cards_{card_id}_read",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/visit-cards/{card_id}/reply",
+      "id": "POST_api_v1_visit-cards_{card_id}_reply",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
     }
   ],
-  "generated_at": "2026-09-14T08:37:16Z",
-  "openapi_sha256": "98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af",
+  "generated_at": "2026-11-03T02:44:03Z",
+  "openapi_sha256": "ddd96b5a4f4b6350747a4561618d33fce193432221e13cf13fa2f82178921fdb",
   "schema_version": 2,
   "source_app": "app.main:create_app",
-  "source_commit": "023a9ef8a95e89b19d685d02715ad7f5fbde3410"
+  "source_commit": "b4b65c4b2a94120d0f6f003de0788a57e5bfbd2e"
 }

@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from tests.db.harness import upgrade_empty_kelin_test_to_head
 
 NOW = datetime(2026, 9, 12, 11, 0, tzinfo=UTC)
+HOME = NOW + timedelta(hours=3)
 SECRET = b"kelin-dev-cursor-hmac"
 
 
@@ -99,7 +100,7 @@ async def _assert_postcards(url: str) -> None:
         await _assert_api_cannot_read_public_input(factory)
         await _assert_friend_both_receivers(url, factory)
         await _assert_provider_timeout_and_safety(url, factory)
-        await _assert_npc_one_card(url, factory)
+        await _assert_no_official_visit(url, factory)
     finally:
         await engine.dispose()
 
@@ -151,8 +152,8 @@ async def _assert_friend_both_receivers(url: str, factory: Any) -> None:
     async with claimed_transaction(factory, visitor) as session:
         await _set_idle(session, visitor_id, now=NOW)
     await handle_visit_plan(factory, now=NOW)
-    await scan_due_visit_settle_jobs(factory, now=NOW)
-    ticks = await process_due_visit_settles(factory, now=NOW, limit=8, worker_id="w-cards")
+    await scan_due_visit_settle_jobs(factory, now=HOME)
+    ticks = await process_due_visit_settles(factory, now=HOME, limit=8, worker_id="w-cards")
     assert len(ticks) == 2
     async with claimed_read_transaction(factory, visitor) as session:
         visitor_page = await load_postcard_page(
@@ -198,7 +199,7 @@ async def _assert_friend_both_receivers(url: str, factory: Any) -> None:
     assert visitor_spirit in receivers
     assert host_a_spirit in receivers
     assert host_b_spirit in receivers
-    again = await process_due_visit_settles(factory, now=NOW, limit=8, worker_id="w-repeat")
+    again = await process_due_visit_settles(factory, now=HOME, limit=8, worker_id="w-repeat")
     assert again == ()
     async with claimed_read_transaction(factory, visitor) as session:
         replay = await load_postcard_page(
@@ -216,10 +217,10 @@ async def _assert_provider_timeout_and_safety(url: str, factory: Any) -> None:
     async with claimed_transaction(factory, visitor) as session:
         await _set_idle(session, visitor_id, now=NOW)
     await handle_visit_plan(factory, now=NOW)
-    await scan_due_visit_settle_jobs(factory, now=NOW)
+    await scan_due_visit_settle_jobs(factory, now=HOME)
     await process_due_visit_settles(
         factory,
-        now=NOW,
+        now=HOME,
         limit=8,
         worker_id="w-timeout",
         postcard_provider=FailingPostcardProvider(),
@@ -228,9 +229,9 @@ async def _assert_provider_timeout_and_safety(url: str, factory: Any) -> None:
         page = await load_postcard_page(
             session, visitor, unread_only=False, cursor=None, limit=30, secret=SECRET
         )
-    friend_cards = [item for item in page.items if "乙居" in item.text]
-    assert len(friend_cards) == 1
-    assert friend_cards[0].text == "去过乙居，带回一张字条。"
+    assert len(page.items) == 2
+    assert all(item.npc is None for item in page.items)
+    assert all(item.text.startswith("去过") and item.text.endswith("，带回一张字条。") for item in page.items)
 
     safety_visitor = uuid.uuid4()
     safety_host = uuid.uuid4()
@@ -240,10 +241,10 @@ async def _assert_provider_timeout_and_safety(url: str, factory: Any) -> None:
     async with claimed_transaction(factory, s_user) as session:
         await _set_idle(session, safety_visitor, now=NOW)
     await handle_visit_plan(factory, now=NOW)
-    await scan_due_visit_settle_jobs(factory, now=NOW)
+    await scan_due_visit_settle_jobs(factory, now=HOME)
     await process_due_visit_settles(
         factory,
-        now=NOW,
+        now=HOME,
         limit=8,
         worker_id="w-safe",
         postcard_provider=UnsafePostcardProvider(),
@@ -252,38 +253,36 @@ async def _assert_provider_timeout_and_safety(url: str, factory: Any) -> None:
         unsafe_page = await load_postcard_page(
             session, s_user, unread_only=False, cursor=None, limit=30, secret=SECRET
         )
-    friend_cards = [item for item in unsafe_page.items if "丙居" in item.text]
-    assert len(friend_cards) == 1
-    assert friend_cards[0].text == "去过丙居，带回一张字条。"
-    assert "对话" not in friend_cards[0].text
-    assert "坐标" not in friend_cards[0].text
+    assert len(unsafe_page.items) == 2
+    assert all(
+        item.text.startswith("去过") and item.text.endswith("，带回一张字条。")
+        for item in unsafe_page.items
+    )
+    assert all("对话" not in item.text and "坐标" not in item.text for item in unsafe_page.items)
 
 
-async def _assert_npc_one_card(url: str, factory: Any) -> None:
+async def _assert_no_official_visit(url: str, factory: Any) -> None:
     visitor_id = uuid.uuid4()
     visitor, visitor_spirit, _ = await _boot(url, factory, visitor_id, name="独行")
     async with claimed_transaction(factory, visitor) as session:
         await _set_idle(session, visitor_id, now=NOW)
-    await handle_visit_plan(factory, now=NOW)
-    await scan_due_visit_settle_jobs(factory, now=NOW)
-    ticks = await process_due_visit_settles(factory, now=NOW, limit=8, worker_id="w-npc")
+    planned = await handle_visit_plan(factory, now=NOW)
+    assert planned.inserted == 2
+    await scan_due_visit_settle_jobs(factory, now=HOME)
+    ticks = await process_due_visit_settles(factory, now=HOME, limit=8, worker_id="w-user")
     assert len(ticks) == 2
     engine = create_async_engine(url)
     async with engine.connect() as conn:
-        for tick in ticks:
-            rows = (
-                await conn.execute(
-                    text(
-                        "SELECT receiver_spirit_id, npc_id, sender_spirit_id, text "
-                        "FROM public.postcards WHERE visit_id = :id"
-                    ),
-                    {"id": tick.visit_id},
-                )
-            ).all()
-            assert len(rows) == 1
-            assert rows[0].receiver_spirit_id == visitor_spirit
-            assert rows[0].npc_id in {"fog", "lamp", "silent"}
-            assert rows[0].sender_spirit_id is None
-            assert "字条" in str(rows[0].text)
-            assert "user_id" not in str(rows[0].text)
+        visits = (
+            await conn.execute(
+                text(
+                    "SELECT host_spirit_id, npc_id FROM public.visits "
+                    "WHERE visitor_spirit_id = :id"
+                ),
+                {"id": visitor_spirit},
+            )
+        ).all()
     await engine.dispose()
+    assert len(visits) == 2
+    assert visitor_spirit not in {row.host_spirit_id for row in visits}
+    assert all(row.npc_id is None and row.host_spirit_id is not None for row in visits)

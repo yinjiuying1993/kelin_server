@@ -11,7 +11,9 @@ from typing import Literal
 
 from app.core.config import Settings
 
-ProviderCapability = Literal["chat", "extract", "asr", "tts", "vision", "safety", "search"]
+ProviderCapability = Literal[
+    "chat", "extract", "asr", "tts", "vision", "safety", "search", "mcp"
+]
 ProviderFailureKind = Literal[
     "timeout",
     "unavailable",
@@ -22,13 +24,14 @@ ProviderFailureKind = Literal[
 ]
 
 PROVIDER_TIMEOUT_SECONDS: dict[ProviderCapability, int] = {
-    "chat": 18,
-    "extract": 30,
+    "chat": 60,
+    "extract": 60,
     "asr": 22,
     "tts": 18,
     "vision": 28,
     "safety": 28,
     "search": 12,
+    "mcp": 15,
 }
 PROVIDER_CONDITIONAL_RETRY_COUNT = 1
 PROVIDER_RETRY_ON: frozenset[str] = frozenset({"connect", "http_429", "http_5xx"})
@@ -37,7 +40,7 @@ PROVIDER_CIRCUIT_OPEN_SECONDS = 120
 PROVIDER_CIRCUIT_MIN_SAMPLES = 2
 PROVIDER_CIRCUIT_ERROR_RATE = 0.5
 # Voice turns synthesize after chat; client budget must cover both upstream deadlines.
-CLIENT_CHAT_TIMEOUT_SECONDS = 48
+CLIENT_CHAT_TIMEOUT_SECONDS = 80
 
 _FAILURE_MAP: dict[ProviderFailureKind, tuple[str, int, bool]] = {
     "timeout": ("PROVIDER_TIMEOUT", 504, True),

@@ -1,0 +1,12 @@
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "MODERATION_REJECTED",
+    "message": "moderation rejected",
+    "retryable": false,
+    "details": null
+  },
+  "request_id": "00000000-0000-4000-8000-000000000a23",
+  "server_time": "2026-11-03T00:00:00Z"
+}

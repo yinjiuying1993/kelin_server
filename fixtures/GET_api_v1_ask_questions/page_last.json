@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000a5",
+        "question": "fixture",
+        "spirit_name": "fixture",
+        "spirit_id": "00000000-0000-4000-8000-0000000000a8",
+        "rank_name": "镇场宗师",
+        "skill_title": "茶室品茗冲泡手记",
+        "rated": true,
+        "rating": "非常满意"
+      }
+    ],
+    "next_cursor": null,
+    "has_more": false
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000a36",
+  "server_time": "2026-11-03T00:00:00Z"
+}

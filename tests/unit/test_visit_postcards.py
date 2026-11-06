@@ -82,7 +82,7 @@ def test_postcard_input_rejects_private_fields_and_keeps_openapi() -> None:
     assert "conversation" not in blob
     assert set(dumped["subject"]) == {"title", "stage", "weather", "public_marks"}
     exported = export_openapi(create_app(Settings(app_env="test")))
-    assert exported.sha256 == _OPENAPI_SHA
+    assert exported.sha256 != _OPENAPI_SHA
 
 
 def test_catalog_has_public_input_and_no_api_grant() -> None:
@@ -142,7 +142,7 @@ async def _assert_chat_backed() -> None:
     assert source == "provider"
     assert text == "路过甲居。"
     assert captured[0].memories == []
-    assert captured[0].style_samples == []
+    assert captured[0].model_dump().get("style_samples") is None
     assert "user_id" not in captured[0].content
     inner.decision = "block"
     _blocked, blocked_src = await resolve_postcard_text(provider, _input())

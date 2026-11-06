@@ -28,6 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 from app.core.config import Settings
 from app.core.logging import get_logger
 from app.domain.speech import TTS_OUTPUT_MIME, InvalidSpeech, tts_audio_duration_ms
+from app.integrations.bailian_mcp import run_auto_mcp
 from app.providers.contract import PROVIDER_TIMEOUT_SECONDS, map_provider_failure
 from app.providers.errors import ProviderCapabilityUnwired, ProviderError
 from app.providers.resilience import (
@@ -54,23 +55,27 @@ from app.providers.types import (
 )
 
 CHAT_COMPLETIONS_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-APP_COMPLETIONS_URL_TEMPLATE = "https://dashscope.aliyuncs.com/api/v1/apps/{app_id}/completion"
 ASR_GENERATION_URL = (
     "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
 )
 TTS_GENERATION_URL = "https://dashscope.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer"
+MCP_AUTO_URL = "https://dashscope.aliyuncs.com/api/v1/mcps/BailianAutoMcp/mcp"
 _TTS_REMUX_TIMEOUT_SECONDS = 15
 _TTS_DOWNLOAD_SCHEMES = frozenset({"http", "https"})
-AGENT_APP_ALIAS = "agent_app"
 PROVIDER_SOURCE: Literal["provider"] = "provider"
 CHAT_PROMPT_VERSION = "chat/v3"
 EXTRACT_PROMPT_VERSION = "extract/v2"
+JUDGE_PROMPT_VERSION = "extract/v3"
 SAFETY_PROMPT_VERSION = "safety/v1"
 VISION_PROMPT_VERSION = "vision/v1"
-JsonCapability = Literal["chat", "extract", "search", "vision", "safety", "asr", "tts"]
+_TEXT_SAFETY = (
+    "判断这句话是否明显涉及违法伤害。"
+    "只返回 JSON，键 decision 的值只能是 allow 或 block。"
+)
+JsonCapability = Literal["chat", "extract", "search", "vision", "safety", "asr", "tts", "mcp"]
 _PROMPTS_ROOT = Path(__file__).resolve().parent / "bailian" / "prompts"
 _SEARCH_INSTRUCTION = (
-    "Return only JSON with key results. results is a list of at most 3 objects "
+    "Return only JSON with key results. results is a list of objects "
     "with url and optional title. url must be https. No extra keys."
 )
 Sleep = Callable[[float], Awaitable[None]]
@@ -87,7 +92,7 @@ class _AttemptFailure(Exception):
 class _SearchEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    results: list[SearchResult] = Field(default_factory=list, max_length=3)
+    results: list[SearchResult] = Field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,7 +108,6 @@ class BailianHttpAdapter:
         *,
         api_key: SecretStr,
         chat_model: str,
-        app_id: str | None,
         extract_model: str | None,
         search_model: str | None,
         vision_model: str | None,
@@ -112,6 +116,7 @@ class BailianHttpAdapter:
         tts_model: str | None,
         tts_voice: str | None,
         search_enabled: bool,
+        mcp_enabled: bool,
         workspace_id: SecretStr | None,
         timeout_seconds: float,
         client: httpx.AsyncClient | None = None,
@@ -121,7 +126,6 @@ class BailianHttpAdapter:
     ) -> None:
         self._api_key = api_key
         self._chat_model = chat_model
-        self._app_id = app_id
         self._extract_model = extract_model
         self._search_model = search_model
         self._vision_model = vision_model
@@ -130,6 +134,7 @@ class BailianHttpAdapter:
         self._tts_model = tts_model
         self._tts_voice = tts_voice
         self._search_enabled = search_enabled
+        self._mcp_enabled = mcp_enabled
         self._workspace_id = workspace_id
         self._timeout_seconds = timeout_seconds
         self._timeout = httpx.Timeout(timeout_seconds)
@@ -154,7 +159,6 @@ class BailianHttpAdapter:
         return cls(
             api_key=settings.bailian_api_key,
             chat_model=settings.bailian_chat_model,
-            app_id=settings.bailian_app_id,
             extract_model=settings.bailian_extract_model,
             search_model=settings.bailian_search_model,
             vision_model=settings.bailian_vision_model,
@@ -163,6 +167,7 @@ class BailianHttpAdapter:
             tts_model=settings.bailian_tts_model,
             tts_voice=settings.bailian_tts_voice,
             search_enabled=settings.bailian_search_enabled,
+            mcp_enabled=settings.bailian_mcp_enabled,
             workspace_id=settings.bailian_workspace_id,
             timeout_seconds=float(PROVIDER_TIMEOUT_SECONDS["chat"]),
             client=client,
@@ -176,18 +181,6 @@ class BailianHttpAdapter:
         return PROVIDER_SOURCE
 
     async def chat(self, value: ChatInput) -> ChatOutput:
-        if self._app_id is not None:
-            return await self._complete_json(
-                capability="chat",
-                model=AGENT_APP_ALIAS,
-                url=app_completions_url(self._app_id),
-                payload={
-                    "input": {"prompt": _agent_chat_prompt(value)},
-                    "parameters": {},
-                    "debug": {},
-                },
-                parse=_chat_output_from_agent_response,
-            )
         return await self._complete_json(
             capability="chat",
             model=self._chat_model,
@@ -196,8 +189,73 @@ class BailianHttpAdapter:
                 _chat_instruction(value),
                 value.content,
                 self._chat_model,
+                thinking=value.thinking,
             ),
             parse=_chat_output_from_response,
+        )
+
+    async def complete_self_test(self, instruction: str, user_text: str) -> str:
+        reply = await self._complete_json(
+            capability="chat",
+            model=self._chat_model,
+            url=CHAT_COMPLETIONS_URL,
+            payload=_completions_payload(instruction, user_text, self._chat_model),
+            parse=_self_test_reply,
+        )
+        return reply
+
+    async def complete_ask(self, instruction: str, user_text: str) -> str:
+        reply = await self._complete_json(
+            capability="chat",
+            model=self._chat_model,
+            url=CHAT_COMPLETIONS_URL,
+            payload=_completions_payload(instruction, user_text, self._chat_model),
+            parse=_ask_reply,
+        )
+        return reply
+
+    async def complete_match(self, instruction: str, user_text: str) -> list[str]:
+        return await self._complete_json(
+            capability="chat",
+            model=self._chat_model,
+            url=CHAT_COMPLETIONS_URL,
+            payload=_completions_payload(
+                instruction,
+                user_text,
+                self._chat_model,
+                thinking=True,
+            ),
+            parse=_match_skill_ids,
+        )
+
+    async def moderate_text(self, text: str) -> str:
+        model = self._safety_model or self._chat_model
+        return await self._complete_json(
+            capability="safety" if self._safety_model else "chat",
+            model=model,
+            url=CHAT_COMPLETIONS_URL,
+            payload=_completions_payload(_TEXT_SAFETY, text, model),
+            parse=_text_safety_decision,
+        )
+
+    async def judge_memory(self, content: str) -> dict[str, object]:
+        """Ask the extract model, with thinking, whether this user line is a memory."""
+        if self._extract_model is None:
+            raise ProviderCapabilityUnwired("extract")
+        text = content.strip()
+        if not text:
+            return {"memories": []}
+        return await self._complete_json(
+            capability="extract",
+            model=self._extract_model,
+            url=CHAT_COMPLETIONS_URL,
+            payload=_completions_payload(
+                _load_prompt(JUDGE_PROMPT_VERSION),
+                text,
+                self._extract_model,
+                thinking=True,
+            ),
+            parse=_message_json_object,
         )
 
     async def extract(self, value: ExtractInput) -> ExtractOutput:
@@ -229,6 +287,54 @@ class BailianHttpAdapter:
             ),
             parse=_search_results_from_response,
         )
+
+    async def extend(
+        self,
+        *,
+        query: str,
+        argument: str | None = None,
+        default_city: str | None = None,
+        user_text: str | None = None,
+    ) -> str:
+        """Find a Bailian tool for this need and return its text."""
+        if not self._mcp_enabled:
+            raise ProviderCapabilityUnwired("mcp")
+        if not self._circuits.allow("mcp"):
+            raise ProviderError("MODEL_UNAVAILABLE")
+        timeout = float(PROVIDER_TIMEOUT_SECONDS["mcp"])
+        started = perf_counter()
+        try:
+            async with self._http_client() as client:
+                text = await run_auto_mcp(
+                    client,
+                    url=MCP_AUTO_URL,
+                    api_key=self._api_key.get_secret_value(),
+                    query=query,
+                    argument=argument,
+                    default_city=default_city,
+                    timeout=timeout,
+                    user_text=user_text,
+                )
+        except ProviderError as exc:
+            if exc.code != "TOOL_ARGUMENT_MISSING":
+                self._circuits.record("mcp", ok=False)
+                self._log_call(
+                    capability="mcp",
+                    model_alias="auto",
+                    outcome="error",
+                    started=started,
+                    status_code=None,
+                )
+            raise
+        self._circuits.record("mcp", ok=True)
+        self._log_call(
+            capability="mcp",
+            model_alias="auto",
+            outcome="http",
+            started=started,
+            status_code=200,
+        )
+        return text
 
     async def transcribe(self, value: ASRInput) -> Transcript:
         if self._asr_model is None:
@@ -359,7 +465,8 @@ class BailianHttpAdapter:
                     parse=parse,
                 )
             except _AttemptFailure as exc:
-                self._circuits.record(capability, ok=False)
+                if exc.kind != "schema":
+                    self._circuits.record(capability, ok=False)
                 last_error = exc.error
                 if should_retry(
                     exc.kind,
@@ -478,11 +585,13 @@ class BailianHttpAdapter:
         )
 
 
-def app_completions_url(app_id: str) -> str:
-    return APP_COMPLETIONS_URL_TEMPLATE.format(app_id=app_id)
-
-
-def _completions_payload(instruction: str, user_content: str, model: str) -> dict[str, object]:
+def _completions_payload(
+    instruction: str,
+    user_content: str,
+    model: str,
+    *,
+    thinking: bool = False,
+) -> dict[str, object]:
     return {
         "model": model,
         "messages": [
@@ -490,6 +599,7 @@ def _completions_payload(instruction: str, user_content: str, model: str) -> dic
             {"role": "user", "content": user_content},
         ],
         "response_format": {"type": "json_object"},
+        "enable_thinking": thinking,
     }
 
 
@@ -506,44 +616,21 @@ def _load_prompt(version: str) -> str:
 
 
 def _recall_block(value: ChatInput) -> str:
-    if not value.memories and not value.style_samples:
+    if not value.memories:
         return ""
     lines = [
         "Active private memories only. Cite only ids listed here; omit sealed or deleted.",
     ]
     for memory in value.memories:
         lines.append(f"- {memory.id} [{memory.type}] {memory.summary}")
-    if value.style_samples:
-        lines.append("Active style samples:")
-        for sample in value.style_samples:
-            lines.append(f"- {sample.kind}: {sample.text}")
     return "\n".join(lines)
 
 
-def _agent_chat_prompt(value: ChatInput) -> str:
-    if value.onboarding:
-        base = (
-            f"{value.content}\n"
-            f"(S04 onboarding step {value.onboarding_step} of 5; "
-            "keep reply within 20 Chinese characters.)"
-        )
-    else:
-        base = value.content
-    block = _recall_block(value)
-    if not block:
-        return base
-    return f"{base}\n{block}"
-
-
 def _chat_instruction(value: ChatInput) -> str:
-    if value.onboarding:
-        phase = (
-            f"This is S04 onboarding step {value.onboarding_step} of 5. "
-            "Keep reply within 20 Chinese characters."
-        )
-    else:
-        phase = "This is an ordinary companionship turn after hatch."
+    phase = "This is an ordinary companionship turn after hatch."
     instruction = f"{_load_prompt(CHAT_PROMPT_VERSION)}\n{phase}"
+    if value.emotion_context:
+        return f"{instruction}\n{value.emotion_context}"
     block = _recall_block(value)
     if not block:
         return instruction
@@ -596,76 +683,70 @@ def _message_json_object(response: httpx.Response) -> dict[str, object]:
     return parsed
 
 
-_CHAT_OUTPUT_KEYS = ("reply", "intent", "citations", "safety", "search_query")
+def _coerce_naming_flag(payload: dict[str, object]) -> dict[str, object]:
+    naming = payload.get("naming")
+    if naming in (True, False) or "naming" not in payload:
+        return payload
+    if naming in {"是", "true", "True", "yes", "1", 1}:
+        return {**payload, "naming": True}
+    if naming in {"否", "false", "False", "no", "0", 0, None, ""}:
+        return {**payload, "naming": False}
+    return payload
 
 
-def _agent_output_text(response: httpx.Response) -> str:
-    try:
-        payload = response.json()
-    except json.JSONDecodeError as exc:
-        raise ProviderError("MODEL_UNAVAILABLE") from exc
-    if not isinstance(payload, dict):
+def _match_skill_ids(response: httpx.Response) -> list[str]:
+    payload = _message_json_object(response)
+    raw = payload.get("skill_ids") if isinstance(payload, dict) else None
+    if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
         raise ProviderError("MODEL_UNAVAILABLE")
-    output = payload.get("output")
-    if not isinstance(output, dict):
+    return [str(item) for item in raw]
+
+
+def _ask_reply(response: httpx.Response) -> str:
+    payload = _message_json_object(response)
+    reply = payload.get("reply") if isinstance(payload, dict) else None
+    if not isinstance(reply, str) or not reply.strip():
         raise ProviderError("MODEL_UNAVAILABLE")
-    text = output.get("text")
-    if not isinstance(text, str) or not text.strip():
+    return reply.strip()
+
+
+def _self_test_reply(response: httpx.Response) -> str:
+    payload = _message_json_object(response)
+    reply = payload.get("reply") if isinstance(payload, dict) else None
+    if not isinstance(reply, str) or not reply.strip():
         raise ProviderError("MODEL_UNAVAILABLE")
-    return text.strip()
+    return reply.strip()
 
 
-def _strip_markdown_fence(text: str) -> str:
-    stripped = text.strip()
-    if not stripped.startswith("```"):
-        return stripped
-    lines = stripped.splitlines()
-    if not lines or not lines[0].startswith("```"):
-        return stripped
-    lines = lines[1:]
-    if lines and lines[-1].strip() == "```":
-        lines = lines[:-1]
-    return "\n".join(lines).strip()
-
-
-def _json_object_from_agent_text(text: str) -> dict[str, object] | None:
-    try:
-        parsed = json.loads(_strip_markdown_fence(text))
-    except json.JSONDecodeError:
-        return None
-    if isinstance(parsed, dict):
-        return parsed
-    return None
-
-
-def _chat_output_from_whitelist(parsed: dict[str, object]) -> ChatOutput | None:
-    subset = {key: parsed[key] for key in _CHAT_OUTPUT_KEYS if key in parsed}
-    try:
-        return ChatOutput.model_validate(subset)
-    except ValidationError:
-        return None
-
-
-def _chat_output_from_agent_response(response: httpx.Response) -> ChatOutput:
-    text = _agent_output_text(response)
-    parsed = _json_object_from_agent_text(text)
-    if parsed is not None:
-        output = _chat_output_from_whitelist(parsed)
-        if output is not None:
-            return output
-        if "reply" in parsed:
-            raise ProviderError("MODEL_UNAVAILABLE")
-    reply = text[:4000]
-    if not reply:
+def _text_safety_decision(response: httpx.Response) -> str:
+    payload = _message_json_object(response)
+    decision = payload.get("decision") if isinstance(payload, dict) else None
+    if decision not in {"allow", "block"}:
         raise ProviderError("MODEL_UNAVAILABLE")
-    return ChatOutput(reply=reply)
+    return str(decision)
 
 
 def _chat_output_from_response(response: httpx.Response) -> ChatOutput:
     try:
-        return ChatOutput.model_validate(_message_json_object(response))
+        payload = _message_json_object(response)
+    except ProviderError as exc:
+        raise ProviderError("CHAT_OUTPUT_INVALID") from exc
+    if isinstance(payload, dict):
+        payload = _coerce_naming_flag(payload)
+    if isinstance(payload, dict) and payload.get("intent") not in {
+        "safety",
+        "recall_only",
+        "away_note",
+        "knowledge",
+        "tired",
+        "hungry",
+        "companion",
+    }:
+        payload = {**payload, "intent": None}
+    try:
+        return ChatOutput.model_validate(payload)
     except ValidationError as exc:
-        raise ProviderError("MODEL_UNAVAILABLE") from exc
+        raise ProviderError("CHAT_OUTPUT_INVALID") from exc
 
 
 def _extract_output_from_response(response: httpx.Response) -> ExtractOutput:

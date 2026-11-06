@@ -64,3 +64,12 @@ def public_postcard_stub_text(*, title: str, weather: str, role: PostcardRole) -
 
 def fallback_postcard_text(*, title: str, role: PostcardRole) -> str:
     return visit_template_text(title=title, for_host=role == "host")
+
+
+def public_visit_title(value: str) -> str:
+    """Visitor-facing name only. Chat, photos, and coordinates never become a title."""
+    cleaned = value.strip()
+    blocked = ("对话", "记忆", "照片", "坐标", "latitude", "longitude")
+    if not cleaned or any(token in cleaned.lower() for token in blocked):
+        return "未名"
+    return cleaned[:40]

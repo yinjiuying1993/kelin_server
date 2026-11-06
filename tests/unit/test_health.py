@@ -29,15 +29,14 @@ def test_health_paths_are_root_not_api_v1() -> None:
     assert "/api/v1/bootstrap" in spec_paths
     assert "/api/v1/chat" in spec_paths
     assert "/api/v1/extract" in spec_paths
-    assert "/api/v1/feed" in spec_paths
-    assert "/api/v1/feeds/{feed_id}" in spec_paths
-    assert "/api/v1/feeds/{feed_id}/complete" in spec_paths
-    assert "/api/v1/feeds/{feed_id}/cancel" in spec_paths
+    assert "/api/v1/feed" not in spec_paths
     assert "/api/v1/messages" in spec_paths
     assert "/api/v1/memories" in spec_paths
     assert "/api/v1/memories/{memory_id}" in spec_paths
-    assert "/api/v1/onboarding/complete" in spec_paths
-    assert "/api/v1/storage/sight-upload-url" in spec_paths
+    assert "/api/v1/onboarding/complete" not in spec_paths
+    assert "/api/v1/storage/sight-upload-url" not in spec_paths
+    assert "/api/v1/devices" not in spec_paths
+    assert "/api/v1/moderate-sight" not in spec_paths
     assert "/api/v1/transcribe" in spec_paths
     assert "/api/v1/synthesize" in spec_paths
     assert not any(path.startswith("/api/") for path in spec_paths if path.startswith("/health/"))

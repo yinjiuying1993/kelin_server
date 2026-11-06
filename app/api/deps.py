@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import Settings
 from app.core.errors import ApiError, public_error_message
 from app.db.session import create_runtime_engine, create_session_factory
-from app.integrations.storage import PrivateSightStorage, PrivateTtsStorage
+from app.integrations.oss import AliyunOssBackend, backend_from_settings
+from app.integrations.storage import PrivateSightStorage, PrivateTtsStorage, PrivateVisitCardStorage
+from app.providers.factory import build_provider
 
 
 def _unavailable() -> ApiError:
@@ -18,6 +20,16 @@ def _unavailable() -> ApiError:
         status_code=503,
         retryable=True,
     )
+
+
+def provider_from_app(app: FastAPI) -> object:
+    existing = getattr(app.state, "provider", None)
+    if existing is not None:
+        return existing
+    settings = getattr(app.state, "settings", None)
+    if not isinstance(settings, Settings):
+        raise _unavailable()
+    return build_provider(settings)
 
 
 def session_factory_from_app(app: FastAPI) -> async_sessionmaker[AsyncSession]:
@@ -42,8 +54,17 @@ def sight_storage_from_app(app: FastAPI) -> PrivateSightStorage:
     existing = getattr(app.state, "sight_storage", None)
     if isinstance(existing, PrivateSightStorage):
         return existing
-    storage = PrivateSightStorage()
+    storage = PrivateSightStorage(_object_backend(app))
     app.state.sight_storage = storage
+    return storage
+
+
+def visit_card_storage_from_app(app: FastAPI) -> PrivateVisitCardStorage:
+    existing = getattr(app.state, "visit_card_storage", None)
+    if isinstance(existing, PrivateVisitCardStorage):
+        return existing
+    storage = PrivateVisitCardStorage(_object_backend(app))
+    app.state.visit_card_storage = storage
     return storage
 
 
@@ -51,6 +72,13 @@ def tts_storage_from_app(app: FastAPI) -> PrivateTtsStorage:
     existing = getattr(app.state, "tts_storage", None)
     if isinstance(existing, PrivateTtsStorage):
         return existing
-    storage = PrivateTtsStorage()
+    storage = PrivateTtsStorage(_object_backend(app))
     app.state.tts_storage = storage
     return storage
+
+
+def _object_backend(app: FastAPI) -> AliyunOssBackend | None:
+    settings = getattr(app.state, "settings", None)
+    if isinstance(settings, Settings):
+        return backend_from_settings(settings)
+    return None

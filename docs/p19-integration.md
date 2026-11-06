@@ -6,7 +6,7 @@
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | Alembic head | `20260908_0019` |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/` |
@@ -42,7 +42,7 @@
 
 ### 必须改：DTO 对齐 SHA
 
-锁定 SHA：`98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af`。
+锁定 SHA：`d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e`。
 
 新增解码：
 

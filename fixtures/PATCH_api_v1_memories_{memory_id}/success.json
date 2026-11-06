@@ -12,7 +12,6 @@
       "spirit": null,
       "preferences": null,
       "room": null,
-      "onboarding": null,
       "report": null,
       "social": null,
       "memories_upsert": [
@@ -20,7 +19,9 @@
           "id": "00000000-0000-4000-8000-000000000080",
           "type": "preference",
           "summary": "请叫我阿年",
-          "tags": ["称呼"],
+          "tags": [
+            "称呼"
+          ],
           "salience": 90,
           "confidence": 0.96,
           "status": "active",

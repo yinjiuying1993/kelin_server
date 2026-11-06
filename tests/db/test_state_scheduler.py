@@ -48,8 +48,12 @@ async def _spirit_row(session: AsyncSession, user_id: uuid.UUID) -> Any:
     return (
         await session.execute(
             text(
-                "SELECT id, status, version, last_interact_at, study_until, away_until, "
-                "has_been_lost FROM public.spirits WHERE user_id = :user_id"
+                "SELECT s.id, a.status, s.version, "
+                "COALESCE(a.last_interact_at, s.last_interact_at) AS last_interact_at, "
+                "a.study_until, a.away_until, a.has_been_lost "
+                "FROM public.spirits s "
+                "JOIN public.spirit_awareness a ON a.spirit_id = s.id "
+                "WHERE s.user_id = :user_id"
             ),
             {"user_id": user_id},
         )

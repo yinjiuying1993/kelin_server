@@ -9,9 +9,10 @@ from app.domain.spirit import SpiritCreateResult
 from app.schemas.spirit import MutationResult
 
 
-def test_create_result_maps_to_locked_mutation_patch() -> None:
+def test_create_result_maps_to_hatched_room_patch() -> None:
     spirit_id = uuid4()
     created = datetime(2026, 9, 8, tzinfo=UTC)
+    hatched = datetime(2026, 9, 8, 0, 0, 1, tzinfo=UTC)
     result = SpiritCreateResult(
         spirit_id=spirit_id,
         client_id=uuid4(),
@@ -33,7 +34,7 @@ def test_create_result_maps_to_locked_mutation_patch() -> None:
         version=1,
         onboarding_step=0,
         onboarding_completed_at=None,
-        hatched_at=None,
+        hatched_at=hatched,
         created_at=created,
         tts_on=False,
         push_on=False,
@@ -53,15 +54,18 @@ def test_create_result_maps_to_locked_mutation_patch() -> None:
     assert parsed.patch.spirit is not None
     assert parsed.patch.spirit.egg == "warm"
     assert parsed.patch.spirit.status == "home"
-    assert parsed.patch.spirit.stage == "whelp"
-    assert parsed.patch.spirit.scholar_marks == []
+    assert parsed.patch.spirit.stage == "formed"
+    assert parsed.patch.spirit.hatched_at == "2026-09-08T00:00:01Z"
     assert parsed.patch.spirit.version == parsed.patch.snapshot_version
-    assert parsed.patch.spirit.closeness == 65
-    assert parsed.patch.room is None
+    assert parsed.patch.spirit.model_dump().get("scholar_marks") is None
+    assert parsed.patch.spirit.model_dump().get("onboarding_step") is None
+    assert parsed.patch.room is not None
+    assert parsed.patch.room.stage_image_key == "formed_image"
+    assert parsed.patch.room.letter_key is None
+    assert parsed.patch.room.text_status == "home"
+    assert parsed.patch.room.status == "home"
     assert parsed.quotas == []
     assert invite_code_is_valid(parsed.patch.spirit.invite_code)
     assert parsed.patch.preferences is None
-    assert parsed.patch.onboarding is not None
-    assert parsed.patch.onboarding.step == 0
-    assert parsed.patch.onboarding.required is True
+    assert parsed.patch.model_dump().get("onboarding") is None
     assert parsed.patch.spirit.created_at == "2026-09-08T00:00:00Z"

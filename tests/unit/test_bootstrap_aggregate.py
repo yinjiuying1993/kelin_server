@@ -22,14 +22,11 @@ def test_bootstrap_sql_is_fixed_and_has_no_write_locks() -> None:
     statements = (
         bootstrap_repo.SPIRIT_SQL,
         bootstrap_repo.PREFS_SQL,
-        bootstrap_repo.PENDING_SIGHT_SQL,
         bootstrap_repo.UNREAD_POSTCARD_SQL,
-        bootstrap_repo.DUE_PROMISE_SQL,
         bootstrap_repo.MEMORY_IDS_SQL,
         bootstrap_repo.ACTIVE_PACT_SQL,
         bootstrap_repo.REPORT_SQL,
         bootstrap_repo.USAGE_SQL,
-        bootstrap_repo.LATEST_EMOTION_SQL,
     )
     blob = "\n".join(statements).upper()
     assert "FOR UPDATE" not in blob

@@ -9,14 +9,8 @@ from uuid import UUID, uuid4
 
 import jwt
 from app.core.config import Settings
-from app.core.security import CurrentUser, JwtVerifier
-from app.db.session import claimed_transaction, create_runtime_engine, create_session_factory
+from app.core.security import JwtVerifier
 from app.main import create_app
-from app.schemas.chat import ChatRequest
-from app.schemas.onboarding import OnboardingCompleteResult
-from app.schemas.spirit import CreateSpiritRequest
-from app.services.chat import settle_chat_turn
-from app.services.spirit import create_spirit_if_absent
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 from fastapi.testclient import TestClient
@@ -30,7 +24,6 @@ from tests.db.harness import upgrade_empty_kelin_test_to_head
 ISSUER = "https://kelin-test.supabase.co/auth/v1"
 AUDIENCE = "authenticated"
 NOW = datetime.now(UTC)
-CHAT_NOW = datetime(2026, 9, 9, 12, 0, tzinfo=UTC)
 ROUTER_PATH = Path(__file__).resolve().parents[2] / "app" / "api" / "v1" / "onboarding.py"
 
 
@@ -67,36 +60,17 @@ def _token(private: RSAPrivateKey, kid: str, sub: UUID) -> str:
     return jwt.encode(claims, private, algorithm="RS256", headers={"kid": kid, "alg": "RS256"})
 
 
-def _spirit_request() -> CreateSpiritRequest:
-    return CreateSpiritRequest.model_validate(
-        {
-            "client_id": str(uuid4()),
-            "egg": "warm",
-            "name": "未名",
-            "consents": {
-                "ai_disclosure": {"document_version": "2026-09", "explicitly_accepted": True},
-                "data_notice": {"document_version": "2026-09", "displayed": True},
-                "user_terms": {"document_version": "2026-09", "displayed": True},
-            },
-        }
-    )
-
-
-def _chat_request() -> ChatRequest:
-    return ChatRequest.model_validate(
-        {
-            "client_message_id": str(uuid4()),
-            "content": "你好",
-            "source": "text",
-            "onboarding": True,
-            "context": {
-                "timezone": "Asia/Shanghai",
-                "local_hour": 21,
-                "weather": "cloudy",
-                "city": None,
-            },
-        }
-    )
+def _spirit_body() -> dict[str, Any]:
+    return {
+        "client_id": str(uuid4()),
+        "egg": "warm",
+        "name": "未名",
+        "consents": {
+            "ai_disclosure": {"document_version": "2026-09", "explicitly_accepted": True},
+            "data_notice": {"document_version": "2026-09", "displayed": True},
+            "user_terms": {"document_version": "2026-09", "displayed": True},
+        },
+    }
 
 
 async def _seed_user(url: str, user_id: UUID) -> None:
@@ -104,20 +78,6 @@ async def _seed_user(url: str, user_id: UUID) -> None:
     async with engine.begin() as conn:
         await conn.execute(text("INSERT INTO auth.users (id) VALUES (:id)"), {"id": user_id})
     await engine.dispose()
-
-
-async def _seed_rounds(url: str, user_id: UUID, rounds: int) -> int:
-    engine = create_runtime_engine(url)
-    factory = create_session_factory(engine)
-    user = CurrentUser(id=user_id)
-    async with claimed_transaction(factory, user) as session:
-        created = await create_spirit_if_absent(session, user, _spirit_request())
-        version = created.version
-        for _ in range(rounds):
-            turned = await settle_chat_turn(session, user, _chat_request(), now=CHAT_NOW)
-            version = turned.version
-    await engine.dispose()
-    return version
 
 
 def test_router_does_not_contain_settlement_sql() -> None:
@@ -150,26 +110,22 @@ def test_missing_expected_version_is_invalid_input_envelope() -> None:
             json={"client_id": str(uuid4())},
             headers={"Authorization": f"Bearer {_token(private, 'kid-a', sub)}"},
         )
-    assert response.status_code == 422
+    assert response.status_code == 404
     payload = response.json()
     assert payload["ok"] is False
-    assert payload["error"]["code"] == "INVALID_INPUT"
+    assert payload["error"]["code"] == "NOT_FOUND"
     assert payload["data"] is None
 
 
-def test_step_four_is_incomplete_and_step_five_replays_same_hatched_at() -> None:
+def test_hatch_on_create_rejects_complete_gate() -> None:
     url = upgrade_empty_kelin_test_to_head()
-    asyncio.run(_assert_http_complete(url))
+    asyncio.run(_assert_already_hatched(url))
 
 
-async def _assert_http_complete(url: str) -> None:
+async def _assert_already_hatched(url: str) -> None:
     private, public = _rsa()
-    incomplete_sub = uuid4()
-    complete_sub = uuid4()
-    await _seed_user(url, incomplete_sub)
-    await _seed_user(url, complete_sub)
-    incomplete_version = await _seed_rounds(url, incomplete_sub, 4)
-    complete_version = await _seed_rounds(url, complete_sub, 5)
+    sub = uuid4()
+    await _seed_user(url, sub)
     settings = Settings(
         app_env="test",
         database_url_api=SecretStr(url),
@@ -184,53 +140,21 @@ async def _assert_http_complete(url: str) -> None:
         fetcher=_StaticJwks({"keys": [_jwk(public, "kid-a")]}),
         clock=lambda: NOW,
     )
-    incomplete_token = _token(private, "kid-a", incomplete_sub)
-    complete_token = _token(private, "kid-a", complete_sub)
-    complete_body = {
-        "client_id": str(uuid4()),
-        "expected_spirit_version": complete_version,
-    }
+    token = _token(private, "kid-a", sub)
+    auth = {"Authorization": f"Bearer {token}"}
     with TestClient(application) as client:
-        incomplete = client.post(
+        created = client.post("/api/v1/spirits", json=_spirit_body(), headers=auth)
+        assert created.status_code == 200, created.text
+        version = created.json()["data"]["patch"]["spirit"]["version"]
+        complete = client.post(
             "/api/v1/onboarding/complete",
-            json={
-                "client_id": str(uuid4()),
-                "expected_spirit_version": incomplete_version,
-            },
-            headers={"Authorization": f"Bearer {incomplete_token}"},
+            json={"client_id": str(uuid4()), "expected_spirit_version": version},
+            headers=auth,
         )
-        first = client.post(
-            "/api/v1/onboarding/complete",
-            json=complete_body,
-            headers={"Authorization": f"Bearer {complete_token}"},
-        )
-        replay = client.post(
-            "/api/v1/onboarding/complete",
-            json=complete_body,
-            headers={"Authorization": f"Bearer {complete_token}"},
-        )
-    assert incomplete.status_code == 409
-    assert incomplete.json()["error"]["code"] == "ONBOARDING_INCOMPLETE"
-    assert first.status_code == 200, first.text
-    data = OnboardingCompleteResult.model_validate(first.json()["data"])
-    replayed = OnboardingCompleteResult.model_validate(replay.json()["data"])
-    assert data.patch.spirit is not None
-    assert data.patch.spirit.hatched_at is not None
-    assert data.patch.onboarding is not None
-    assert data.patch.onboarding.required is False
-    assert data.patch.onboarding.step == 5
-    assert data.patch.room is not None
-    assert data.patch.room.weather == "cloudy"
-    assert data.patch.room.layers == ["spirit"]
-    assert data.patch.spirit.status == "home"
-    assert data.patch.spirit.stage == "whelp"
-    assert data.patch.snapshot_version == data.patch.spirit.version
-    assert data.patch.report is not None
-    assert data.patch.report.eligibility.completed_dialogue_rounds == 0
-    assert replay.status_code == 200
-    assert replayed.patch.spirit is not None
-    assert replayed.patch.spirit.hatched_at == data.patch.spirit.hatched_at
-    dumped = first.text + replay.text + incomplete.text
-    assert incomplete_token not in dumped
-    assert complete_token not in dumped
-    assert "eyJ" not in dumped
+    assert complete.status_code == 404
+    payload = complete.json()
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "NOT_FOUND"
+    assert payload["data"] is None
+    assert token not in complete.text
+    assert "eyJ" not in complete.text

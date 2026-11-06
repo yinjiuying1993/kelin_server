@@ -6,7 +6,6 @@ import pytest
 from app.core.config import Settings
 from app.main import create_app
 from app.schemas.bootstrap import BootstrapSnapshot
-from app.schemas.report import ReportSnapshot
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
@@ -28,25 +27,22 @@ def test_openapi_get_bootstrap_locks_p0_fields() -> None:
         "api_version",
         "spirit",
         "room",
-        "onboarding",
         "latest_memories",
         "unread_postcards",
-        "active_pact",
-        "report",
         "quotas",
         "feature_flags",
     }
     assert "server_time" not in names
+    assert "onboarding" not in names
     room = _resolve_property(spec, data_schema, "room")
-    assert "unread_footprint_count" in _schema_property_names(spec, room)
-    assert "pending_sight" in _schema_property_names(spec, room)
-    onboarding = _resolve_property(spec, data_schema, "onboarding")
-    assert "step" in _schema_property_names(spec, onboarding)
-    report = _resolve_property(spec, data_schema, "report")
-    report_names = _schema_property_names(spec, report)
-    assert {"status", "report_id", "eligibility", "card"} <= report_names
+    assert _schema_property_names(spec, room) == {
+        "stage_image_key",
+        "letter_key",
+        "text_status",
+        "status",
+    }
     flags = _resolve_property(spec, data_schema, "feature_flags")
-    assert _schema_property_names(spec, flags) == {"remote_search", "image_feed"}
+    assert _schema_property_names(spec, flags) == {"remote_search"}
     quotas = _resolve_property(spec, data_schema, "quotas")
     assert quotas.get("type") == "array" or "items" in quotas
 
@@ -63,36 +59,21 @@ def test_success_fixture_matches_bootstrap_snapshot() -> None:
     assert snapshot.api_version == "v1"
     assert snapshot.spirit is None
     assert snapshot.room is None
-    assert snapshot.onboarding.required is True
-    assert snapshot.onboarding.step == 0
     assert snapshot.latest_memories == []
     assert snapshot.unread_postcards == []
-    assert snapshot.active_pact is None
-    report = ReportSnapshot.model_validate(snapshot.report.model_dump(mode="json"))
-    assert report.status == "locked"
-    assert report.card is None
     assert snapshot.feature_flags.remote_search is True
-    assert snapshot.feature_flags.image_feed is True
+    assert snapshot.feature_flags.model_dump().get("image_feed") is None
     assert "server_time" not in snapshot.model_dump()
 
 
 def test_snapshot_rejects_room_without_spirit() -> None:
     payload = _new_user_snapshot()
     payload["room"] = {
-        "weather": "cloudy",
-        "layers": [],
-        "letter": None,
-        "pending_sight": None,
-        "unread_footprint_count": 0,
-        "updated_at": "2026-09-08T00:00:00Z",
+        "stage_image_key": "whelp_image",
+        "letter_key": None,
+        "text_status": "home",
+        "status": "home",
     }
-    with pytest.raises(ValidationError):
-        BootstrapSnapshot.model_validate(payload)
-
-
-def test_locked_report_rejects_report_id() -> None:
-    payload = _new_user_snapshot()
-    payload["report"]["report_id"] = "00000000-0000-4000-8000-000000000030"
     with pytest.raises(ValidationError):
         BootstrapSnapshot.model_validate(payload)
 
@@ -113,30 +94,10 @@ def _new_user_snapshot() -> dict[str, Any]:
         "api_version": "v1",
         "spirit": None,
         "room": None,
-        "onboarding": {
-            "required": True,
-            "step": 0,
-            "total_steps": 5,
-            "completed_at": None,
-        },
         "latest_memories": [],
         "unread_postcards": [],
-        "active_pact": None,
-        "report": {
-            "status": "locked",
-            "report_id": None,
-            "eligibility": {
-                "is_eligible": False,
-                "eligible_at": "2026-09-14T03:46:00Z",
-                "days_remaining": 7,
-                "required_dialogue_rounds": 10,
-                "completed_dialogue_rounds": 0,
-                "dialogue_rounds_remaining": 10,
-            },
-            "card": None,
-        },
         "quotas": [],
-        "feature_flags": {"remote_search": True, "image_feed": True},
+        "feature_flags": {"remote_search": True},
     }
 
 

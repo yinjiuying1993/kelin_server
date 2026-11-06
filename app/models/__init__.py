@@ -1,15 +1,23 @@
+from app.models.ask import AskQuestion, AskRating, AskTurn
+from app.models.craft import CraftMatchIndex, CraftSelfTestTicket, CraftSkill
+from app.models.craft_ledger import CraftLedger, CraftSettlement
 from app.models.engagement import (
     AiUsage,
     ConversationWindow,
     DailyUsage,
-    Feed,
-    GrowthEvent,
     Memory,
     Message,
     SightUpload,
     StyleSample,
 )
 from app.models.identity import AccountConsent, AuthUser, Spirit, UserPreference
+from app.models.modules import (
+    ActionEvent,
+    ActionQuota,
+    ChatOverlay,
+    RoomProjection,
+    SpiritAwareness,
+)
 from app.models.social import (
     AccountDeletion,
     Device,
@@ -24,19 +32,29 @@ from app.models.social import (
     Postcard,
     Report,
     Visit,
+    VisitCard,
 )
 
 __all__ = [
     "AccountConsent",
     "AccountDeletion",
+    "ActionEvent",
+    "ActionQuota",
     "AiUsage",
+    "AskQuestion",
+    "AskRating",
+    "AskTurn",
     "AuthUser",
+    "ChatOverlay",
     "ConversationWindow",
+    "CraftLedger",
+    "CraftMatchIndex",
+    "CraftSelfTestTicket",
+    "CraftSettlement",
+    "CraftSkill",
     "DailyUsage",
     "Device",
-    "Feed",
     "Friend",
-    "GrowthEvent",
     "IdempotencyRecord",
     "Memory",
     "Message",
@@ -48,9 +66,12 @@ __all__ = [
     "PactSession",
     "Postcard",
     "Report",
+    "RoomProjection",
     "SightUpload",
     "Spirit",
+    "SpiritAwareness",
     "StyleSample",
     "UserPreference",
     "Visit",
+    "VisitCard",
 ]

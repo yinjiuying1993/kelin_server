@@ -6,7 +6,9 @@
         "id": "00000000-0000-4000-8000-000000000080",
         "type": "preference",
         "summary": "用户希望被叫阿年",
-        "tags": ["称呼"],
+        "tags": [
+          "称呼"
+        ],
         "salience": 90,
         "confidence": 0.96,
         "status": "active",
@@ -17,7 +19,9 @@
         "id": "00000000-0000-4000-8000-000000000081",
         "type": "emotion",
         "summary": "雨夜会感到安心",
-        "tags": ["天气"],
+        "tags": [
+          "天气"
+        ],
         "salience": 70,
         "confidence": 0.88,
         "status": "active",

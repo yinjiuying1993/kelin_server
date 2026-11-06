@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
-from app.api.v1.spirit_map import utc_z, utc_z_optional
+from app.api.v1.public_map import (
+    hatched_at_public,
+    room_public_v1,
+    spirit_public_from_mapping,
+    utc_z,
+)
 from app.domain.chat import ChatTurnSettlement
 from app.domain.speech import TTS_OUTPUT_MIME
 from app.schemas.chat import ChatMessagePublic, ChatTurnResource, ChatTurnResult, ChatUsage
 from app.schemas.speech_audio import SpeechAudioResource
-from app.schemas.spirit import MutationPatch, OnboardingState, SpiritPublic
+from app.schemas.spirit import MutationPatch
 
 
 def chat_turn_result_from_settlement(settlement: ChatTurnSettlement) -> ChatTurnResult:
     result = settlement.spirit
-    completed = utc_z_optional(result.onboarding_completed_at)
-    spirit = SpiritPublic.model_validate(
+    spirit = spirit_public_from_mapping(
         {
             "id": result.spirit_id,
             "name": result.name,
@@ -30,18 +34,16 @@ def chat_turn_result_from_settlement(settlement: ChatTurnSettlement) -> ChatTurn
             "bond": result.bond,
             "stage": result.stage,
             "status": result.status,
-            "scholar_marks": list(result.scholar_marks),
             "version": result.version,
-            "onboarding_step": result.onboarding_step,
-            "onboarding_completed_at": completed,
-            "hatched_at": utc_z_optional(result.hatched_at),
+            "hatched_at": hatched_at_public(
+                hatched_at=result.hatched_at, created_at=result.created_at
+            ),
             "created_at": utc_z(result.created_at),
         }
     )
     return ChatTurnResult(
         resource=ChatTurnResource(
             type="chat_turn",
-            onboarding=settlement.onboarding,
             generation_source=settlement.generation_source,
             user_message=ChatMessagePublic(
                 id=settlement.user_message_id,
@@ -51,7 +53,7 @@ def chat_turn_result_from_settlement(settlement: ChatTurnSettlement) -> ChatTurn
             spirit_message=ChatMessagePublic(
                 id=settlement.spirit_message_id,
                 content=settlement.spirit_content,
-                source_refs=list(settlement.spirit_source_refs),
+                source_refs=[],
             ),
             conversation_window_id=settlement.conversation_window_id,
             should_extract=settlement.should_extract,
@@ -64,12 +66,13 @@ def chat_turn_result_from_settlement(settlement: ChatTurnSettlement) -> ChatTurn
         patch=MutationPatch(
             snapshot_version=result.version,
             spirit=spirit,
-            room=None,
-            onboarding=OnboardingState(
-                required=result.onboarding_completed_at is None,
-                step=result.onboarding_step,
-                completed_at=completed,
-            ),
+        room=settlement.room
+        or room_public_v1(
+            stage=result.stage,
+            status=result.status,
+            letter_key=None,
+            primary_emotion_label=None,
+        ),
         ),
         quotas=list(settlement.quotas),
     )

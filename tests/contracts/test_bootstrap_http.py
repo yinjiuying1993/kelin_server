@@ -9,12 +9,9 @@ from uuid import UUID, uuid4
 
 import jwt
 from app.core.config import Settings
-from app.core.security import CurrentUser, JwtVerifier
-from app.db.session import claimed_transaction, create_runtime_engine, create_session_factory
+from app.core.security import JwtVerifier
 from app.main import create_app
 from app.schemas.bootstrap import BootstrapSnapshot
-from app.schemas.spirit import CreateSpiritRequest
-from app.services.spirit import create_spirit_if_absent
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 from fastapi import FastAPI
@@ -103,17 +100,17 @@ async def _seed_user(url: str, user_id: UUID) -> None:
     await engine.dispose()
 
 
-def test_router_wires_two_steps_without_sql_or_provider() -> None:
+def test_router_wires_facade_without_sql_or_provider() -> None:
     source = ROUTER_PATH.read_text(encoding="utf-8")
     assert "INSERT INTO" not in source
     assert "desired_spirit_state" not in source
     assert "FOR UPDATE" not in source
     assert "bailian" not in source.lower()
     assert "Provider" not in source
-    assert "settle_spirit_state" in source
-    assert "load_bootstrap_snapshot" in source
+    assert "settle_spirit_state" not in source
+    assert "run_bootstrap_snapshot" in source
     assert "claimed_transaction" in source
-    assert "claimed_read_transaction" in source
+    assert "claimed_read_transaction" not in source
 
 
 def test_missing_database_is_dependency_unavailable_not_partial_200() -> None:
@@ -134,42 +131,21 @@ def test_missing_database_is_dependency_unavailable_not_partial_200() -> None:
     assert "spirit" not in payload
 
 
-def test_new_onboarding_and_complete_users_return_full_snapshot() -> None:
+def test_new_and_hatched_users_return_full_snapshot() -> None:
     url = upgrade_empty_kelin_test_to_head()
-    asyncio.run(_assert_three_user_shapes(url))
+    asyncio.run(_assert_empty_and_hatched_shapes(url))
 
 
-async def _assert_three_user_shapes(url: str) -> None:
+async def _assert_empty_and_hatched_shapes(url: str) -> None:
     private, public = _rsa()
     new_id = uuid4()
-    onboarding_id = uuid4()
-    complete_id = uuid4()
+    hatched_id = uuid4()
     await _seed_user(url, new_id)
-    await _seed_user(url, onboarding_id)
-    await _seed_user(url, complete_id)
-    complete_user = CurrentUser(id=complete_id)
-    setup_engine = create_runtime_engine(url)
-    setup_factory = create_session_factory(setup_engine)
-    async with claimed_transaction(setup_factory, complete_user) as session:
-        await create_spirit_if_absent(
-            session,
-            complete_user,
-            CreateSpiritRequest.model_validate(_spirit_body()),
-        )
-        await session.execute(
-            text(
-                "UPDATE public.spirits SET onboarding_step = 5, "
-                "hatched_at = :now, onboarding_completed_at = :now "
-                "WHERE user_id = :user_id"
-            ),
-            {"now": NOW, "user_id": complete_id},
-        )
-    await setup_engine.dispose()
+    await _seed_user(url, hatched_id)
 
     application = _app(url=url, private=private, public=public)
     new_token = _token(private, "kid-a", new_id)
-    onboarding_token = _token(private, "kid-a", onboarding_id)
-    complete_token = _token(private, "kid-a", complete_id)
+    hatched_token = _token(private, "kid-a", hatched_id)
     with TestClient(application) as client:
         fresh = client.get(
             "/api/v1/bootstrap",
@@ -178,44 +154,45 @@ async def _assert_three_user_shapes(url: str) -> None:
         created = client.post(
             "/api/v1/spirits",
             json=_spirit_body(),
-            headers={"Authorization": f"Bearer {onboarding_token}"},
+            headers={"Authorization": f"Bearer {hatched_token}"},
         )
-        mid = client.get(
+        hatched = client.get(
             "/api/v1/bootstrap",
-            headers={"Authorization": f"Bearer {onboarding_token}"},
-        )
-        done = client.get(
-            "/api/v1/bootstrap",
-            headers={"Authorization": f"Bearer {complete_token}"},
+            headers={"Authorization": f"Bearer {hatched_token}"},
         )
     assert created.status_code == 200, created.text
     assert fresh.status_code == 200, fresh.text
-    assert mid.status_code == 200, mid.text
-    assert done.status_code == 200, done.text
+    assert hatched.status_code == 200, hatched.text
     new_snap = BootstrapSnapshot.model_validate(fresh.json()["data"])
-    mid_snap = BootstrapSnapshot.model_validate(mid.json()["data"])
-    done_snap = BootstrapSnapshot.model_validate(done.json()["data"])
+    hatched_snap = BootstrapSnapshot.model_validate(hatched.json()["data"])
     assert fresh.json()["ok"] is True
     assert fresh.json()["error"] is None
     assert new_snap.spirit is None
     assert new_snap.room is None
     assert new_snap.snapshot_version == 0
-    assert new_snap.onboarding.required is True
-    assert new_snap.onboarding.step == 0
-    assert new_snap.report.status == "locked"
+    assert new_snap.model_dump().get("onboarding") is None
     assert "server_time" not in new_snap.model_dump()
-    assert mid_snap.spirit is not None
-    assert mid_snap.room is not None
-    assert mid_snap.onboarding.required is True
-    assert mid_snap.onboarding.step == 0
-    assert mid_snap.snapshot_version == mid_snap.spirit.version
-    assert done_snap.spirit is not None
-    assert done_snap.room is not None
-    assert done_snap.onboarding.required is False
-    assert done_snap.onboarding.step == 5
-    assert done_snap.onboarding.completed_at is not None
-    dumped = fresh.text + mid.text + done.text
+    assert hatched_snap.spirit is not None
+    assert hatched_snap.spirit.hatched_at is not None
+    assert hatched_snap.room is not None
+    assert hatched_snap.spirit.stage == "formed"
+    assert hatched_snap.room.stage_image_key == "formed_image"
+    assert hatched_snap.room.status == "home"
+    room = hatched_snap.room.model_dump()
+    assert set(room) == {
+        "stage_image_key",
+        "letter_key",
+        "text_status",
+        "status",
+    }
+    assert room["letter_key"] is None
+    assert room["text_status"] == "home"
+    assert "weather" not in room
+    assert "layers" not in room
+    assert "pending_sight" not in room
+    assert hatched_snap.snapshot_version == hatched_snap.spirit.version
+    dumped = fresh.text + hatched.text
     assert new_token not in dumped
-    assert onboarding_token not in dumped
-    assert complete_token not in dumped
+    assert hatched_token not in dumped
     assert "eyJ" not in dumped
+

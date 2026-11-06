@@ -16,6 +16,7 @@ from app.domain.outbox import DEFAULT_OUTBOX_LEASE_SECONDS
 from app.domain.spirit_state import require_aware
 from app.integrations.account_storage import AccountObjectCatalog, AccountStorageError
 from app.integrations.auth_admin import AuthAdminError, InProcessAuthAdmin
+from app.integrations.oss import backend_from_settings
 from app.integrations.storage import PrivateSightStorage, PrivateTtsStorage
 from app.repositories import account as account_repo
 from app.repositories import outbox as outbox_repo
@@ -57,9 +58,10 @@ async def process_due_account_deletes(
 ) -> list[AccountDeleteTick]:
     require_aware(now, field="now")
     resolved = settings or get_settings()
+    backend = backend_from_settings(resolved)
     objects = catalog or AccountObjectCatalog(
-        sight_storage or PrivateSightStorage(),
-        tts_storage or PrivateTtsStorage(),
+        sight_storage or PrivateSightStorage(backend),
+        tts_storage or PrivateTtsStorage(backend),
     )
     admin = auth_admin or InProcessAuthAdmin(resolved.sqlalchemy_async_url())
     worker_id = f"account-delete:{uuid4()}"

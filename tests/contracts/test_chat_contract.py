@@ -10,12 +10,11 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 
-def _valid_request(*, onboarding: bool = True) -> dict[str, Any]:
+def _valid_request() -> dict[str, Any]:
     return {
         "client_message_id": str(uuid4()),
         "content": "你好",
         "source": "text",
-        "onboarding": onboarding,
         "context": {
             "timezone": "Asia/Shanghai",
             "local_hour": 21,
@@ -25,26 +24,14 @@ def _valid_request(*, onboarding: bool = True) -> dict[str, Any]:
     }
 
 
-def test_chat_request_requires_onboarding() -> None:
+def test_chat_request_rejects_onboarding_flag() -> None:
     payload = _valid_request()
-    del payload["onboarding"]
+    payload["onboarding"] = True
     try:
         ChatRequest.model_validate(payload)
-    except ValidationError as exc:
-        missing = [
-            ".".join(str(part) for part in error.get("loc", ()))
-            for error in exc.errors()
-            if error.get("type") == "missing"
-        ]
-        assert "onboarding" in missing
-    else:
-        raise AssertionError(
-            "onboarding must be required so the server can distinguish hatch turns"
-        )
-
-
-def test_chat_request_accepts_onboarding_false() -> None:
-    ChatRequest.model_validate(_valid_request(onboarding=False))
+    except ValidationError:
+        return
+    raise AssertionError("chat request must forbid onboarding")
 
 
 def test_chat_request_rejects_user_id() -> None:
@@ -57,21 +44,19 @@ def test_chat_request_rejects_user_id() -> None:
     raise AssertionError("chat request must forbid user_id")
 
 
-def test_openapi_post_chat_locks_onboarding_stub_errors_and_counts() -> None:
+def test_openapi_post_chat_locks_stub_errors_and_counts() -> None:
     spec = create_app(Settings(app_env="test")).openapi()
     path = spec["paths"]["/api/v1/chat"]["post"]
     request_schema = path["requestBody"]["content"]["application/json"]["schema"]
     required = set(_resolve_schema(spec, request_schema).get("required", []))
-    assert "onboarding" in required
+    assert "onboarding" not in required
     assert "client_message_id" in required
     assert "content" in required
     assert "source" in required
     assert "context" in required
-    onboarding = _resolve_property(spec, request_schema, "onboarding")
-    assert onboarding.get("type") == "boolean"
-    assert "ordinary_dialogue_rounds" in (onboarding.get("description") or "")
+    assert "onboarding" not in _schema_property_names(spec, request_schema)
     source = _resolve_property(spec, request_schema, "source")
-    assert set(source.get("enum", [])) == {"text", "voice", "onboarding"}
+    assert set(source.get("enum", [])) == {"text", "voice"}
     responses = path["responses"]
     assert "200" in responses
     assert "401" in responses
@@ -88,7 +73,7 @@ def test_openapi_post_chat_locks_onboarding_stub_errors_and_counts() -> None:
     data_schema = _resolve_property(spec, success_schema, "data")
     resource = _resolve_property(spec, data_schema, "resource")
     resource_names = _schema_property_names(spec, resource)
-    assert "onboarding" in resource_names
+    assert "onboarding" not in resource_names
     assert "generation_source" in resource_names
     assert "user_message" in resource_names
     assert "spirit_message" in resource_names
@@ -111,19 +96,15 @@ def test_openapi_post_chat_locks_onboarding_stub_errors_and_counts() -> None:
     assert "null" in speech_desc.lower()
     resource_required = set(_resolve_schema(spec, resource).get("required", []))
     assert "speech_audio" in resource_required
-    resource_onboarding = _resolve_property(spec, resource, "onboarding")
-    assert "ordinary_dialogue_rounds" in (resource_onboarding.get("description") or "")
     type_schema = _resolve_property(spec, resource, "type")
     assert type_schema.get("const") == "chat_turn" or "chat_turn" in type_schema.get("enum", [])
     description = path.get("description") or path.get("summary") or ""
     assert "PROVIDER_TIMEOUT" in description
-    assert "ordinary_dialogue_rounds" in description
-    assert "onboarding_step" in description
     assert "speech_audio" in description
-    assert "48s" in description
+    assert "80s" in description
 
 
-def test_success_fixture_is_stub_onboarding_turn() -> None:
+def test_success_fixture_is_stub_ordinary_turn() -> None:
     from pathlib import Path
 
     from app.contracts.fixtures import CHAT_ENTRY_ID, load_success
@@ -132,16 +113,16 @@ def test_success_fixture_is_stub_onboarding_turn() -> None:
     loaded = load_success(root, CHAT_ENTRY_ID)
     result = ChatTurnResult.model_validate(loaded.data)
     assert result.resource.type == "chat_turn"
-    assert result.resource.onboarding is True
+    assert result.resource.model_dump().get("onboarding") is None
     assert result.resource.generation_source == "stub"
     assert result.resource.should_extract is False
     assert result.resource.speech_audio is None
     assert result.resource.usage.input_units == 0
-    assert result.patch.onboarding is not None
-    assert result.patch.onboarding.step == 1
+    assert result.patch.model_dump().get("onboarding") is None
     assert result.patch.spirit is not None
-    assert result.patch.spirit.onboarding_step == 1
-    assert result.patch.spirit.hatched_at is None
+    assert result.patch.spirit.hatched_at == "2026-09-08T00:00:00Z"
+    assert result.patch.room is not None
+    assert result.patch.room.status == "home"
 
 
 def test_post_chat_without_auth_is_unauthenticated() -> None:

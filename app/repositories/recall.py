@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.types import Text
 
 from app.domain.recall import RECALL_OPERATION
-from app.repositories.feed import IdempotencyClaim, MemoryRow
+from app.repositories.memory_rows import IdempotencyClaim, MemoryRow
 
 _MEMORY_RETURNING = "id, type, summary, tags, salience, confidence, status, version, created_at"
 
@@ -52,10 +52,13 @@ async def lock_owned_spirit(
     row = (
         await session.execute(
             text(
-                "SELECT s.id, s.version, s.status, s.hunger, s.energy, s.mood, s.bond, "
-                "s.closeness, s.last_interact_at, "
+                "SELECT s.id, s.version, "
+                "COALESCE(a.status, s.status) AS status, "
+                "60 AS mood, 0 AS bond, 50 AS closeness, "
+                "COALESCE(a.last_interact_at, s.last_interact_at) AS last_interact_at, "
                 "COALESCE(p.timezone, 'Asia/Shanghai') AS timezone "
                 "FROM public.spirits s "
+                "LEFT JOIN public.spirit_awareness a ON a.spirit_id = s.id "
                 "LEFT JOIN public.user_preferences p ON p.user_id = s.user_id "
                 "WHERE s.user_id = :user_id FOR UPDATE OF s"
             ),
@@ -68,8 +71,8 @@ async def lock_owned_spirit(
         id=row.id,
         version=int(row.version),
         status=str(row.status),
-        hunger=int(row.hunger),
-        energy=int(row.energy),
+        hunger=80,
+        energy=80,
         mood=int(row.mood),
         bond=int(row.bond),
         closeness=int(row.closeness),
@@ -78,11 +81,16 @@ async def lock_owned_spirit(
     )
 
 
-async def fetch_memory(session: AsyncSession, memory_id: uuid.UUID) -> SightMemoryRow | None:
+async def fetch_memory(
+    session: AsyncSession, memory_id: uuid.UUID, *, spirit_id: uuid.UUID
+) -> SightMemoryRow | None:
     row = (
         await session.execute(
-            text("SELECT id, spirit_id, type, status FROM public.memories WHERE id = :id"),
-            {"id": memory_id},
+            text(
+                "SELECT id, spirit_id, type, status FROM public.memories "
+                "WHERE id = :id AND spirit_id = :spirit_id"
+            ),
+            {"id": memory_id, "spirit_id": spirit_id},
         )
     ).first()
     if row is None:
@@ -110,7 +118,7 @@ async def insert_relation_memory(
                 "INSERT INTO public.memories ("
                 "id, spirit_id, type, summary, tags, salience, confidence, status"
                 ") VALUES ("
-                ":id, :spirit_id, 'relation', :summary, :tags, :salience, :confidence, "
+                ":id, :spirit_id, 'relationship', :summary, :tags, :salience, :confidence, "
                 "'active'"
                 ") ON CONFLICT (id) DO NOTHING "
                 f"RETURNING {_MEMORY_RETURNING}"
@@ -126,18 +134,23 @@ async def insert_relation_memory(
         )
     ).first()
     if row is None:
-        existing = await fetch_memory_row(session, memory_id)
+        existing = await fetch_memory_row(session, memory_id, spirit_id=spirit_id)
         if existing is None:
             raise RuntimeError("recall relation memory missing after conflict")
         return existing
     return _memory_row(row)
 
 
-async def fetch_memory_row(session: AsyncSession, memory_id: uuid.UUID) -> MemoryRow | None:
+async def fetch_memory_row(
+    session: AsyncSession, memory_id: uuid.UUID, *, spirit_id: uuid.UUID
+) -> MemoryRow | None:
     row = (
         await session.execute(
-            text(f"SELECT {_MEMORY_RETURNING} FROM public.memories WHERE id = :id"),
-            {"id": memory_id},
+            text(
+                f"SELECT {_MEMORY_RETURNING} FROM public.memories "
+                "WHERE id = :id AND spirit_id = :spirit_id"
+            ),
+            {"id": memory_id, "spirit_id": spirit_id},
         )
     ).first()
     if row is None:
@@ -159,6 +172,66 @@ async def mark_returned_home(
         {"id": spirit_id, "user_id": owner_id},
     )
     return marked is not None
+
+
+async def finish_recall_home(
+    session: AsyncSession,
+    *,
+    owner_id: uuid.UUID,
+    spirit_id: uuid.UUID,
+    now: datetime,
+) -> None:
+    """Close this spirit's open trips and store home on the spirit and room rows."""
+    closed = await session.execute(
+        text(
+            "UPDATE public.visits "
+            "SET status = 'settled', "
+            "started_at = COALESCE(started_at, :now), "
+            "settled_at = :now, "
+            "last_error_code = NULL, "
+            "updated_at = :now "
+            "WHERE visitor_spirit_id = :spirit_id "
+            "AND status IN ('eligible', 'visiting')"
+        ),
+        {"spirit_id": spirit_id, "now": now},
+    )
+    version = await session.scalar(
+        text(
+            "UPDATE public.spirits SET "
+            "status = 'home', "
+            "away_until = NULL, "
+            "study_until = NULL, "
+            "last_interact_at = :now, "
+            "has_visited = CASE WHEN :closed > 0 THEN true ELSE has_visited END, "
+            "version = version + 1, "
+            "snapshot_version = snapshot_version + 1 "
+            "WHERE id = :spirit_id AND user_id = :owner_id "
+            "RETURNING snapshot_version"
+        ),
+        {
+            "spirit_id": spirit_id,
+            "owner_id": owner_id,
+            "now": now,
+            "closed": int(closed.rowcount or 0),
+        },
+    )
+    if version is None:
+        raise RuntimeError("recall home update matched no owner row")
+    await session.execute(
+        text(
+            "INSERT INTO public.room_projections ("
+            "spirit_id, stage_image_key, primary_emotion_label, letter_key, "
+            "text_status, status, snapshot_version"
+            ") VALUES ("
+            ":spirit_id, 'formed_image', '平静', NULL, 'home', 'home', :version"
+            ") ON CONFLICT (spirit_id) DO UPDATE SET "
+            "letter_key = NULL, "
+            "text_status = 'home', "
+            "status = 'home', "
+            "snapshot_version = EXCLUDED.snapshot_version"
+        ),
+        {"spirit_id": spirit_id, "version": int(version)},
+    )
 
 
 async def claim_recall_idempotency(
@@ -214,22 +287,6 @@ async def claim_recall_idempotency(
                 resource_id=existing.resource_id,
             )
     raise RuntimeError("recall idempotency claim failed")
-
-
-async def fetch_growth_event_id(
-    session: AsyncSession, *, source_id: uuid.UUID, event_type: str
-) -> uuid.UUID | None:
-    existing = await session.scalar(
-        text(
-            "SELECT id FROM public.growth_events "
-            "WHERE source_type = 'recall' AND source_id = :source_id "
-            "AND event_type = :event_type"
-        ),
-        {"source_id": source_id, "event_type": event_type},
-    )
-    if existing is None:
-        return None
-    return uuid.UUID(str(existing))
 
 
 async def complete_recall_idempotency(

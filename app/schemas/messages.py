@@ -29,7 +29,7 @@ class MessagePublic(_ForbidExtra):
         description="Present on user messages; null on spirit messages.",
     )
     role: MessageRole = Field(description="user or spirit. System messages are never listed.")
-    content: str = Field(min_length=1, max_length=4000)
+    content: str = Field(min_length=1)
     source: MessageSource
     status: MessageStatus
     reply_to_message_id: UUID | None = Field(

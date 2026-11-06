@@ -1,0 +1,48 @@
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000e2",
+        "kind": "visit",
+        "official": false,
+        "unread": true,
+        "occurred_at": "2026-10-20T02:00:00Z",
+        "peer": {
+          "title": "少去",
+          "stage": "formed"
+        },
+        "is_default": false,
+        "body": "带句话",
+        "voice_seconds": 18,
+        "voice_title": "门廊风声",
+        "voice_url": "https://kelin.invalid/object/visit-cards/pending",
+        "image_title": "茶盏",
+        "image_caption": "门廊上的杯子",
+        "image_url": "https://kelin.invalid/object/visit-cards/pending",
+        "reply_title": null,
+        "reply_status": null
+      },
+      {
+        "id": "00000000-0000-4000-8000-0000000000e1",
+        "kind": "visit",
+        "official": false,
+        "unread": false,
+        "occurred_at": "2026-10-20T01:00:00Z",
+        "peer": {
+          "title": "常去",
+          "stage": "formed"
+        },
+        "is_default": true,
+        "body": "它来看你了。",
+        "reply_status": "returned",
+        "reply_title": "茶室剪影"
+      }
+    ],
+    "next_cursor": "kelin.vcard.v1.first",
+    "has_more": true
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000d3",
+  "server_time": "2026-10-20T00:00:00Z"
+}

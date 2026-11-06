@@ -1,0 +1,94 @@
+S1-T03 OpenAPI breaking vs V0. Status: 已评审.
+V0_OPENAPI_SHA=98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af
+V1_OPENAPI_SHA=b2983c42ecfdfc75b2544b4d3007f74c075819739c187584e5867cb6b190f328
+V0_BASELINE_GIT_SHA=b4b65c4b2a94120d0f6f003de0788a57e5bfbd2e
+BREAKING_COUNT=88
+command: python -m scripts.check_openapi_breaking --old <v0 canonical> --new <v1 canonical>
+
+enum_narrowed: components.schemas.ChatRequest.properties.source.enum: removed values: 'onboarding'
+enum_narrowed: components.schemas.FeedResource.properties.kind.enum: removed values: 'sight'
+enum_narrowed: components.schemas.MemoryPublic.properties.type.enum: removed values: 'relation', 'sight', 'speech'
+enum_narrowed: components.schemas.RecallResource.properties.method.enum: removed values: 'food', 'sight_memory'
+enum_narrowed: components.schemas.ReportCardMemory.properties.type.anyOf.0.enum: removed values: 'relation', 'sight', 'speech'
+enum_widened: components.schemas.MemoryPublic.properties.type.enum: added values: 'relationship'
+enum_widened: components.schemas.ReportCardMemory.properties.type.anyOf.0.enum: added values: 'relationship'
+field_removed: components.schemas.BootstrapSnapshot.properties.onboarding: field onboarding was removed
+field_removed: components.schemas.ChatRequest.properties.onboarding: field onboarding was removed
+field_removed: components.schemas.ChatTurnResource.properties.onboarding: field onboarding was removed
+field_removed: components.schemas.ExtractResource.properties.style_samples: field style_samples was removed
+field_removed: components.schemas.FeatureFlags.properties.image_feed: field image_feed was removed
+field_removed: components.schemas.FeedPatch.properties.onboarding: field onboarding was removed
+field_removed: components.schemas.MutationPatch.properties.onboarding: field onboarding was removed
+field_removed: components.schemas.PreferencesPatch.properties.dnd_end: field dnd_end was removed
+field_removed: components.schemas.PreferencesPatch.properties.dnd_start: field dnd_start was removed
+field_removed: components.schemas.PreferencesPatch.properties.push_on: field push_on was removed
+field_removed: components.schemas.RecallPatch.properties.onboarding: field onboarding was removed
+field_removed: components.schemas.RoomPublic.properties.layers: field layers was removed
+field_removed: components.schemas.RoomPublic.properties.letter: field letter was removed
+field_removed: components.schemas.RoomPublic.properties.pending_sight: field pending_sight was removed
+field_removed: components.schemas.RoomPublic.properties.unread_footprint_count: field unread_footprint_count was removed
+field_removed: components.schemas.RoomPublic.properties.updated_at: field updated_at was removed
+field_removed: components.schemas.RoomPublic.properties.weather: field weather was removed
+field_removed: components.schemas.SpiritPatchPatch.properties.onboarding: field onboarding was removed
+field_removed: components.schemas.SpiritPublic.properties.onboarding_completed_at: field onboarding_completed_at was removed
+field_removed: components.schemas.SpiritPublic.properties.onboarding_step: field onboarding_step was removed
+field_removed: components.schemas.SpiritPublic.properties.scholar_marks: field scholar_marks was removed
+field_removed: components.schemas.UserPreferencesPublic.properties.dnd_end: field dnd_end was removed
+field_removed: components.schemas.UserPreferencesPublic.properties.dnd_start: field dnd_start was removed
+field_removed: components.schemas.UserPreferencesPublic.properties.push_on: field push_on was removed
+path_removed: paths./api/v1/devices: path /api/v1/devices was removed
+path_removed: paths./api/v1/moderate-sight: path /api/v1/moderate-sight was removed
+path_removed: paths./api/v1/onboarding/complete: path /api/v1/onboarding/complete was removed
+path_removed: paths./api/v1/storage/sight-upload-url: path /api/v1/storage/sight-upload-url was removed
+required_added: components.schemas.RoomPublic.required: required field primary_emotion_label was added
+required_added: components.schemas.RoomPublic.required: required field stage_image_key was added
+required_added: components.schemas.RoomPublic.required: required field status was added
+required_added: components.schemas.RoomPublic.required: required field text_status was added
+required_removed: components.schemas.BootstrapSnapshot.required: required field onboarding was removed
+required_removed: components.schemas.ChatRequest.required: required field onboarding was removed
+required_removed: components.schemas.ChatTurnResource.required: required field onboarding was removed
+required_removed: components.schemas.FeatureFlags.required: required field image_feed was removed
+required_removed: components.schemas.RoomPublic.required: required field layers was removed
+required_removed: components.schemas.RoomPublic.required: required field unread_footprint_count was removed
+required_removed: components.schemas.RoomPublic.required: required field updated_at was removed
+required_removed: components.schemas.RoomPublic.required: required field weather was removed
+required_removed: components.schemas.SpiritPublic.required: required field onboarding_completed_at was removed
+required_removed: components.schemas.SpiritPublic.required: required field onboarding_step was removed
+required_removed: components.schemas.SpiritPublic.required: required field scholar_marks was removed
+required_removed: components.schemas.UserPreferencesPublic.required: required field dnd_end was removed
+required_removed: components.schemas.UserPreferencesPublic.required: required field dnd_start was removed
+required_removed: components.schemas.UserPreferencesPublic.required: required field push_on was removed
+schema_removed: components.schemas.CompleteOnboardingRequest: schema CompleteOnboardingRequest was removed
+schema_removed: components.schemas.DeviceRegisterErrorEnvelope: schema DeviceRegisterErrorEnvelope was removed
+schema_removed: components.schemas.DeviceRegisterSuccessEnvelope: schema DeviceRegisterSuccessEnvelope was removed
+schema_removed: components.schemas.DeviceRegistration: schema DeviceRegistration was removed
+schema_removed: components.schemas.FeedCreateSight: schema FeedCreateSight was removed
+schema_removed: components.schemas.ModerateSightErrorEnvelope: schema ModerateSightErrorEnvelope was removed
+schema_removed: components.schemas.ModerateSightRequest: schema ModerateSightRequest was removed
+schema_removed: components.schemas.ModerateSightResult: schema ModerateSightResult was removed
+schema_removed: components.schemas.ModerateSightSuccessEnvelope: schema ModerateSightSuccessEnvelope was removed
+schema_removed: components.schemas.OnboardingCompleteErrorEnvelope: schema OnboardingCompleteErrorEnvelope was removed
+schema_removed: components.schemas.OnboardingCompletePatch: schema OnboardingCompletePatch was removed
+schema_removed: components.schemas.OnboardingCompleteResult: schema OnboardingCompleteResult was removed
+schema_removed: components.schemas.OnboardingCompleteSuccessEnvelope: schema OnboardingCompleteSuccessEnvelope was removed
+schema_removed: components.schemas.OnboardingState: schema OnboardingState was removed
+schema_removed: components.schemas.PendingSight: schema PendingSight was removed
+schema_removed: components.schemas.RecallFoodRequest: schema RecallFoodRequest was removed
+schema_removed: components.schemas.RecallSightRequest: schema RecallSightRequest was removed
+schema_removed: components.schemas.RegisterDeviceRequest: schema RegisterDeviceRequest was removed
+schema_removed: components.schemas.RoomLetter: schema RoomLetter was removed
+schema_removed: components.schemas.SightLocationPayload: schema SightLocationPayload was removed
+schema_removed: components.schemas.SightPhotoPayload: schema SightPhotoPayload was removed
+schema_removed: components.schemas.SightUploadErrorEnvelope: schema SightUploadErrorEnvelope was removed
+schema_removed: components.schemas.SightUploadSuccessEnvelope: schema SightUploadSuccessEnvelope was removed
+schema_removed: components.schemas.SightUploadUrlRequest: schema SightUploadUrlRequest was removed
+schema_removed: components.schemas.SightUploadUrlResult: schema SightUploadUrlResult was removed
+schema_removed: components.schemas.StyleSamplePublic: schema StyleSamplePublic was removed
+type_changed: components.schemas.MutationPatch.properties.room: type changed from ('null',) to ()
+type_changed: components.schemas.MutationPatch.properties.room.anyOf: schema list length changed from 0 to 2
+type_changed: components.schemas.SpiritPublic.properties.hatched_at: type changed from () to ('string',)
+type_changed: components.schemas.SpiritPublic.properties.hatched_at.anyOf: schema list length changed from 2 to 0
+type_changed: paths./api/v1/feed.post.requestBody.oneOf: schema list length changed from 5 to 4
+type_changed: paths./api/v1/recall.post.requestBody: $ref changed from None to '#/components/schemas/RecallRequest'
+type_changed: paths./api/v1/recall.post.requestBody: type changed from () to ('$ref', '#/components/schemas/RecallRequest')
+type_changed: paths./api/v1/recall.post.requestBody.oneOf: schema list length changed from 2 to 0

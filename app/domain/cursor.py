@@ -19,6 +19,9 @@ CURSOR_PREFIX = "kelin.msg.v1."
 MEMORIES_CURSOR_PREFIX = "kelin.mem.v1."
 FRIENDS_CURSOR_PREFIX = "kelin.friend.v1."
 POSTCARDS_CURSOR_PREFIX = "kelin.card.v1."
+VISIT_CARDS_CURSOR_PREFIX = "kelin.vcard.v1."
+CRAFT_CURSOR_PREFIX = "kelin.craft.v1."
+ASK_CURSOR_PREFIX = "kelin.ask.v1."
 _MESSAGES_FILTER = "messages:v1:exclude_system"
 _MEMORIES_FILTER = "memories:v1"
 _FRIENDS_FILTER = "friends:v1"
@@ -54,9 +57,24 @@ def friends_filter_hash(owner_id: UUID) -> str:
     return hashlib.sha256(material).hexdigest()
 
 
+def visit_cards_filter_hash(owner_id: UUID, box: str) -> str:
+    material = f"visit-cards:v1:{box}:{owner_id}".encode("ascii")
+    return hashlib.sha256(material).hexdigest()
+
+
 def postcards_filter_hash(owner_id: UUID, *, unread_only: bool) -> str:
     flag = "unread" if unread_only else "all"
     material = f"{_POSTCARDS_FILTER}:{flag}:{owner_id}".encode("ascii")
+    return hashlib.sha256(material).hexdigest()
+
+
+def craft_filter_hash(owner_id: UUID) -> str:
+    material = f"craft-skills:v1:{owner_id}".encode("ascii")
+    return hashlib.sha256(material).hexdigest()
+
+
+def ask_filter_hash(asker_user_id: UUID, view: str) -> str:
+    material = f"ask-questions:v1:{view}:{asker_user_id}".encode("ascii")
     return hashlib.sha256(material).hexdigest()
 
 
@@ -119,6 +137,24 @@ def decode_friend_cursor(
     )
 
 
+def encode_visit_card_cursor(cursor: MessageCursor, *, secret: bytes) -> str:
+    return _encode_keyset(cursor, secret=secret, prefix=VISIT_CARDS_CURSOR_PREFIX)
+
+
+def decode_visit_card_cursor(
+    token: str,
+    *,
+    secret: bytes,
+    expected_filter_hash: str,
+) -> MessageCursor:
+    return _decode_keyset(
+        token,
+        secret=secret,
+        expected_filter_hash=expected_filter_hash,
+        prefix=VISIT_CARDS_CURSOR_PREFIX,
+    )
+
+
 def encode_postcard_cursor(cursor: MessageCursor, *, secret: bytes) -> str:
     return _encode_keyset(cursor, secret=secret, prefix=POSTCARDS_CURSOR_PREFIX)
 
@@ -134,6 +170,42 @@ def decode_postcard_cursor(
         secret=secret,
         expected_filter_hash=expected_filter_hash,
         prefix=POSTCARDS_CURSOR_PREFIX,
+    )
+
+
+def encode_craft_cursor(cursor: MessageCursor, *, secret: bytes) -> str:
+    return _encode_keyset(cursor, secret=secret, prefix=CRAFT_CURSOR_PREFIX)
+
+
+def decode_craft_cursor(
+    token: str,
+    *,
+    secret: bytes,
+    expected_filter_hash: str,
+) -> MessageCursor:
+    return _decode_keyset(
+        token,
+        secret=secret,
+        expected_filter_hash=expected_filter_hash,
+        prefix=CRAFT_CURSOR_PREFIX,
+    )
+
+
+def encode_ask_cursor(cursor: MessageCursor, *, secret: bytes) -> str:
+    return _encode_keyset(cursor, secret=secret, prefix=ASK_CURSOR_PREFIX)
+
+
+def decode_ask_cursor(
+    token: str,
+    *,
+    secret: bytes,
+    expected_filter_hash: str,
+) -> MessageCursor:
+    return _decode_keyset(
+        token,
+        secret=secret,
+        expected_filter_hash=expected_filter_hash,
+        prefix=ASK_CURSOR_PREFIX,
     )
 
 

@@ -43,3 +43,12 @@ class BailianProvider(Protocol):
     async def moderate(self, value: SafetyInput) -> SafetyOutput: ...
 
     async def search(self, value: SearchInput) -> list[SearchResult]: ...
+
+    async def extend(
+        self,
+        *,
+        query: str,
+        argument: str | None = None,
+        default_city: str | None = None,
+        user_text: str | None = None,
+    ) -> str: ...

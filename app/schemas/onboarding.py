@@ -7,13 +7,11 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.bootstrap import RoomPublic
 from app.schemas.envelope import EnvelopeError
-from app.schemas.report import ReportSnapshot
+from app.schemas.room import RoomPublic
 from app.schemas.spirit import (
     MutationEvent,
     MutationResource,
-    OnboardingState,
     QuotaUsage,
     SpiritPublic,
     UserPreferencesPublic,
@@ -41,13 +39,10 @@ class OnboardingCompletePatch(_ForbidExtra):
     spirit: SpiritPublic | None = None
     preferences: UserPreferencesPublic | None = None
     room: RoomPublic | None = None
-    onboarding: OnboardingState | None = None
-    report: ReportSnapshot | None = None
     social: None = None
     memories_upsert: list[Any] = Field(default_factory=list)
     memory_tombstones: list[Any] = Field(default_factory=list)
     postcards_upsert: list[Any] = Field(default_factory=list)
-    pact: None = None
 
 
 class OnboardingCompleteResult(_ForbidExtra):

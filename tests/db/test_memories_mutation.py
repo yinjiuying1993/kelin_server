@@ -59,7 +59,7 @@ async def _assert_mutations(url: str) -> None:
         await _insert_spirit(conn, other_spirit, other, INVITE_B)
         await _insert_memory(conn, memory_id, spirit_id, "preference", "旧称呼")
         await _insert_memory(conn, sealed_id, spirit_id, "knowledge", "旧知识")
-        await _insert_memory(conn, extra_id, spirit_id, "speech", "口头禅")
+        await _insert_memory(conn, extra_id, spirit_id, "emotion", "口头禅")
         await conn.execute(
             text(
                 "INSERT INTO public.style_samples (id, spirit_id, kind, text) "

@@ -14,7 +14,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile, status
 from sqlalchemy.exc import DBAPIError
 
-from app.api.deps import session_factory_from_app, tts_storage_from_app
+from app.api.deps import session_factory_from_app, tts_storage_from_app, visit_card_storage_from_app
 from app.api.v1.speech_map import (
     synthesize_result_from_settlement,
     transcribe_result_from_settlement,
@@ -30,7 +30,8 @@ from app.domain.speech import (
     InvalidSpeech,
     verify_signed_playback_url,
 )
-from app.integrations.storage import StorageObjectMissing
+from app.domain.visit_card import VISIT_CARD_BUCKET, visit_card_media_type
+from app.integrations.storage import StorageObjectMissing, StoragePutRejected
 from app.schemas.speech import (
     SpeechErrorEnvelope,
     SynthesizeRequest,
@@ -175,10 +176,9 @@ async def post_synthesize(
     """Synthesize owned spirit message audio.
 
     Clients send client_id, message_id, and voice_profile=default only. Text is
-    forbidden. Server reads the owned spirit body, max 200 characters. Cache key
-    is (message_id, voice_profile, model_alias) for 24h; a cache hit does not
-    recount the daily TTS quota of 20. Playback URLs are short-lived and owner
-    isolated.
+    forbidden. Server reads the owned spirit body. Cache key is
+    (message_id, voice_profile, model_alias) for 24h; a cache hit does not
+    recount usage. Playback URLs are short-lived and owner isolated.
     """
     factory = session_factory_from_app(request.app)
     now = datetime.now(UTC)
@@ -244,7 +244,53 @@ async def get_tts_playback(
         verified_bucket, verified_path = verify_signed_playback_url(
             canonical, secret=signing_key, now=now
         )
-        body = tts_storage_from_app(request.app).service_get(verified_bucket, verified_path)
+        if verified_bucket == VISIT_CARD_BUCKET:
+            body = visit_card_storage_from_app(request.app).service_get(
+                verified_bucket, verified_path
+            )
+            media_type = visit_card_media_type(verified_path)
+            if media_type is None:
+                raise StorageObjectMissing("object is missing")
+        else:
+            body = tts_storage_from_app(request.app).service_get(verified_bucket, verified_path)
+            media_type = TTS_OUTPUT_MIME
     except (InvalidPlaybackUrl, StorageObjectMissing) as exc:
         raise _playback_missing() from exc
-    return Response(content=body, media_type=TTS_OUTPUT_MIME)
+    return Response(content=body, media_type=media_type)
+
+
+@playback_router.put("/object/{bucket}/{object_path:path}", include_in_schema=False)
+async def put_visit_card_object(
+    request: Request,
+    bucket: str,
+    object_path: str,
+    exp: Annotated[int, Query()],
+    sig: Annotated[str, Query()],
+) -> Response:
+    now = datetime.now(UTC)
+    settings = request.app.state.settings
+    signing_key = (
+        settings.cursor_signing_key()
+        if isinstance(settings, Settings)
+        else Settings(app_env="test").cursor_signing_key()
+    )
+    encoded_path = quote(object_path, safe="/")
+    canonical = f"https://kelin.invalid/object/{bucket}/{encoded_path}?exp={exp}&sig={sig}"
+    body = await request.body()
+    try:
+        visit_card_storage_from_app(request.app).client_put(
+            canonical,
+            {"content-type": request.headers.get("content-type", "")},
+            body,
+            secret=signing_key,
+            now=now,
+        )
+    except StoragePutRejected as exc:
+        code = (
+            exc.public_code
+            if exc.public_code in {"CARD_VOICE_REJECTED", "CARD_IMAGE_REJECTED"}
+            else "NOT_FOUND"
+        )
+        status_code = 422 if code != "NOT_FOUND" else 404
+        raise ApiError(code, public_error_message(code), status_code=status_code) from exc
+    return Response(status_code=204)

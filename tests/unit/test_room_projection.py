@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
+from app.domain.awareness.timeline import AWAY_AFTER
 from app.domain.room import (
     LETTER_TITLE_KEYS,
     P08_STATUS_LAYERS,
@@ -10,7 +11,6 @@ from app.domain.room import (
     project_room,
     project_room_letter,
 )
-from app.domain.spirit_state import IDLE_STUDY_OR_AWAY
 from app.repositories import bootstrap as bootstrap_repo
 
 NOW = datetime(2026, 9, 9, 12, 0, tzinfo=UTC)
@@ -41,7 +41,7 @@ def test_letter_priority_lost_beats_all_other_candidates() -> None:
 
 
 def test_letter_priority_promise_then_pact_then_postcard_then_care() -> None:
-    last = NOW - IDLE_STUDY_OR_AWAY
+    last = NOW - AWAY_AFTER
     promise = project_room_letter(
         status="home",
         spirit_id=SPIRIT,
@@ -93,7 +93,7 @@ def test_letter_priority_promise_then_pact_then_postcard_then_care() -> None:
 def test_p08_four_statuses_map_to_primary_layers() -> None:
     assert P08_STATUS_LAYERS == {
         "home": "spirit",
-        "study": "study",
+        "study": "away",
         "away": "away",
         "lost": "lost",
     }
@@ -146,7 +146,8 @@ def test_layers_include_pending_letter_footprints_scholar_not_mark_keys() -> Non
         pending_sight=True,
         unread_footprint_count=2,
     )
-    assert projected.layers == ("study", "pending_sight", "letter", "footprints", "scholar")
+    assert projected.layers == ("away", "pending_sight", "letter", "footprints")
+    assert "scholar" not in projected.layers
     assert "interview-v1" not in projected.layers
     assert projected.unread_footprint_count == 2
     assert projected.letter is not None
@@ -156,9 +157,7 @@ def test_layers_include_pending_letter_footprints_scholar_not_mark_keys() -> Non
 def test_projection_sql_does_not_select_private_bodies() -> None:
     statements = (
         bootstrap_repo.SPIRIT_SQL,
-        bootstrap_repo.PENDING_SIGHT_SQL,
         bootstrap_repo.UNREAD_POSTCARD_SQL,
-        bootstrap_repo.DUE_PROMISE_SQL,
         bootstrap_repo.ACTIVE_PACT_SQL,
         bootstrap_repo.MEMORY_IDS_SQL,
     )
@@ -168,8 +167,5 @@ def test_projection_sql_does_not_select_private_bodies() -> None:
     assert "p.text" not in blob
     assert "summary" not in blob
     assert "pa.title" not in blob
-    assert "payload" not in bootstrap_repo.DUE_PROMISE_SQL.lower()
-    assert "payload->>'source'" in bootstrap_repo.PENDING_SIGHT_SQL
+    assert "feeds" not in blob
     assert "p.created_at" in bootstrap_repo.UNREAD_POSTCARD_SQL
-    assert "f.remind_at" in bootstrap_repo.DUE_PROMISE_SQL
-    assert "location" in bootstrap_repo.PENDING_SIGHT_SQL

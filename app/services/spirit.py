@@ -13,11 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ApiError, public_error_message
 from app.core.security import CurrentUser
 from app.domain.invite_code import invite_code_is_valid
-from app.domain.spirit import (
-    SpiritCreateResult,
-    create_spirit_request_hash,
-    traits_for_egg,
-)
+from app.domain.spirit import SpiritCreateResult, create_spirit_request_hash
 from app.repositories import spirit as spirit_repo
 from app.schemas.spirit import CreateSpiritRequest
 from app.services.invite_code import InviteCodeAllocationError, allocate_invite_code
@@ -38,10 +34,6 @@ async def create_spirit_if_absent(
     request: CreateSpiritRequest,
 ) -> SpiritCreateResult:
     owner_id = user.id
-    try:
-        traits = traits_for_egg(request.egg)
-    except KeyError as exc:
-        raise _api_error("INVALID_INPUT", status_code=422) from exc
     request_hash = create_spirit_request_hash(request)
 
     await spirit_repo.lock_owner_create(session, owner_id)
@@ -72,7 +64,6 @@ async def create_spirit_if_absent(
             name=request.name,
             egg=request.egg,
             invite_code=code,
-            traits=traits,
         )
 
     try:

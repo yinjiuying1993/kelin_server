@@ -1,4 +1,4 @@
-"""P20 recall contract: two methods, no client growth, OpenAPI surface."""
+"""P20 recall contract: food only, no client growth, OpenAPI surface."""
 
 from __future__ import annotations
 
@@ -14,16 +14,14 @@ from pytest import raises
 _ADAPTER = TypeAdapter(RecallRequest)
 
 
-def test_recall_request_food_and_sight_shapes() -> None:
+def test_recall_request_food_only() -> None:
     client = str(uuid4())
     food = _ADAPTER.validate_python({"client_id": client, "method": "food"})
     assert food.method == "food"
-    memory_id = str(uuid4())
-    sight = _ADAPTER.validate_python(
-        {"client_id": client, "method": "sight_memory", "memory_id": memory_id}
-    )
-    assert sight.method == "sight_memory"
-    assert str(sight.memory_id) == memory_id
+    with raises(ValidationError):
+        _ADAPTER.validate_python(
+            {"client_id": client, "method": "sight_memory", "memory_id": str(uuid4())}
+        )
 
 
 def test_recall_request_rejects_growth_and_illegal_source() -> None:

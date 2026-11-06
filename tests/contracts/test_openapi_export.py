@@ -49,21 +49,19 @@ def test_exported_spec_is_current_app_only_no_invented_api_v1() -> None:
     assert "/api/v1/bootstrap" in exported_paths
     assert "/api/v1/chat" in exported_paths
     assert "/api/v1/extract" in exported_paths
-    assert "/api/v1/feed" in exported_paths
-    assert "/api/v1/feeds/{feed_id}" in exported_paths
-    assert "/api/v1/feeds/{feed_id}/complete" in exported_paths
-    assert "/api/v1/feeds/{feed_id}/cancel" in exported_paths
+    assert "/api/v1/feed" not in exported_paths
+    assert "/api/v1/feeds/{feed_id}" not in exported_paths
     assert "/api/v1/messages" in exported_paths
     assert "/api/v1/memories" in exported_paths
     assert "/api/v1/memories/{memory_id}" in exported_paths
-    assert "/api/v1/onboarding/complete" in exported_paths
-    assert "/api/v1/storage/sight-upload-url" in exported_paths
+    assert "/api/v1/onboarding/complete" not in exported_paths
+    assert "/api/v1/storage/sight-upload-url" not in exported_paths
+    assert "/api/v1/devices" not in exported_paths
+    assert "/api/v1/moderate-sight" not in exported_paths
     assert "/api/v1/transcribe" in exported_paths
     assert "/api/v1/synthesize" in exported_paths
-    assert "/api/v1/pacts" in exported_paths
-    assert "/api/v1/pact-session" in exported_paths
-    assert "/api/v1/pact-answer" in exported_paths
-    assert "/api/v1/pact-skip" in exported_paths
+    assert "/api/v1/pacts" not in exported_paths
+    assert "/api/v1/report" not in exported_paths
     assert "/api/v1/friends" in exported_paths
     assert "/api/v1/friends/{friend_id}" in exported_paths
     assert "/api/v1/postcards" in exported_paths
@@ -73,17 +71,11 @@ def test_exported_spec_is_current_app_only_no_invented_api_v1() -> None:
     assert exported.document["paths"]["/api/v1/bootstrap"]["get"]
     assert exported.document["paths"]["/api/v1/chat"]["post"]
     assert exported.document["paths"]["/api/v1/extract"]["post"]
-    assert exported.document["paths"]["/api/v1/feed"]["post"]
-    assert exported.document["paths"]["/api/v1/feeds/{feed_id}"]["patch"]
-    assert exported.document["paths"]["/api/v1/feeds/{feed_id}/complete"]["post"]
-    assert exported.document["paths"]["/api/v1/feeds/{feed_id}/cancel"]["post"]
     assert exported.document["paths"]["/api/v1/messages"]["get"]
     assert exported.document["paths"]["/api/v1/memories"]["get"]
     assert exported.document["paths"]["/api/v1/memories"]["delete"]
     assert exported.document["paths"]["/api/v1/memories/{memory_id}"]["patch"]
     assert exported.document["paths"]["/api/v1/memories/{memory_id}"]["delete"]
-    assert exported.document["paths"]["/api/v1/onboarding/complete"]["post"]
-    assert exported.document["paths"]["/api/v1/storage/sight-upload-url"]["post"]
     assert exported.document["paths"]["/api/v1/transcribe"]["post"]
     assert exported.document["paths"]["/api/v1/synthesize"]["post"]
     assert exported.document["paths"]["/api/v1/friends"]["get"]
@@ -97,33 +89,40 @@ def test_exported_spec_is_current_app_only_no_invented_api_v1() -> None:
         if path.startswith("/api/")
         and path
         not in {
+            "/api/v1/account",
+            "/api/v1/ask/helped",
+            "/api/v1/ask/questions",
+            "/api/v1/ask/questions/recent",
+            "/api/v1/ask/questions/{question_id}",
+            "/api/v1/ask/questions/{question_id}/rating",
+            "/api/v1/ask/questions/{question_id}/turns",
             "/api/v1/spirits",
+            "/api/v1/spirits/{spirit_id}/public",
             "/api/v1/bootstrap",
             "/api/v1/chat",
+            "/api/v1/craft/redeem",
+            "/api/v1/craft/self-test/turns",
+            "/api/v1/craft/skills",
+            "/api/v1/craft/skills/{craft_id}",
+            "/api/v1/craft/skills/{craft_id}/self-test",
+            "/api/v1/craft/skills/{craft_id}/visibility",
             "/api/v1/extract",
-            "/api/v1/feed",
-            "/api/v1/feeds/{feed_id}",
-            "/api/v1/feeds/{feed_id}/cancel",
-            "/api/v1/feeds/{feed_id}/complete",
             "/api/v1/memories",
             "/api/v1/memories/{memory_id}",
             "/api/v1/messages",
-            "/api/v1/onboarding/complete",
-            "/api/v1/storage/sight-upload-url",
-            "/api/v1/moderate-sight",
+            "/api/v1/ops/craft-redeem",
             "/api/v1/transcribe",
             "/api/v1/synthesize",
-            "/api/v1/pacts",
-            "/api/v1/pact-session",
-            "/api/v1/pact-answer",
-            "/api/v1/pact-skip",
+            "/api/v1/visit-card",
+            "/api/v1/visit-card/uploads",
+            "/api/v1/visit-cards",
+            "/api/v1/visit-cards/{card_id}",
+            "/api/v1/visit-cards/{card_id}/read",
+            "/api/v1/visit-cards/{card_id}/reply",
             "/api/v1/friends",
             "/api/v1/friends/{friend_id}",
             "/api/v1/postcards",
             "/api/v1/postcards/{postcard_id}/read",
-            "/api/v1/devices",
-            "/api/v1/report",
-            "/api/v1/report/line",
             "/api/v1/spirit",
             "/api/v1/account",
             "/api/v1/recall",
@@ -175,21 +174,18 @@ def test_prod_app_openapi_method_has_no_debug_and_same_health_paths() -> None:
     assert "/api/v1/bootstrap" in paths
     assert "/api/v1/chat" in paths
     assert "/api/v1/extract" in paths
-    assert "/api/v1/feed" in paths
-    assert "/api/v1/feeds/{feed_id}" in paths
-    assert "/api/v1/feeds/{feed_id}/complete" in paths
-    assert "/api/v1/feeds/{feed_id}/cancel" in paths
+    assert "/api/v1/feed" not in paths
     assert "/api/v1/messages" in paths
     assert "/api/v1/memories" in paths
     assert "/api/v1/memories/{memory_id}" in paths
-    assert "/api/v1/onboarding/complete" in paths
-    assert "/api/v1/storage/sight-upload-url" in paths
+    assert "/api/v1/onboarding/complete" not in paths
+    assert "/api/v1/storage/sight-upload-url" not in paths
+    assert "/api/v1/devices" not in paths
+    assert "/api/v1/moderate-sight" not in paths
     assert "/api/v1/transcribe" in paths
     assert "/api/v1/synthesize" in paths
-    assert "/api/v1/pacts" in paths
-    assert "/api/v1/pact-session" in paths
-    assert "/api/v1/pact-answer" in paths
-    assert "/api/v1/pact-skip" in paths
+    assert "/api/v1/pacts" not in paths
+    assert "/api/v1/report" not in paths
     assert "/api/v1/friends" in paths
     assert "/api/v1/friends/{friend_id}" in paths
     assert "/api/v1/postcards" in paths
@@ -202,33 +198,40 @@ def test_prod_app_openapi_method_has_no_debug_and_same_health_paths() -> None:
         if path.startswith("/api/")
         and path
         not in {
+            "/api/v1/account",
+            "/api/v1/ask/helped",
+            "/api/v1/ask/questions",
+            "/api/v1/ask/questions/recent",
+            "/api/v1/ask/questions/{question_id}",
+            "/api/v1/ask/questions/{question_id}/rating",
+            "/api/v1/ask/questions/{question_id}/turns",
             "/api/v1/spirits",
+            "/api/v1/spirits/{spirit_id}/public",
             "/api/v1/bootstrap",
             "/api/v1/chat",
+            "/api/v1/craft/redeem",
+            "/api/v1/craft/self-test/turns",
+            "/api/v1/craft/skills",
+            "/api/v1/craft/skills/{craft_id}",
+            "/api/v1/craft/skills/{craft_id}/self-test",
+            "/api/v1/craft/skills/{craft_id}/visibility",
             "/api/v1/extract",
-            "/api/v1/feed",
-            "/api/v1/feeds/{feed_id}",
-            "/api/v1/feeds/{feed_id}/cancel",
-            "/api/v1/feeds/{feed_id}/complete",
             "/api/v1/memories",
             "/api/v1/memories/{memory_id}",
             "/api/v1/messages",
-            "/api/v1/onboarding/complete",
-            "/api/v1/storage/sight-upload-url",
-            "/api/v1/moderate-sight",
+            "/api/v1/ops/craft-redeem",
             "/api/v1/transcribe",
             "/api/v1/synthesize",
-            "/api/v1/pacts",
-            "/api/v1/pact-session",
-            "/api/v1/pact-answer",
-            "/api/v1/pact-skip",
+            "/api/v1/visit-card",
+            "/api/v1/visit-card/uploads",
+            "/api/v1/visit-cards",
+            "/api/v1/visit-cards/{card_id}",
+            "/api/v1/visit-cards/{card_id}/read",
+            "/api/v1/visit-cards/{card_id}/reply",
             "/api/v1/friends",
             "/api/v1/friends/{friend_id}",
             "/api/v1/postcards",
             "/api/v1/postcards/{postcard_id}/read",
-            "/api/v1/devices",
-            "/api/v1/report",
-            "/api/v1/report/line",
             "/api/v1/spirit",
             "/api/v1/account",
             "/api/v1/recall",

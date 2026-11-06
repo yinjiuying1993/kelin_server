@@ -20,7 +20,7 @@ from pydantic import SecretStr, ValidationError
 
 
 def test_timeouts_match_spec_and_stay_below_client_chat_budget() -> None:
-    assert PROVIDER_TIMEOUT_SECONDS["chat"] == 18
+    assert PROVIDER_TIMEOUT_SECONDS["chat"] == 60
     assert PROVIDER_TIMEOUT_SECONDS["extract"] == 30
     assert PROVIDER_TIMEOUT_SECONDS["asr"] == 22
     assert PROVIDER_TIMEOUT_SECONDS["tts"] == 18
@@ -32,7 +32,7 @@ def test_timeouts_match_spec_and_stay_below_client_chat_budget() -> None:
         PROVIDER_TIMEOUT_SECONDS["chat"] + PROVIDER_TIMEOUT_SECONDS["tts"]
         < CLIENT_CHAT_TIMEOUT_SECONDS
     )
-    assert CLIENT_CHAT_TIMEOUT_SECONDS == 48
+    assert CLIENT_CHAT_TIMEOUT_SECONDS == 80
     assert PROVIDER_CONDITIONAL_RETRY_COUNT == 1
     assert PROVIDER_RETRY_ON == frozenset({"connect", "http_429", "http_5xx"})
 
@@ -162,7 +162,8 @@ def test_chat_and_extract_output_forbid_extra_and_message_ids() -> None:
                 ]
             }
         )
-    ExtractOutput.model_validate({"memories": [], "style_samples": []})
+    with pytest.raises(ValidationError):
+        ExtractOutput.model_validate({"memories": [], "style_samples": []})
     with pytest.raises(ValidationError):
         ExtractOutput.model_validate({"style_samples": [{}]})
     with pytest.raises(ValidationError):

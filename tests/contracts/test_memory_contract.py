@@ -27,10 +27,10 @@ def test_openapi_get_memories_locks_filter_cursor_and_tombstones() -> None:
     filter_schema = _resolve_schema(spec, params["filter"].get("schema", {}))
     assert set(filter_schema.get("enum", [])) == {
         "all",
-        "relationship",
+        "preference",
         "knowledge",
-        "speech",
-        "sight",
+        "emotion",
+        "relationship",
     }
     description = (params["filter"].get("description") or "") + (path.get("description") or "")
     assert "preference" in description

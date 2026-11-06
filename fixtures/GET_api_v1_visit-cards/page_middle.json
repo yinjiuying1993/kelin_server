@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000e3",
+        "kind": "late",
+        "official": false,
+        "unread": true,
+        "occurred_at": "2026-10-19T12:00:00Z",
+        "peer": {
+          "title": "少去",
+          "stage": "formed"
+        },
+        "is_default": false,
+        "body": "晚到",
+        "reply_title": "晚到的字",
+        "reply_status": "late"
+      }
+    ],
+    "next_cursor": "kelin.vcard.v1.middle",
+    "has_more": true
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000d4",
+  "server_time": "2026-10-20T00:00:00Z"
+}

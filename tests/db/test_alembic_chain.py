@@ -43,6 +43,12 @@ CHAIN = (
     "20260908_0017",
     "20260908_0018",
     "20260908_0019",
+    "20260918_0100",
+    "20260920_0101",
+    "20261012_0102",
+    "20261016_0103",
+    "20261020_0104",
+    "20261020_0105",
 )
 
 
@@ -111,10 +117,9 @@ async def _insert_spirit(url: str) -> uuid.UUID:
         await conn.execute(
             text(
                 "INSERT INTO public.spirits ("
-                "id, user_id, client_id, egg, invite_code, "
-                "closeness, curiosity, sharpness, nocturnal, stubborn"
+                "id, user_id, client_id, egg, invite_code"
                 ") VALUES ("
-                ":id, :user_id, :client_id, 'wild', :invite, 50, 50, 50, 50, 50)"
+                ":id, :user_id, :client_id, 'wild', :invite)"
             ),
             {
                 "id": spirit_id,

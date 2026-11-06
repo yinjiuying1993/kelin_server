@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "data": {
+    "matched": true,
+    "question": {
+      "id": "00000000-0000-4000-8000-0000000000a1",
+      "question": "fixture",
+      "spirit_name": "fixture",
+      "spirit_id": "00000000-0000-4000-8000-0000000000a8",
+      "rank_name": "门边学徒",
+      "skill_title": "茶室品茗冲泡手记",
+      "rated": false,
+      "rating": null,
+      "turns": [
+        {
+          "role": "user",
+          "text": "fixture"
+        },
+        {
+          "role": "spirit",
+          "text": "fixture"
+        }
+      ]
+    }
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000a21",
+  "server_time": "2026-11-03T00:00:00Z"
+}

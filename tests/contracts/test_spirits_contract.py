@@ -93,7 +93,8 @@ def test_openapi_post_spirits_locks_fields_errors_and_patch() -> None:
     patch_names = _schema_property_names(spec, patch)
     assert "snapshot_version" in patch_names
     assert "spirit" in patch_names
-    assert "onboarding" in patch_names
+    assert "room" in patch_names
+    assert "onboarding" not in patch_names
 
 
 def test_success_fixture_matches_mutation_result() -> None:
@@ -108,8 +109,11 @@ def test_success_fixture_matches_mutation_result() -> None:
     assert result.patch.snapshot_version == 1
     assert result.patch.spirit is not None
     assert result.patch.spirit.egg == "warm"
-    assert result.patch.onboarding is not None
-    assert result.patch.onboarding.step == 0
+    assert result.patch.spirit.hatched_at == "2026-09-08T00:00:00Z"
+    assert result.patch.room is not None
+    assert result.patch.spirit.stage == "formed"
+    assert result.patch.room.stage_image_key == "formed_image"
+    assert result.patch.model_dump().get("onboarding") is None
 
 
 def test_post_spirits_without_auth_is_unauthenticated() -> None:

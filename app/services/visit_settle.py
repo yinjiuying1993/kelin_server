@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import Settings, get_settings
 from app.db.session import claimed_transaction
 from app.domain.spirit_state import require_aware
+from app.domain.visit_postcards import public_visit_title
 from app.domain.visits import DEFAULT_OUTBOX_LEASE_SECONDS
 from app.providers.postcard import (
     PostcardProvider,
@@ -28,6 +29,8 @@ from app.providers.postcard import (
 from app.repositories import visits as visit_repo
 from app.repositories.visits import VisitPostcardPublicInput
 from app.schemas.spirit import SpiritStage
+from app.services.central.visit_completed import publish_visit_completed
+from app.services.central.visit_target import settle_visit_spirit_targets
 
 _STAGES: frozenset[str] = frozenset({"whelp", "formed", "awake"})
 
@@ -77,6 +80,23 @@ async def handle_visit_settle(
 ) -> int:
     require_aware(now, field="now")
     async with claimed_transaction(factory, None, db_role=_WORKER_ROLE) as session:
+        public = await visit_repo.load_visit_postcard_public_input(
+            session, visit_id=visit_id
+        )
+        spirit_ids = _target_spirit_ids(public)
+        owner_id = None
+        if public is not None:
+            owner_id = await visit_repo.fetch_spirit_owner_id(session, public.visitor_id)
+    await settle_visit_spirit_targets(factory, spirit_ids, now=now)
+    if public is not None and owner_id is not None:
+        await publish_visit_completed(
+            factory,
+            owner_id=owner_id,
+            spirit_id=public.visitor_id,
+            visit_id=public.visit_id,
+            now=now,
+        )
+    async with claimed_transaction(factory, None, db_role=_WORKER_ROLE) as session:
         await visit_repo.assert_writable_transaction(session)
         return await visit_repo.settle_visit(session, visit_id=visit_id, now=now)
 
@@ -116,7 +136,29 @@ async def process_due_visit_settles(
                 public = await visit_repo.load_visit_postcard_public_input(
                     session, visit_id=job.visit_id
                 )
+                spirit_ids = _target_spirit_ids(public)
+            extra = (job.owner_id,) if job.owner_id is not None else ()
+            await settle_visit_spirit_targets(
+                factory, spirit_ids, now=now, extra_owner_ids=extra
+            )
+            async with claimed_transaction(factory, None, db_role=_WORKER_ROLE) as session:
+                public = await visit_repo.load_visit_postcard_public_input(
+                    session, visit_id=job.visit_id
+                )
+                owner_id = None
+                if public is not None:
+                    owner_id = await visit_repo.fetch_spirit_owner_id(
+                        session, public.visitor_id
+                    )
             visitor_text, host_text = await compose_visit_postcards(cards, public)
+            if public is not None and owner_id is not None:
+                await publish_visit_completed(
+                    factory,
+                    owner_id=owner_id,
+                    spirit_id=public.visitor_id,
+                    visit_id=public.visit_id,
+                    now=now,
+                )
             async with claimed_transaction(factory, None, db_role=_WORKER_ROLE) as session:
                 changed = await visit_repo.settle_visit(
                     session,
@@ -164,18 +206,20 @@ async def compose_visit_postcards(
         return "", ""
     dest_stage = _stage(public.dest_stage)
     visitor_stage = _stage(public.visitor_stage)
+    dest_title = public_visit_title(public.dest_title)
+    visitor_title = public_visit_title(public.visitor_title)
     visitor_text, _source = await resolve_postcard_text(
         provider,
         postcard_input_from_public(
             role="visitor",
-            title=public.dest_title,
+            title=dest_title,
             stage=dest_stage,
             weather=public.dest_weather,
-            marks=list(public.dest_marks),
-            counterpart_title=public.visitor_title,
+            marks=[],
+            counterpart_title=visitor_title,
             counterpart_stage=visitor_stage,
             counterpart_weather=public.visitor_weather,
-            counterpart_marks=list(public.visitor_marks),
+            counterpart_marks=[],
             npc_id=public.npc_id,
         ),
     )
@@ -185,17 +229,26 @@ async def compose_visit_postcards(
         provider,
         postcard_input_from_public(
             role="host",
-            title=public.visitor_title,
+            title=visitor_title,
             stage=visitor_stage,
             weather=public.visitor_weather,
-            marks=list(public.visitor_marks),
-            counterpart_title=public.dest_title,
+            marks=[],
+            counterpart_title=dest_title,
             counterpart_stage=dest_stage,
             counterpart_weather=public.dest_weather,
-            counterpart_marks=list(public.dest_marks),
+            counterpart_marks=[],
         ),
     )
     return visitor_text, host_text
+
+
+def _target_spirit_ids(public: VisitPostcardPublicInput | None) -> tuple[UUID, ...]:
+    if public is None:
+        return ()
+    ids: list[UUID] = [public.visitor_id]
+    if public.host_id is not None:
+        ids.append(public.host_id)
+    return tuple(ids)
 
 
 def _stage(value: str) -> SpiritStage:

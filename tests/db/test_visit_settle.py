@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from tests.db.harness import upgrade_empty_kelin_test_to_head
 
 NOW = datetime(2026, 9, 12, 11, 0, tzinfo=UTC)
+HOME = NOW + timedelta(hours=3)
 
 
 def _spirit_request(*, name: str) -> CreateSpiritRequest:
@@ -61,10 +62,14 @@ async def _boot(
 async def _set_idle(session: AsyncSession, user_id: uuid.UUID, *, now: datetime) -> None:
     await session.execute(
         text(
-            "UPDATE public.spirits SET last_interact_at = :ts, status = 'away' "
-            "WHERE user_id = :user_id"
+            "UPDATE public.spirits SET last_interact_at = :ts, status = 'away', "
+            "away_until = :until WHERE user_id = :user_id"
         ),
-        {"ts": now - timedelta(hours=18), "user_id": user_id},
+        {
+            "ts": now - timedelta(hours=18),
+            "until": now + timedelta(hours=3),
+            "user_id": user_id,
+        },
     )
 
 
@@ -86,7 +91,7 @@ async def _visits(url: str, visitor_id: uuid.UUID) -> list[Any]:
         rows = (
             await conn.execute(
                 text(
-                    "SELECT id, destination_index, status, settled_at "
+                    "SELECT id, destination_index, status, settled_at, due_at "
                     "FROM public.visits WHERE visitor_spirit_id = :id "
                     "ORDER BY destination_index ASC"
                 ),
@@ -181,14 +186,17 @@ async def _plan_two_hosts(url: str, factory: Any) -> tuple[uuid.UUID, uuid.UUID,
     await handle_visit_plan(factory, now=NOW)
     rows = await _visits(url, visitor_spirit)
     assert len(rows) == 2
+    assert all(row.due_at == HOME for row in rows)
+    early = await scan_due_visit_settle_jobs(factory, now=NOW)
+    assert early.inserted == 0
     return visitor_id, visitor_spirit, rows
 
 
 async def _assert_two_destinations_isolated(url: str, factory: Any) -> None:
     visitor_id, visitor_spirit, rows = await _plan_two_hosts(url, factory)
-    scan = await scan_due_visit_settle_jobs(factory, now=NOW)
+    scan = await scan_due_visit_settle_jobs(factory, now=HOME)
     assert scan.inserted == 2
-    first = await process_due_visit_settles(factory, now=NOW, limit=1, worker_id="w-one")
+    first = await process_due_visit_settles(factory, now=HOME, limit=1, worker_id="w-one")
     assert len(first) == 1
     assert first[0].changed is True
     after = await _visits(url, visitor_spirit)
@@ -226,12 +234,12 @@ async def _assert_two_destinations_isolated(url: str, factory: Any) -> None:
                 "WHERE dedupe_key = :key"
             ),
             {
-                "expired": NOW - timedelta(seconds=5),
+                "expired": HOME - timedelta(seconds=5),
                 "key": visit_settle_dedupe_key(leftover),
             },
         )
     await engine.dispose()
-    await process_due_visit_settles(factory, now=NOW, limit=8, worker_id="w-dead")
+    await process_due_visit_settles(factory, now=HOME, limit=8, worker_id="w-dead")
     final_rows = await _visits(url, visitor_spirit)
     by_id = {row.id: row for row in final_rows}
     assert str(by_id[settled[0].id].status) == "settled"
@@ -259,10 +267,10 @@ async def _assert_two_destinations_isolated(url: str, factory: Any) -> None:
 
 async def _assert_dual_worker_and_repeat(url: str, factory: Any) -> None:
     _visitor_id, visitor_spirit, rows = await _plan_two_hosts(url, factory)
-    await scan_due_visit_settle_jobs(factory, now=NOW)
+    await scan_due_visit_settle_jobs(factory, now=HOME)
     left, right = await asyncio.gather(
-        process_due_visit_settles(factory, now=NOW, limit=1, worker_id="w-a"),
-        process_due_visit_settles(factory, now=NOW, limit=1, worker_id="w-b"),
+        process_due_visit_settles(factory, now=HOME, limit=1, worker_id="w-a"),
+        process_due_visit_settles(factory, now=HOME, limit=1, worker_id="w-b"),
     )
     ticks = [*left, *right]
     assert {tick.visit_id for tick in ticks if tick.outcome == "done"} == {rows[0].id, rows[1].id}
@@ -270,7 +278,7 @@ async def _assert_dual_worker_and_repeat(url: str, factory: Any) -> None:
     assert {str(row.status) for row in after} == {"settled"}
     for row in after:
         assert len(await _cards(url, row.id)) == 2
-    again = await process_due_visit_settles(factory, now=NOW, limit=8, worker_id="w-repeat")
+    again = await process_due_visit_settles(factory, now=HOME, limit=8, worker_id="w-repeat")
     assert again == ()
     for row in after:
         assert len(await _cards(url, row.id)) == 2
@@ -294,14 +302,9 @@ async def _assert_dual_worker_and_repeat(url: str, factory: Any) -> None:
 
 
 async def _assert_lease_retry_then_dead(url: str, factory: Any) -> None:
-    visitor_id = uuid.uuid4()
-    visitor, visitor_spirit, _ = await _boot(url, factory, visitor_id, name="独行")
-    async with claimed_transaction(factory, visitor) as session:
-        await _set_idle(session, visitor_id, now=NOW)
-    await handle_visit_plan(factory, now=NOW)
-    rows = await _visits(url, visitor_spirit)
+    _visitor_id, visitor_spirit, rows = await _plan_two_hosts(url, factory)
     assert len(rows) == 2
-    await scan_due_visit_settle_jobs(factory, now=NOW)
+    await scan_due_visit_settle_jobs(factory, now=HOME)
     first = rows[0].id
     engine = create_async_engine(url)
     async with engine.begin() as conn:
@@ -311,11 +314,11 @@ async def _assert_lease_retry_then_dead(url: str, factory: Any) -> None:
                 "locked_by = 'old', lease_expires_at = :expired "
                 "WHERE dedupe_key = :key"
             ),
-            {"expired": NOW - timedelta(seconds=1), "key": visit_settle_dedupe_key(first)},
+            {"expired": HOME - timedelta(seconds=1), "key": visit_settle_dedupe_key(first)},
         )
     await engine.dispose()
     reclaimed = await process_due_visit_settles(
-        factory, now=NOW, limit=8, worker_id="w-reclaim"
+        factory, now=HOME, limit=8, worker_id="w-reclaim"
     )
     engine = create_async_engine(url)
     async with engine.connect() as conn:
@@ -331,14 +334,13 @@ async def _assert_lease_retry_then_dead(url: str, factory: Any) -> None:
     assert str(by_id[first].status) == "eligible"
     assert {str(row.status) for row in after_reclaim} == {"eligible", "settled"}
     retried = await process_due_visit_settles(
-        factory, now=NOW + timedelta(minutes=5), limit=8, worker_id="w-retry"
+        factory, now=HOME + timedelta(minutes=5), limit=8, worker_id="w-retry"
     )
     settled_ids = {tick.visit_id for tick in retried if tick.outcome == "done"}
     assert first in settled_ids
     after = await _visits(url, visitor_spirit)
     assert {str(row.status) for row in after} == {"settled"}
-    npc_cards = await _cards(url, first)
-    assert len(npc_cards) == 1
-    assert npc_cards[0].npc_id in {"fog", "lamp"}
-    assert npc_cards[0].sender_spirit_id is None
-    assert "字条" in str(npc_cards[0].text)
+    cards = await _cards(url, first)
+    assert cards
+    assert all(card.npc_id is None for card in cards)
+    assert any("字条" in str(card.text) for card in cards)

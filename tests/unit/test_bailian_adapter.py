@@ -15,14 +15,13 @@ from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.domain.speech import audio_sha256, m4a_fixture_bytes
 from app.integrations.bailian import (
-    AGENT_APP_ALIAS,
     ASR_GENERATION_URL,
     CHAT_COMPLETIONS_URL,
     CHAT_PROMPT_VERSION,
     EXTRACT_PROMPT_VERSION,
+    MCP_AUTO_URL,
     TTS_GENERATION_URL,
     BailianHttpAdapter,
-    app_completions_url,
 )
 from app.providers.errors import ProviderCapabilityUnwired, ProviderError
 from app.providers.factory import build_provider
@@ -110,31 +109,19 @@ def _blocked_settings() -> Settings:
 
 
 def _input() -> ChatInput:
-    return ChatInput(onboarding=True, onboarding_step=0, content=SECRET_CONTENT)
+    return ChatInput(content=SECRET_CONTENT)
 
 
 def _ok_body() -> dict[str, object]:
-    output = ChatOutput(reply="嗯。")
+    output = ChatOutput(reply="嗯。", intent="companion")
     return {
         "id": "provider-req-1",
         "choices": [{"message": {"content": output.model_dump_json()}}],
     }
 
 
-def _agent_ok_body() -> dict[str, object]:
-    output = ChatOutput(reply="嗯。")
-    return {
-        "request_id": "provider-req-agent",
-        "output": {
-            "text": output.model_dump_json(),
-            "finish_reason": "stop",
-            "session_id": "sess-1",
-        },
-    }
-
-
 def _extract_ok_body() -> dict[str, object]:
-    output = ExtractOutput.model_validate({"memories": [], "style_samples": []})
+    output = ExtractOutput.model_validate({"memories": []})
     return {
         "id": "provider-req-extract",
         "choices": [{"message": {"content": output.model_dump_json()}}],
@@ -229,7 +216,7 @@ async def test_adapter_chat_posts_only_to_unique_url() -> None:
         adapter = _adapter(client)
         result = await adapter.chat(_input())
     assert result.reply == "嗯。"
-    assert result.intent == "chat"
+    assert result.intent == "companion"
     assert len(seen) == 1
     request = seen[0]
     assert str(request.url) == CHAT_COMPLETIONS_URL
@@ -238,10 +225,18 @@ async def test_adapter_chat_posts_only_to_unique_url() -> None:
     payload = json.loads(request.content)
     assert payload["model"] == "chat"
     assert payload["response_format"] == {"type": "json_object"}
+    assert payload["enable_thinking"] is True
     assert payload["messages"][1]["content"] == SECRET_CONTENT
     assert CHAT_PROMPT_VERSION == "chat/v3"
     assert "刻灵" in payload["messages"][0]["content"]
-    assert "onboarding step 0 of 5" in payload["messages"][0]["content"]
+    assert "spirit_name" in payload["messages"][0]["content"]
+    assert "naming: JSON true" in payload["messages"][0]["content"]
+    assert "given_name" in payload["messages"][0]["content"]
+    assert "just_named" not in payload["messages"][0]["content"]
+    assert "intent: exactly the mode value" in payload["messages"][0]["content"]
+    assert 'the constant "chat"' not in payload["messages"][0]["content"]
+    assert "ordinary companionship turn after hatch" in payload["messages"][0]["content"]
+    assert "onboarding step" not in payload["messages"][0]["content"]
     assert "qwen-plus" not in json.dumps(payload)
 
 
@@ -262,8 +257,6 @@ async def test_adapter_chat_puts_recall_in_instruction_and_does_not_log_it() -> 
             adapter = _adapter(client)
             await adapter.chat(
                 ChatInput(
-                    onboarding=True,
-                    onboarding_step=0,
                     content=SECRET_CONTENT,
                     memories=[
                         PromptMemory(id=memory_id, type="preference", summary=secret_summary)
@@ -281,12 +274,12 @@ async def test_adapter_chat_puts_recall_in_instruction_and_does_not_log_it() -> 
 
 
 @pytest.mark.asyncio
-async def test_adapter_chat_posts_to_agent_app_when_app_id_set() -> None:
+async def test_adapter_chat_uses_completions_when_app_id_set() -> None:
     seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
-        return httpx.Response(200, json=_agent_ok_body())
+        return httpx.Response(200, json=_ok_body())
 
     buf = StringIO()
     with patch("sys.stdout", buf):
@@ -301,19 +294,19 @@ async def test_adapter_chat_posts_to_agent_app_when_app_id_set() -> None:
             )
             result = await adapter.chat(_input())
     assert result.reply == "嗯。"
-    assert result.intent == "chat"
+    assert result.intent == "companion"
     assert len(seen) == 1
     request = seen[0]
-    assert str(request.url) == app_completions_url(TEST_APP_ID)
+    assert str(request.url) == CHAT_COMPLETIONS_URL
+    assert "apps/" not in str(request.url)
     payload = json.loads(request.content)
-    assert payload["input"]["prompt"].startswith(SECRET_CONTENT)
-    assert "onboarding step 0 of 5" in payload["input"]["prompt"]
-    assert "model" not in payload
+    assert payload["model"] == "chat"
+    assert payload["messages"][1]["content"] == SECRET_CONTENT
+    assert TEST_APP_ID not in json.dumps(payload)
     dumped = buf.getvalue()
     assert SECRET_KEY not in dumped
     assert SECRET_CONTENT not in dumped
     assert TEST_APP_ID not in dumped
-    assert AGENT_APP_ALIAS in dumped
 
 
 @pytest.mark.asyncio
@@ -334,81 +327,6 @@ async def test_adapter_extract_stays_on_completions_when_app_id_set() -> None:
         )
         await adapter.extract(ExtractInput(conversation_window_id=uuid4()))
     assert str(seen[0].url) == CHAT_COMPLETIONS_URL
-
-
-@pytest.mark.asyncio
-async def test_adapter_agent_app_wraps_natural_language() -> None:
-    def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={"output": {"text": "知道了，阿年。"}, "request_id": "x"},
-        )
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        adapter = BailianHttpAdapter.from_settings(
-            _settings(bailian_app_id=TEST_APP_ID),
-            client=client,
-            circuits=CapabilityCircuits(),
-            sleep=_no_sleep,
-            rng=random.Random(0),
-        )
-        result = await adapter.chat(_input())
-    assert result.reply == "知道了，阿年。"
-    assert result.intent == "chat"
-    assert result.citations == []
-
-
-@pytest.mark.asyncio
-async def test_adapter_agent_app_keeps_reply_when_extra_keys() -> None:
-    def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={
-                "output": {
-                    "text": json.dumps(
-                        {"reply": "嗯。", "thought": "secret", "intent": "chat"},
-                        ensure_ascii=False,
-                    )
-                },
-                "request_id": "x",
-            },
-        )
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        adapter = BailianHttpAdapter.from_settings(
-            _settings(bailian_app_id=TEST_APP_ID),
-            client=client,
-            circuits=CapabilityCircuits(),
-            sleep=_no_sleep,
-            rng=random.Random(0),
-        )
-        result = await adapter.chat(_input())
-    assert result.reply == "嗯。"
-    assert result.model_dump() == ChatOutput(reply="嗯。").model_dump()
-
-
-@pytest.mark.asyncio
-async def test_adapter_agent_app_rejects_blocked_safety() -> None:
-    def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={
-                "output": {"text": json.dumps({"reply": "嗯。", "safety": "block"})},
-                "request_id": "x",
-            },
-        )
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        adapter = BailianHttpAdapter.from_settings(
-            _settings(bailian_app_id=TEST_APP_ID),
-            client=client,
-            circuits=CapabilityCircuits(),
-            sleep=_no_sleep,
-            rng=random.Random(0),
-        )
-        with pytest.raises(ProviderError) as blocked:
-            await adapter.chat(_input())
-    assert blocked.value.code == "MODEL_UNAVAILABLE"
 
 
 @pytest.mark.asyncio
@@ -473,11 +391,11 @@ async def test_adapter_maps_timeout_429_5xx_and_rejects_natural_language() -> No
 
     with pytest.raises(ProviderError) as invalid:
         await _call(raw_text)
-    assert invalid.value.code == "MODEL_UNAVAILABLE"
+    assert invalid.value.code == "CHAT_OUTPUT_INVALID"
 
     extra = {
         "reply": "嗯。",
-        "intent": "chat",
+        "intent": "companion",
         "citations": [],
         "safety": "allow",
         "unknown": True,
@@ -491,7 +409,7 @@ async def test_adapter_maps_timeout_429_5xx_and_rejects_natural_language() -> No
 
     with pytest.raises(ProviderError) as forbidden:
         await _call(extra_fields)
-    assert forbidden.value.code == "MODEL_UNAVAILABLE"
+    assert forbidden.value.code == "CHAT_OUTPUT_INVALID"
 
 
 @pytest.mark.asyncio
@@ -572,6 +490,26 @@ async def test_live_adapter_unwired_without_extract_or_search_alias() -> None:
 
 
 @pytest.mark.asyncio
+async def test_text_moderation_uses_the_chat_model_when_safety_is_unset() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": '{"decision":"allow"}'}}]},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = _adapter(client)
+        decision = await adapter.moderate_text("泡茶")
+    assert decision == "allow"
+    assert len(seen) == 1
+    assert str(seen[0].url) == CHAT_COMPLETIONS_URL
+    assert json.loads(seen[0].content)["model"] == "chat"
+
+
+@pytest.mark.asyncio
 async def test_adapter_extract_posts_json_to_unique_url() -> None:
     seen: list[httpx.Request] = []
 
@@ -600,11 +538,52 @@ async def test_adapter_extract_posts_json_to_unique_url() -> None:
     payload = json.loads(request.content)
     assert payload["model"] == "extract"
     assert payload["response_format"] == {"type": "json_object"}
+    assert payload["enable_thinking"] is False
     assert SECRET_CONTENT in payload["messages"][1]["content"]
     assert EXTRACT_PROMPT_VERSION == "extract/v2"
-    assert "style_samples" in payload["messages"][0]["content"]
+    prompt = payload["messages"][0]["content"]
+    assert "style_samples" not in prompt
+    assert "personality_delta" not in prompt
     dumped = json.dumps(payload)
     assert "start_message_id" not in dumped
+
+
+@pytest.mark.asyncio
+async def test_adapter_judge_enables_thinking() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        body = {
+            "id": "provider-req-judge",
+            "choices": [
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {"memories": [{"type": "preference", "summary": "喜欢海贼王"}]},
+                            ensure_ascii=False,
+                        )
+                    }
+                }
+            ],
+        }
+        return httpx.Response(200, json=body)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = BailianHttpAdapter.from_settings(
+            _settings(bailian_extract_model="extract"),
+            client=client,
+            circuits=CapabilityCircuits(),
+            sleep=_no_sleep,
+            rng=random.Random(0),
+        )
+        result = await adapter.judge_memory("喜欢海贼王")
+    assert result["memories"] == [{"type": "preference", "summary": "喜欢海贼王"}]
+    payload = json.loads(seen[0].content)
+    assert payload["enable_thinking"] is True
+    assert payload["model"] == "extract"
+    assert "喜欢海贼王" in payload["messages"][1]["content"]
+    assert "memories" in payload["messages"][0]["content"]
 
 
 @pytest.mark.asyncio
@@ -648,7 +627,8 @@ async def test_adapter_extract_retries_429_once() -> None:
             rng=random.Random(0),
         )
         result = await adapter.extract(ExtractInput(conversation_window_id=uuid4()))
-    assert result.style_samples == []
+    assert result.memories == []
+    assert result.model_dump().get("style_samples") is None
     assert len(seen) == 2
 
 
@@ -713,6 +693,30 @@ async def test_timeout_does_not_retry_or_return_reply() -> None:
             await adapter.chat(_input())
     assert timed_out.value.code == "PROVIDER_TIMEOUT"
     assert len(seen) == 1
+
+
+@pytest.mark.asyncio
+async def test_invalid_chat_json_does_not_open_the_circuit() -> None:
+    seen: list[int] = []
+    circuits = CapabilityCircuits()
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        seen.append(1)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "知道了，阿年。"}}]},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = _adapter(client, circuits=circuits)
+        with pytest.raises(ProviderError) as first:
+            await adapter.chat(_input())
+        with pytest.raises(ProviderError) as second:
+            await adapter.chat(_input())
+    assert first.value.code == "CHAT_OUTPUT_INVALID"
+    assert second.value.code == "CHAT_OUTPUT_INVALID"
+    assert circuits.is_open("chat") is False
+    assert len(seen) == 2
 
 
 @pytest.mark.asyncio
@@ -1084,3 +1088,278 @@ async def test_adapter_tts_remuxes_non_m4a_without_logging_bytes() -> None:
     dumped = buf.getvalue()
     assert SECRET_CONTENT not in dumped
     assert "RIFF" not in dumped
+
+
+def _mcp_tool_body(text: str) -> dict[str, object]:
+    return {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {"content": [{"type": "text", "text": text}]},
+    }
+
+
+@pytest.mark.asyncio
+async def test_adapter_extend_calls_bailian_auto_mcp() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if not request.content:
+            return httpx.Response(202)
+        payload = json.loads(request.content)
+        method = payload.get("method")
+        if method == "initialize":
+            return httpx.Response(
+                200,
+                headers={"Mcp-Session-Id": "sess-1"},
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "result": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {},
+                        "serverInfo": {"name": "mcp", "version": "1"},
+                    },
+                },
+            )
+        if method == "notifications/initialized":
+            return httpx.Response(202)
+        if method == "tools/call":
+            name = payload["params"]["name"]
+            if name == "search_tool":
+                found = json.dumps(
+                    {
+                        "search_data": [
+                            {
+                                "server_code": "amap-maps",
+                                "tool_name": "maps_weather",
+                                "tool_inputSchema": {
+                                    "type": "object",
+                                    "properties": {"city": {"type": "string"}},
+                                    "required": ["city"],
+                                },
+                            }
+                        ]
+                    }
+                )
+                return httpx.Response(200, json=_mcp_tool_body(found))
+            arguments = payload["params"]["arguments"]
+            assert arguments["server_code"] == "amap-maps"
+            assert arguments["tool_name"] == "maps_weather"
+            assert arguments["params"] == {"city": "杭州"}
+            return httpx.Response(200, json=_mcp_tool_body("杭州 晴 18℃"))
+        return httpx.Response(500, json={"error": "unexpected"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = BailianHttpAdapter.from_settings(
+            _settings(),
+            client=client,
+            circuits=CapabilityCircuits(),
+            sleep=_no_sleep,
+            rng=random.Random(0),
+        )
+        text = await adapter.extend(query="查询城市天气", argument="杭州")
+    assert text == "杭州 晴 18℃"
+    assert {str(item.url) for item in seen} == {MCP_AUTO_URL}
+
+
+@pytest.mark.asyncio
+async def test_adapter_extend_keeps_the_leading_hot_news() -> None:
+    blob = json.dumps(
+        {
+            "num_23_hot_news_title": "靠后的一条",
+            "num_23_hot_news_url": "https://news.example/23",
+            "num_1_hot_news_title": "今日第一条热点",
+            "num_1_hot_news_url": "https://news.example/1",
+            "num_2_hot_news_title": "今日第二条热点",
+            "num_2_hot_news_url": "https://news.example/2",
+        },
+        ensure_ascii=False,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        method = payload.get("method")
+        if method == "initialize":
+            return httpx.Response(
+                200,
+                json={"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2024-11-05"}},
+            )
+        if method == "notifications/initialized":
+            return httpx.Response(202)
+        name = payload["params"]["name"]
+        if name == "search_tool":
+            found = json.dumps(
+                {
+                    "search_data": [
+                        {
+                            "server_code": "news",
+                            "tool_name": "news.hotnews",
+                            "tool_inputSchema": {"type": "object", "properties": {}},
+                        }
+                    ]
+                }
+            )
+            return httpx.Response(200, json=_mcp_tool_body(found))
+        return httpx.Response(200, json=_mcp_tool_body(blob))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = BailianHttpAdapter.from_settings(
+            _settings(),
+            client=client,
+            circuits=CapabilityCircuits(),
+            sleep=_no_sleep,
+            rng=random.Random(0),
+        )
+        text = await adapter.extend(query="今天热点新闻")
+    assert text.splitlines()[0].startswith("今日第一条热点")
+    assert "https://news.example/1" in text
+    assert "靠后的一条 https://news.example/23" in text
+
+
+@pytest.mark.asyncio
+async def test_adapter_extend_skips_a_closed_news_tool() -> None:
+    called: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if not request.content:
+            return httpx.Response(202)
+        payload = json.loads(request.content)
+        method = payload.get("method")
+        if method == "initialize":
+            return httpx.Response(
+                200,
+                json={"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2024-11-05"}},
+            )
+        if method == "notifications/initialized":
+            return httpx.Response(202)
+        name = payload["params"]["name"]
+        if name == "search_tool":
+            found = json.dumps(
+                {
+                    "search_data": [
+                        {
+                            "server_code": "finance",
+                            "tool_name": "SearchFinancialNews",
+                            "tool_inputSchema": {"type": "object", "properties": {}},
+                        },
+                        {
+                            "server_code": "news",
+                            "tool_name": "news.hotnews",
+                            "tool_inputSchema": {"type": "object", "properties": {}},
+                        },
+                    ]
+                }
+            )
+            return httpx.Response(200, json=_mcp_tool_body(found))
+        tool_name = payload["params"]["arguments"]["tool_name"]
+        called.append(tool_name)
+        if tool_name == "SearchFinancialNews":
+            return httpx.Response(
+                200,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "result": {
+                        "isError": True,
+                        "content": [{"type": "text", "text": "MCP服务开通中，请稍等"}],
+                    },
+                },
+            )
+        return httpx.Response(
+            200,
+            json=_mcp_tool_body(
+                json.dumps(
+                    {
+                        "num_1_hot_news_title": "今日第一条热点",
+                        "num_1_hot_news_url": "https://news.example/1",
+                    },
+                    ensure_ascii=False,
+                )
+            ),
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = BailianHttpAdapter.from_settings(
+            _settings(),
+            client=client,
+            circuits=CapabilityCircuits(),
+            sleep=_no_sleep,
+            rng=random.Random(0),
+        )
+        text = await adapter.extend(query="检索新闻", argument="今天有什么新闻")
+    assert text.startswith("今日第一条热点")
+    assert called == ["news.hotnews"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("user_text", "channel"),
+    [("今天有什么大瓜", "娱乐最新"), ("今天的新闻热点", "国内最新")],
+)
+async def test_adapter_extend_picks_a_news_channel(user_text: str, channel: str) -> None:
+    seen: list[dict[str, str]] = []
+    searched: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if not request.content:
+            return httpx.Response(202)
+        payload = json.loads(request.content)
+        method = payload.get("method")
+        if method == "initialize":
+            return httpx.Response(
+                200,
+                json={"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2024-11-05"}},
+            )
+        if method == "notifications/initialized":
+            return httpx.Response(202)
+        name = payload["params"]["name"]
+        if name == "search_tool":
+            searched.append(payload["params"]["arguments"]["query"])
+            found = json.dumps(
+                {
+                    "search_data": [
+                        {
+                            "server_code": "news",
+                            "tool_name": "news.hotnews",
+                            "tool_inputSchema": {"type": "object", "properties": {}},
+                        },
+                        {
+                            "server_code": "news",
+                            "tool_name": "news.query",
+                            "tool_inputSchema": {
+                                "type": "object",
+                                "properties": {"channel_name": {"type": "string"}},
+                            },
+                        },
+                    ]
+                }
+            )
+            return httpx.Response(200, json=_mcp_tool_body(found))
+        arguments = payload["params"]["arguments"]
+        seen.append(arguments["params"])
+        return httpx.Response(
+            200,
+            json=_mcp_tool_body(
+                json.dumps(
+                    {
+                        "num_1_news_title": "第一条",
+                        "num_1_news_url": "https://news.example/1",
+                    },
+                    ensure_ascii=False,
+                )
+            ),
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        adapter = BailianHttpAdapter.from_settings(
+            _settings(),
+            client=client,
+            circuits=CapabilityCircuits(),
+            sleep=_no_sleep,
+            rng=random.Random(0),
+        )
+        text = await adapter.extend(query="今日热点新闻", user_text=user_text)
+    assert text == "第一条 https://news.example/1"
+    assert seen == [{"channel_name": channel}]
+    assert searched == ["娱乐新闻" if channel == "娱乐最新" else "时事热点新闻"]

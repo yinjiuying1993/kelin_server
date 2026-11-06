@@ -2,24 +2,20 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any, Literal, Self
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.schemas.bootstrap import RoomPublic
 from app.schemas.envelope import EnvelopeError
+from app.schemas.room import RoomPublic
 from app.schemas.spirit import (
     MutationResource,
-    OnboardingState,
     QuotaUsage,
     SpiritPublic,
     UserPreferencesPublic,
 )
-
-_HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
 class _ForbidExtra(BaseModel):
@@ -28,23 +24,11 @@ class _ForbidExtra(BaseModel):
 
 class PreferencesPatch(_ForbidExtra):
     tts_on: bool | None = None
-    push_on: bool | None = None
     visit_on: bool | None = None
-    dnd_start: str | None = None
-    dnd_end: str | None = None
     timezone: str | None = None
     default_city: str | None = Field(default=None, max_length=40)
     location_weather_on: bool | None = None
     remote_search_on: bool | None = None
-
-    @field_validator("dnd_start", "dnd_end")
-    @classmethod
-    def _hhmm(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        if not _HHMM.match(value):
-            raise ValueError("dnd must be HH:MM")
-        return value
 
     @field_validator("timezone")
     @classmethod
@@ -91,7 +75,6 @@ class SpiritPatchPatch(_ForbidExtra):
     spirit: SpiritPublic
     preferences: UserPreferencesPublic
     room: RoomPublic
-    onboarding: OnboardingState | None = None
     report: None = None
     social: None = None
     memories_upsert: list[Any] = Field(default_factory=list)

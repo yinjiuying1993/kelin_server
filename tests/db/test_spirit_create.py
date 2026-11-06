@@ -10,7 +10,7 @@ from app.core.errors import ApiError
 from app.core.security import CurrentUser
 from app.db.session import claimed_transaction, create_runtime_engine, create_session_factory
 from app.domain.invite_code import invite_code_is_valid
-from app.domain.spirit import SpiritCreateResult, traits_for_egg
+from app.domain.spirit import SpiritCreateResult
 from app.repositories import spirit as spirit_repo
 from app.schemas.spirit import CreateSpiritRequest
 from app.services.spirit import create_spirit_if_absent
@@ -67,16 +67,15 @@ async def _counts(session: AsyncSession, user_id: uuid.UUID) -> tuple[int, int, 
 
 
 def _assert_defaults(result: SpiritCreateResult, request: CreateSpiritRequest) -> None:
-    traits = traits_for_egg(request.egg)
     assert result.client_id == request.client_id
     assert result.name == request.name
     assert result.egg == request.egg
     assert invite_code_is_valid(result.invite_code)
-    assert result.closeness == traits.closeness
-    assert result.curiosity == traits.curiosity
-    assert result.sharpness == traits.sharpness
-    assert result.nocturnal == traits.nocturnal
-    assert result.stubborn == traits.stubborn
+    assert result.closeness == 50
+    assert result.curiosity == 50
+    assert result.sharpness == 50
+    assert result.nocturnal == 50
+    assert result.stubborn == 50
     assert result.hunger == 80
     assert result.energy == 80
     assert result.mood == 60

@@ -140,9 +140,9 @@ async def _assert_planner(url: str) -> None:
     try:
         await _assert_role_grants(factory)
         await _assert_zero_when_not_idle(url, factory)
-        await _assert_no_friends_uses_npc(url, factory)
+        await _assert_other_spirits_need_no_friend(url, factory)
         await _assert_two_hosts_and_repeat_then_boundary(url, factory)
-        await _assert_visit_off_host_falls_back_to_npc(url, factory)
+        await _assert_visit_off_host_is_skipped(url, factory)
         await _assert_one_destination_when_npcs_disabled(url, factory)
         await _assert_scheduler_dedupe_and_worker(url, factory)
     finally:
@@ -250,28 +250,18 @@ async def _assert_zero_when_not_idle(url: str, factory: Any) -> None:
     assert await _visits_for(url, lost_spirit) == []
 
 
-async def _assert_no_friends_uses_npc(url: str, factory: Any) -> None:
+async def _assert_other_spirits_need_no_friend(url: str, factory: Any) -> None:
     user_id = uuid.uuid4()
     user, spirit_id, _ = await _boot(url, factory, user_id, name="独行")
     async with claimed_transaction(factory, user) as session:
         await _set_idle(session, user_id, now=NOW, hours=18)
     planned = await handle_visit_plan(factory, now=NOW)
     rows = await _visits_for(url, spirit_id)
-    assert planned.inserted == 2
-    assert len(rows) == 2
-    assert [int(row.destination_index) for row in rows] == [1, 2]
-    assert rows[0].plan_id == rows[1].plan_id
-    assert rows[0].host_spirit_id is None and rows[1].host_spirit_id is None
-    assert [row.npc_id for row in rows] == ["fog", "lamp"]
-    assert all(int(row.npc_config_version) == 1 for row in rows)
-    assert all(str(row.status) == "eligible" for row in rows)
-    for row, index in zip(rows, (1, 2), strict=True):
-        assert str(row.eligibility_key) == visit_eligibility_key(
-            spirit_id, now=NOW, destination_index=index
-        )
-        _assert_public_context(row.public_context)
-        assert row.public_context["title"] in {"雾里的那只", "守灯的那只"}
-        assert row.public_context["stage"] == "formed"
+    assert planned.inserted == 1
+    assert len(rows) == 1
+    assert rows[0].host_spirit_id != spirit_id
+    assert rows[0].npc_id is None
+    assert rows[0].public_context["title"] == "在家"
 
 
 async def _assert_two_hosts_and_repeat_then_boundary(url: str, factory: Any) -> None:
@@ -291,11 +281,10 @@ async def _assert_two_hosts_and_repeat_then_boundary(url: str, factory: Any) -> 
     assert len(rows) == 2
     assert {int(row.destination_index) for row in rows} == {1, 2}
     assert rows[0].plan_id == rows[1].plan_id
-    assert {row.host_spirit_id for row in rows} == {host_a_spirit, host_b_spirit}
+    assert visitor_spirit not in {row.host_spirit_id for row in rows}
     assert all(row.npc_id is None for row in rows)
     for row in rows:
         _assert_public_context(row.public_context)
-        assert row.public_context["title"] in {"甲居", "乙居"}
         assert row.public_context["stage"] == "whelp"
 
     repeat = await handle_visit_plan(factory, now=BUCKET_EDGE)
@@ -319,7 +308,7 @@ async def _assert_two_hosts_and_repeat_then_boundary(url: str, factory: Any) -> 
     assert all(int(row.destination_index) in (1, 2) for row in after)
 
 
-async def _assert_visit_off_host_falls_back_to_npc(url: str, factory: Any) -> None:
+async def _assert_visit_off_host_is_skipped(url: str, factory: Any) -> None:
     visitor_id = uuid.uuid4()
     open_id = uuid.uuid4()
     closed_id = uuid.uuid4()
@@ -338,11 +327,9 @@ async def _assert_visit_off_host_falls_back_to_npc(url: str, factory: Any) -> No
     rows = await _visits_for(url, visitor_spirit)
     assert planned.inserted == 2
     assert len(rows) == 2
-    assert int(rows[0].destination_index) == 1
-    assert rows[0].host_spirit_id == open_spirit
-    assert rows[0].npc_id is None
-    assert rows[1].host_spirit_id is None
-    assert rows[1].npc_id == "fog"
+    assert {int(row.destination_index) for row in rows} == {1, 2}
+    assert visitor_spirit not in {row.host_spirit_id for row in rows}
+    assert all(row.npc_id is None for row in rows)
     assert closed_spirit not in {row.host_spirit_id for row in rows}
     for row in rows:
         _assert_public_context(row.public_context)
@@ -362,11 +349,10 @@ async def _assert_one_destination_when_npcs_disabled(url: str, factory: Any) -> 
             await _set_idle(session, visitor_id, now=NOW, hours=18)
         planned = await handle_visit_plan(factory, now=NOW)
         rows = await _visits_for(url, visitor_spirit)
-        assert planned.inserted == 1
-        assert len(rows) == 1
-        assert int(rows[0].destination_index) == 1
-        assert rows[0].host_spirit_id == host_spirit
-        assert rows[0].npc_id is None
+        assert planned.inserted == 2
+        assert len(rows) == 2
+        assert visitor_spirit not in {row.host_spirit_id for row in rows}
+        assert all(row.npc_id is None for row in rows)
     finally:
         async with engine.begin() as conn:
             await conn.execute(text("UPDATE public.npc_profiles SET enabled = true"))
@@ -401,7 +387,8 @@ async def _assert_scheduler_dedupe_and_worker(url: str, factory: Any) -> None:
     assert len(processed.job_ids) >= 1
     rows = await _visits_for(url, spirit_id)
     assert len(rows) == 2
-    assert [row.npc_id for row in rows] == ["fog", "lamp"]
+    assert spirit_id not in {row.host_spirit_id for row in rows}
+    assert all(row.npc_id is None for row in rows)
     again = await process_due_visit_plans(factory, now=NOW)
     assert again.inserted == 0
     assert again.job_ids == ()
@@ -427,3 +414,5 @@ async def _assert_scheduler_dedupe_and_worker(url: str, factory: Any) -> None:
     assert int(postcards or 0) == 0
     assert "settle_visit" not in str(proc_args)
     assert "INSERT INTO public.postcards" not in str(proc_args)
+    assert "ORDER BY random()" in str(proc_args)
+    assert "public.friends" not in str(proc_args)

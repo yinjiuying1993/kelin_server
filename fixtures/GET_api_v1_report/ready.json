@@ -20,17 +20,26 @@
         "id": "00000000-0000-4000-8000-0000000000b1",
         "name": "雾生",
         "stage": "formed",
-        "public_layers": ["spirit", "scholar"]
+        "public_layers": [
+          "spirit",
+          "scholar"
+        ]
       },
       "room_weather": "cloudy",
       "top_traits": [
-        {"dimension": "closeness", "value": 78},
-        {"dimension": "nocturnal", "value": 66}
+        {
+          "dimension": "closeness",
+          "value": 78
+        },
+        {
+          "dimension": "nocturnal",
+          "value": 66
+        }
       ],
       "top_memories": [
         {
           "id": "00000000-0000-4000-8000-0000000000d1",
-          "type": "sight",
+          "type": "knowledge",
           "summary": "雨夜路灯",
           "unavailable": false
         },
@@ -41,7 +50,9 @@
           "unavailable": true
         }
       ],
-      "scholar_marks": ["interview-v1"],
+      "scholar_marks": [
+        "interview-v1"
+      ],
       "signature_line": "它最像你的地方，是安静里仍肯靠近。",
       "invite_code": "ABCD2345",
       "generated_at": "2026-09-14T04:00:00Z",

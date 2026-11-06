@@ -22,7 +22,7 @@ from sqlalchemy import (
     desc,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, validates
 from sqlalchemy.sql import text as sql_text
 
 from app.db.base import Base
@@ -121,10 +121,7 @@ class Message(Base):
     __tablename__ = "messages"
     __table_args__ = (
         CheckConstraint("role IN ('user', 'spirit', 'system')", name="ck_messages_role"),
-        CheckConstraint(
-            "char_length(content) BETWEEN 1 AND 4000",
-            name="ck_messages_content_length",
-        ),
+        CheckConstraint("char_length(content) >= 1", name="ck_messages_content_length"),
         CheckConstraint("source IN ('text', 'voice', 'onboarding')", name="ck_messages_source"),
         CheckConstraint(
             "status IN ('accepted', 'generated', 'failed')",
@@ -201,83 +198,11 @@ class Message(Base):
     )
 
 
-class Feed(Base):
-    __tablename__ = "feeds"
-    __table_args__ = (
-        UniqueConstraint("user_id", "client_id", name="uq_feeds_user_id_client_id"),
-        CheckConstraint(
-            "kind IN ('food', 'sight', 'knowledge', 'emotion', 'promise')",
-            name="ck_feeds_kind",
-        ),
-        CheckConstraint(
-            "status IN ('pending', 'processing', 'accepted', 'rejected', 'cancelled')",
-            name="ck_feeds_status",
-        ),
-        CheckConstraint(
-            "(kind <> 'promise' AND promise_status IS NULL) "
-            "OR (kind = 'promise' AND promise_status IN ('active', 'completed', 'cancelled'))",
-            name="ck_feeds_promise_status",
-        ),
-        CheckConstraint("jsonb_typeof(payload) = 'object'", name="ck_feeds_payload_object"),
-        Index(
-            "uq_feeds_spirit_one_active_promise",
-            "spirit_id",
-            unique=True,
-            postgresql_where=sql_text("kind = 'promise' AND promise_status = 'active'"),
-        ),
-        Index(
-            "feeds_pending",
-            "status",
-            "updated_at",
-            postgresql_where=sql_text("status IN ('pending', 'processing')"),
-        ),
-        {"schema": "public"},
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        server_default=sql_text("gen_random_uuid()"),
-    )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    spirit_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("spirits.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    kind: Mapped[str] = mapped_column(Text, nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=sql_text("'pending'"))
-    rejection_code: Mapped[str | None] = mapped_column(Text, nullable=True)
-    effect_applied_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    promise_status: Mapped[str | None] = mapped_column(Text, nullable=True)
-    remind_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    version: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=sql_text("1"))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=sql_text("now()"),
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=sql_text("now()"),
-    )
-
-
 class Memory(Base):
     __tablename__ = "memories"
     __table_args__ = (
         CheckConstraint(
-            "type IN ('preference', 'knowledge', 'emotion', 'relation', 'speech', 'sight')",
+            "type IN ('preference', 'knowledge', 'emotion', 'relationship')",
             name="ck_memories_type",
         ),
         CheckConstraint(
@@ -289,8 +214,22 @@ class Memory(Base):
         CheckConstraint(
             "(status = 'active' AND sealed_at IS NULL AND deleted_at IS NULL) "
             "OR (status = 'sealed' AND sealed_at IS NOT NULL AND deleted_at IS NULL) "
-            "OR (status = 'deleted' AND deleted_at IS NOT NULL)",
+            "OR (status = 'deleted' AND deleted_at IS NOT NULL) "
+            "OR (status IN ('superseded', 'stale') AND sealed_at IS NULL AND deleted_at IS NULL)",
             name="ck_memories_status",
+        ),
+        CheckConstraint("confirm_count >= 1", name="ck_memories_confirm_count"),
+        CheckConstraint(
+            "topic_key IS NULL OR char_length(topic_key) BETWEEN 1 AND 128",
+            name="ck_memories_topic_key",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(decision_audit) = 'object'",
+            name="ck_memories_decision_audit_object",
+        ),
+        CheckConstraint(
+            "char_length(rules_version) BETWEEN 1 AND 64",
+            name="ck_memories_rules_version",
         ),
         Index(
             "memories_active_page",
@@ -298,6 +237,19 @@ class Memory(Base):
             desc("created_at"),
             desc("id"),
             postgresql_where=sql_text("status = 'active'"),
+        ),
+        Index(
+            "uq_memories_spirit_id_source_event_id",
+            "spirit_id",
+            "source_event_id",
+            unique=True,
+            postgresql_where=sql_text("source_event_id IS NOT NULL"),
+        ),
+        Index(
+            "memories_topic_active",
+            "spirit_id",
+            "topic_key",
+            postgresql_where=sql_text("status = 'active' AND topic_key IS NOT NULL"),
         ),
         {"schema": "public"},
     )
@@ -338,6 +290,20 @@ class Memory(Base):
         nullable=True,
     )
     version: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=sql_text("1"))
+    topic_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_event_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    rules_version: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=sql_text("'kelin-v1-rules-1'")
+    )
+    confirm_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=sql_text("1")
+    )
+    last_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    decision_audit: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=sql_text("'{}'::jsonb")
+    )
     sealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -350,6 +316,13 @@ class Memory(Base):
         nullable=False,
         server_default=sql_text("now()"),
     )
+
+    @validates("type")
+    def _validate_type(self, key: str, value: str) -> str:
+        del key
+        if value not in ("preference", "knowledge", "emotion", "relationship"):
+            raise ValueError("illegal memory type")
+        return value
 
 
 class StyleSample(Base):
@@ -485,66 +458,11 @@ class SightUpload(Base):
     )
 
 
-class GrowthEvent(Base):
-    __tablename__ = "growth_events"
-    __table_args__ = (
-        UniqueConstraint(
-            "source_type",
-            "source_id",
-            "event_type",
-            name="uq_growth_events_source_type_source_id_event_type",
-        ),
-        CheckConstraint(
-            "event_type IN ("
-            "'chat_completed', 'feed_accepted', 'promise_completed', "
-            "'pact_answered', 'pact_completed', 'memory_added', "
-            "'visit_completed', 'returned_from_lost', 'time_passed'"
-            ")",
-            name="ck_growth_events_event_type",
-        ),
-        CheckConstraint("jsonb_typeof(payload) = 'object'", name="ck_growth_events_payload_object"),
-        {"schema": "public"},
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        server_default=sql_text("gen_random_uuid()"),
-    )
-    spirit_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("spirits.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    source_type: Mapped[str] = mapped_column(Text, nullable=False)
-    source_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    event_type: Mapped[str] = mapped_column(Text, nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(
-        JSONB,
-        nullable=False,
-        server_default=sql_text("'{}'::jsonb"),
-    )
-    occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=sql_text("now()"),
-    )
-    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=sql_text("now()"),
-    )
-
-
 class DailyUsage(Base):
     __tablename__ = "daily_usage"
     __table_args__ = (
         CheckConstraint(
-            "capability IN ("
-            "'chat', 'asr', 'tts', 'sight', 'search', 'food', "
-            "'knowledge', 'emotion', 'visit', 'pact'"
-            ")",
+            "capability IN ('chat', 'asr', 'tts')",
             name="ck_daily_usage_capability",
         ),
         CheckConstraint("used >= 0", name="ck_daily_usage_used"),

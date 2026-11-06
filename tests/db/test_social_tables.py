@@ -182,7 +182,7 @@ def test_social_tables_have_spec_columns_partial_uniques_and_indexes() -> None:
     )
 
 
-def test_npc_catalog_seeds_three_official_spirits() -> None:
+def test_npc_catalog_has_no_official_spirits() -> None:
     url = upgrade_empty_kelin_test_to_head()
 
     async def _names() -> set[str]:
@@ -193,7 +193,7 @@ def test_npc_catalog_seeds_three_official_spirits() -> None:
         await engine.dispose()
         return names
 
-    assert asyncio.run(_names()) == {"雾里的那只", "守灯的那只", "不说话的那只"}
+    assert asyncio.run(_names()) == set()
 
 
 def test_pact_one_active_and_theme_check_failures() -> None:

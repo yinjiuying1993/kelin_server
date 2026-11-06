@@ -8,7 +8,7 @@ from app.core.config import Settings
 from app.core.errors import ApiError
 from app.core.security import CurrentUser
 from app.db.session import claimed_transaction, create_runtime_engine, create_session_factory
-from app.domain.speech import TTS_CACHE_TTL, TTS_MAX_CHARS, TTS_OUTPUT_MIME, m4a_fixture_bytes
+from app.domain.speech import TTS_CACHE_TTL, TTS_OUTPUT_MIME, m4a_fixture_bytes
 from app.integrations.storage import PrivateTtsStorage
 from app.providers.errors import ProviderError
 from app.providers.types import (
@@ -294,31 +294,32 @@ async def _assert_success_cache_and_edges(url: str) -> None:
     assert used == 1
     assert reserved == 0
 
+    long_text = "字" * 201
     long_id = uuid.uuid4()
     await _insert_message(
         url,
         message_id=long_id,
         spirit_id=created.spirit_id,
         role="spirit",
-        content="字" * (TTS_MAX_CHARS + 1),
+        content=long_text,
         status="generated",
         client_id=None,
     )
-    with raises(ApiError) as too_long:
-        await synthesize_audio(
-            factory,
-            user,
-            client_id=uuid.uuid4(),
-            message_id=long_id,
-            voice_profile="default",
-            now=NOW,
-            storage=storage,
-            signing_key=SIGNING_KEY,
-            provider=provider,
-        )
-    assert too_long.value.code == "INVALID_INPUT"
+    spoken = await synthesize_audio(
+        factory,
+        user,
+        client_id=uuid.uuid4(),
+        message_id=long_id,
+        voice_profile="default",
+        now=NOW,
+        storage=storage,
+        signing_key=SIGNING_KEY,
+        provider=provider,
+    )
+    assert spoken.audio_url
+    assert provider.texts[-1] == long_text
     used, reserved = await _tts_row(url, owner)
-    assert used == 1
+    assert used == 2
     assert reserved == 0
     await engine.dispose()
 

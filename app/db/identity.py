@@ -3,6 +3,7 @@
 from sqlalchemy.engine.url import make_url
 
 KELIN_TEST_DB_NAME = "kelin_test"
+KELIN_PYTEST_DB_NAME = "kelin_pytest"
 KELIN_TEST_DB_USER = "kelin_test"
 
 
@@ -24,8 +25,10 @@ def assert_disposable_kelin_test_database(url: str, app_env: str) -> dict[str, s
     host = ident["host"].lower()
     if "prod" in host or ident["database"] in {"prod", "production"}:
         raise ValueError("refusing Alembic against a production-looking database")
-    if ident["database"] != KELIN_TEST_DB_NAME:
-        raise ValueError("refusing Alembic: database name must be kelin_test")
+    if ident["database"] == KELIN_TEST_DB_NAME:
+        raise ValueError("refusing Alembic: kelin_test is the API database")
+    if ident["database"] != KELIN_PYTEST_DB_NAME:
+        raise ValueError("refusing Alembic: database name must be kelin_pytest")
     if ident["username"] != KELIN_TEST_DB_USER:
         raise ValueError("refusing Alembic: username must be kelin_test")
     if not ident["driver"].startswith("postgresql"):

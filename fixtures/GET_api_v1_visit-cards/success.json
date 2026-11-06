@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "data": {
+    "items": [],
+    "next_cursor": null,
+    "has_more": false
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000d0",
+  "server_time": "2026-10-20T00:00:00Z"
+}

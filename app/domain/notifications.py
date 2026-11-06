@@ -7,14 +7,15 @@ from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from app.domain.awareness.timeline import AWAY_AFTER
 from app.domain.quota import DEFAULT_TIMEZONE, coerce_timezone, local_usage_date
 from app.domain.spirit_state import require_aware
 
-RemoteNotificationType = Literal["promise", "pact", "postcard", "lost", "care"]
-REMOTE_NOTIFICATION_TYPES = frozenset({"promise", "pact", "postcard", "lost", "care"})
+RemoteNotificationType = Literal["promise", "pact", "postcard", "care"]
+REMOTE_NOTIFICATION_TYPES = frozenset({"promise", "pact", "postcard", "care"})
 SERVER_LOCAL_ONLY_TYPES = frozenset({"promise"})
 DAILY_ACTIVE_NOTIFICATION_LIMIT = 2
-CARE_IDLE_AFTER = timedelta(hours=18)
+CARE_IDLE_AFTER = AWAY_AFTER
 DEFAULT_DND_START = time(23, 0)
 DEFAULT_DND_END = time(8, 0)
 NOTIFICATION_PLAN_EVENT = "notification.plan_user"
@@ -24,7 +25,6 @@ FIXED_ALERTS: dict[str, str] = {
     "promise": "你有一个约定",
     "pact": "共学有新进展",
     "postcard": "你收到一张明信片",
-    "lost": "刻灵走失了",
     "care": "刻灵想你了",
 }
 
@@ -126,7 +126,7 @@ def care_is_eligible(
 ) -> bool:
     if not push_on or in_quiet_hours or remaining_quota <= 0:
         return False
-    if status == "lost":
+    if status not in {"home", "away"}:
         return False
     idle_from = require_aware(last_interact_at, field="last_interact_at")
     return require_aware(now, field="now") - idle_from >= CARE_IDLE_AFTER

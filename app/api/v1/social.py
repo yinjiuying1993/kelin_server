@@ -38,7 +38,11 @@ from app.schemas.social_api import (
     RemoveFriendSuccessEnvelope,
     SocialErrorEnvelope,
 )
-from app.services.friends import add_owned_friend, load_friend_page, remove_owned_friend
+from app.services.friends import (
+    add_owned_friend,
+    load_settled_friend_page,
+    remove_owned_friend,
+)
 from app.services.postcards import load_postcard_page, read_owned_postcard
 
 router = APIRouter(prefix="/api/v1", tags=["social"])
@@ -124,14 +128,15 @@ async def list_friends(
         raise _unavailable()
     try:
         secret = settings.cursor_signing_key()
-        async with claimed_read_transaction(factory, user) as session:
-            page = await load_friend_page(
-                session,
-                user,
-                cursor=cursor,
-                limit=limit,
-                secret=secret,
-            )
+        now = datetime.now(UTC)
+        page = await load_settled_friend_page(
+            factory,
+            user,
+            cursor=cursor,
+            limit=limit,
+            secret=secret,
+            now=now,
+        )
     except ApiError:
         raise
     except (DBAPIError, OSError, TimeoutError) as exc:

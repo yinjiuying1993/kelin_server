@@ -29,6 +29,7 @@ from app.domain.speech import (
     EmptyTranscript,
     InvalidSpeech,
     TtsCacheRecord,
+    asr_agent_block,
     assert_tts_object_path,
     audio_sha256,
     playback_expires_at,
@@ -127,6 +128,7 @@ async def transcribe_audio(
     now: datetime,
     provider: BailianProvider | None = None,
     settings: Settings | None = None,
+    cancelled: bool = False,
 ) -> TranscribeSettlement:
     require_aware(now, field="now")
     with temporary_asr_audio(body) as temp_path:
@@ -145,6 +147,10 @@ async def transcribe_audio(
             size_bytes=len(body),
             duration_ms=inspection.duration_ms,
         )
+        if asr_agent_block(
+            cancelled=cancelled, duration_ms=inspection.duration_ms, text=None
+        ):
+            raise _api_error("INVALID_INPUT", status_code=422)
         async with claimed_transaction(factory, user) as session:
             claimed = await _claim(session, user, client_id, request_hash, now=now)
             if claimed is not None:
@@ -324,6 +330,7 @@ async def synthesize_audio(
     signing_key: bytes,
     provider: BailianProvider | None = None,
     settings: Settings | None = None,
+    bill_quota: bool = True,
 ) -> SynthesizeSettlement:
     require_aware(now, field="now")
     try:
@@ -346,6 +353,7 @@ async def synthesize_audio(
             storage=storage,
             signing_key=signing_key,
             now=now,
+            bill_quota=bill_quota,
         )
         if isinstance(prepared, SynthesizeSettlement):
             return prepared
@@ -356,10 +364,12 @@ async def synthesize_audio(
             TTSInput(text=text, voice_profile=profile, message_id=message_id)
         )
     except ProviderCancelled as exc:
-        await _release_tts(factory, user, reservation, client_id, now=now)
+        if reservation is not None:
+            await _release_tts(factory, user, reservation, client_id, now=now)
         raise _api_error("MODEL_UNAVAILABLE", status_code=503, retryable=True) from exc
     except ProviderError as exc:
-        await _release_tts(factory, user, reservation, client_id, now=now)
+        if reservation is not None:
+            await _release_tts(factory, user, reservation, client_id, now=now)
         status_code, retryable = http_status_for_provider_code(exc.code)
         raise _api_error(exc.code, status_code=status_code, retryable=retryable) from exc
     return await _finalize_synthesize(
@@ -389,7 +399,8 @@ async def _prepare_synthesize(
     storage: PrivateTtsStorage,
     signing_key: bytes,
     now: datetime,
-) -> SynthesizeSettlement | tuple[str, QuotaReservation]:
+    bill_quota: bool = True,
+) -> SynthesizeSettlement | tuple[str, QuotaReservation | None]:
     await speech_repo.assert_writable_transaction(session)
     spirit = await spirit_repo.fetch_create_result(session, user.id)
     if spirit is None:
@@ -447,6 +458,8 @@ async def _prepare_synthesize(
             quotas=quotas,
             replayed=not claim.inserted,
         )
+    if not bill_quota:
+        return text, None
     reservation = await reserve_quota(session, user.id, "tts", source_id=client_id, now=now)
     return text, reservation
 
@@ -519,14 +532,15 @@ async def _finalize_synthesize(
     voice_profile: str,
     alias: str,
     audio: AudioResult,
-    reservation: QuotaReservation,
+    reservation: QuotaReservation | None,
     storage: PrivateTtsStorage,
     signing_key: bytes,
     now: datetime,
     settings: Settings,
 ) -> SynthesizeSettlement:
     if audio.mime != TTS_OUTPUT_MIME:
-        await _release_tts(factory, user, reservation, client_id, now=now)
+        if reservation is not None:
+            await _release_tts(factory, user, reservation, client_id, now=now)
         raise _api_error("MODEL_UNAVAILABLE", status_code=503, retryable=True)
     object_path = tts_object_path(
         owner_id=user.id, message_id=message_id, voice_profile=voice_profile
@@ -539,7 +553,8 @@ async def _finalize_synthesize(
             voice_profile=voice_profile,
         )
     except InvalidSpeech as exc:
-        await _release_tts(factory, user, reservation, client_id, now=now)
+        if reservation is not None:
+            await _release_tts(factory, user, reservation, client_id, now=now)
         raise _api_error("MODEL_UNAVAILABLE", status_code=503, retryable=True) from exc
     storage.service_put(TTS_BUCKET, object_path, audio.body)
     record = TtsCacheRecord(
@@ -555,7 +570,11 @@ async def _finalize_synthesize(
     storage.put_cache(record)
     signed = _sign_from_record(record, signing_key=signing_key, now=now)
     async with claimed_transaction(factory, user) as session:
-        snapshot = await commit_quota(session, user.id, reservation=reservation, now=now)
+        if reservation is None:
+            quotas: tuple[Any, ...] = ()
+        else:
+            snapshot = await commit_quota(session, user.id, reservation=reservation, now=now)
+            quotas = (quota_usage(snapshot),)
         await record_ai_usage(
             session,
             user.id,
@@ -589,7 +608,7 @@ async def _finalize_synthesize(
             expires_at=signed[1],
             cache_hit=False,
             snapshot_version=spirit.version,
-            quotas=(quota_usage(snapshot),),
+            quotas=quotas,
             replayed=False,
         )
 

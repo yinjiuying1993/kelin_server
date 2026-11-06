@@ -44,7 +44,7 @@ def test_patch_request_rejects_empty_and_illegal_values() -> None:
             "client_id": client,
             "expected_version": 1,
             "name": "雾生",
-            "preferences": {"tts_on": True, "dnd_end": "08:00"},
+            "preferences": {"tts_on": True},
         }
     )
     assert ok.name == "雾生"

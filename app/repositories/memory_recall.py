@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import bindparam, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.memory.constants import MEMORY_ACTIVE_MAX
 from app.domain.memory_recall import (
-    PROMPT_MEMORY_LIMIT,
     PROMPT_STYLE_SAMPLE_LIMIT,
     REPORT_MEMORY_CANDIDATE_LIMIT,
 )
@@ -24,6 +25,9 @@ class PromptMemoryRow:
     id: uuid.UUID
     type: str
     summary: str
+    topic_key: str = ""
+    salience: int = 0
+    last_confirmed_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,7 +80,9 @@ async def fetch_prompt_memories(
     rows = (
         await session.execute(
             text(
-                "SELECT m.id, m.type, m.summary FROM public.memories m "
+                "SELECT m.id, m.type, m.summary, COALESCE(m.topic_key, '') AS topic_key, "
+                "m.salience, COALESCE(m.last_confirmed_at, m.created_at) AS last_confirmed_at "
+                "FROM public.memories m "
                 "JOIN public.spirits s ON s.id = m.spirit_id "
                 "WHERE m.spirit_id = :spirit_id AND s.user_id = :owner_id "
                 "AND m.status = 'active' "
@@ -85,12 +91,20 @@ async def fetch_prompt_memories(
             {
                 "spirit_id": spirit_id,
                 "owner_id": owner_id,
-                "limit": PROMPT_MEMORY_LIMIT,
+                "limit": MEMORY_ACTIVE_MAX,
             },
         )
     ).all()
     return tuple(
-        PromptMemoryRow(id=row.id, type=str(row.type), summary=str(row.summary)) for row in rows
+        PromptMemoryRow(
+            id=row.id,
+            type=str(row.type),
+            summary=str(row.summary),
+            topic_key=str(row.topic_key or ""),
+            salience=int(row.salience),
+            last_confirmed_at=row.last_confirmed_at,
+        )
+        for row in rows
     )
 
 

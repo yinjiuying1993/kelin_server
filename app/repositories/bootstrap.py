@@ -8,26 +8,36 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import cast
+from typing import Literal
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.bootstrap import LATEST_MEMORY_LIMIT
 from app.domain.room import RoomLetterFact
-from app.schemas.bootstrap import PendingSightStatus, SightSource
+
+SightSource = Literal["photo", "location"]
+PendingSightStatus = Literal["pending", "processing"]
 
 SPIRIT_SQL = """
 SELECT
   s.id, s.name, s.egg, s.invite_code,
-  s.closeness, s.curiosity, s.sharpness, s.nocturnal, s.stubborn,
-  s.hunger, s.energy, s.mood, s.bond, s.stage, s.status, s.scholar_marks,
-  s.version, s.onboarding_step, s.onboarding_completed_at, s.hatched_at, s.created_at,
-  s.updated_at, s.ordinary_dialogue_rounds, s.last_interact_at,
+  50 AS closeness, 50 AS curiosity, 50 AS sharpness, 50 AS nocturnal, 50 AS stubborn,
+  80 AS hunger,
+  80 AS energy,
+  60 AS mood, 0 AS bond, s.stage,
+  COALESCE(a.status, s.status) AS status,
+  'formed_image' AS stage_image_key,
+  s.snapshot_version, s.version,
+  s.onboarding_step, s.onboarding_completed_at, s.hatched_at, s.created_at,
+  s.updated_at, s.ordinary_dialogue_rounds,
+  COALESCE(a.last_interact_at, s.last_interact_at) AS last_interact_at,
   COALESCE(p.remote_search_on, true) AS remote_search_on,
-  COALESCE(p.timezone, 'Asia/Shanghai') AS timezone
+  COALESCE(p.timezone, 'Asia/Shanghai') AS timezone,
+  NULL::text AS primary_emotion_label
 FROM public.spirits s
 LEFT JOIN public.user_preferences p ON p.user_id = s.user_id
+LEFT JOIN public.spirit_awareness a ON a.spirit_id = s.id
 WHERE s.user_id = :user_id
 """
 
@@ -37,38 +47,12 @@ FROM public.user_preferences
 WHERE user_id = :user_id
 """
 
-PENDING_SIGHT_SQL = """
-SELECT f.id AS feed_id, f.payload->>'source' AS source, f.status, f.updated_at
-FROM public.feeds f
-JOIN public.spirits s ON s.id = f.spirit_id AND s.user_id = :user_id
-WHERE f.kind = 'sight'
-  AND f.status IN ('pending', 'processing')
-  AND (
-    COALESCE(f.payload->>'source', '') <> 'location'
-    OR f.status = 'processing'
-  )
-ORDER BY f.updated_at DESC, f.id DESC
-LIMIT 1
-"""
-
 UNREAD_POSTCARD_SQL = """
 SELECT p.id, p.created_at
 FROM public.postcards p
 JOIN public.spirits s ON s.id = p.receiver_spirit_id AND s.user_id = :user_id
 WHERE p.read_at IS NULL
 ORDER BY p.created_at DESC, p.id DESC
-"""
-
-DUE_PROMISE_SQL = """
-SELECT f.id, f.remind_at
-FROM public.feeds f
-JOIN public.spirits s ON s.id = f.spirit_id AND s.user_id = :user_id
-WHERE f.kind = 'promise'
-  AND f.promise_status = 'active'
-  AND f.remind_at IS NOT NULL
-  AND f.remind_at <= :now
-ORDER BY f.remind_at ASC, f.id ASC
-LIMIT 1
 """
 
 MEMORY_IDS_SQL = """
@@ -104,17 +88,6 @@ WHERE user_id = :user_id
 ORDER BY capability
 """
 
-LATEST_EMOTION_SQL = """
-SELECT f.payload->>'emotion' AS emotion
-FROM public.feeds f
-JOIN public.spirits s ON s.id = f.spirit_id AND s.user_id = :user_id
-WHERE f.kind = 'emotion'
-  AND f.status = 'accepted'
-  AND f.effect_applied_at IS NOT NULL
-ORDER BY f.effect_applied_at DESC, f.created_at DESC, f.id DESC
-LIMIT 1
-"""
-
 READONLY_CHECK_SQL = "SHOW transaction_read_only"
 ISOLATION_CHECK_SQL = "SHOW transaction_isolation"
 
@@ -136,7 +109,8 @@ class BootstrapSpiritRow:
     bond: int
     stage: str
     status: str
-    scholar_marks: tuple[str, ...]
+    stage_image_key: str | None
+    snapshot_version: int
     version: int
     onboarding_step: int
     onboarding_completed_at: datetime | None
@@ -147,6 +121,7 @@ class BootstrapSpiritRow:
     last_interact_at: datetime
     remote_search_on: bool
     timezone: str
+    primary_emotion_label: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,20 +158,6 @@ class BootstrapAggregateRows:
     quotas: tuple[UsageRow, ...] = field(default_factory=tuple)
 
 
-def _as_sight_source(value: object) -> SightSource | None:
-    text_value = str(value)
-    if text_value in {"photo", "location"}:
-        return cast(SightSource, text_value)
-    return None
-
-
-def _as_pending_status(value: object) -> PendingSightStatus | None:
-    text_value = str(value)
-    if text_value in {"pending", "processing"}:
-        return cast(PendingSightStatus, text_value)
-    return None
-
-
 async def assert_read_snapshot_transaction(session: AsyncSession) -> None:
     isolation = str(await session.scalar(text(ISOLATION_CHECK_SQL))).lower()
     readonly = str(await session.scalar(text(READONLY_CHECK_SQL))).lower()
@@ -220,7 +181,6 @@ async def load_bootstrap_aggregate_rows(
     spirit: BootstrapSpiritRow | None = None
     remote_search_on = True
     if spirit_row is not None:
-        marks = spirit_row.scholar_marks
         spirit = BootstrapSpiritRow(
             id=spirit_row.id,
             name=str(spirit_row.name),
@@ -237,7 +197,10 @@ async def load_bootstrap_aggregate_rows(
             bond=int(spirit_row.bond),
             stage=str(spirit_row.stage),
             status=str(spirit_row.status),
-            scholar_marks=tuple(str(item) for item in marks) if marks else (),
+            stage_image_key=(
+                str(spirit_row.stage_image_key) if spirit_row.stage_image_key else None
+            ),
+            snapshot_version=int(spirit_row.snapshot_version),
             version=int(spirit_row.version),
             onboarding_step=int(spirit_row.onboarding_step),
             onboarding_completed_at=spirit_row.onboarding_completed_at,
@@ -248,6 +211,11 @@ async def load_bootstrap_aggregate_rows(
             last_interact_at=spirit_row.last_interact_at,
             remote_search_on=bool(spirit_row.remote_search_on),
             timezone=str(spirit_row.timezone),
+            primary_emotion_label=(
+                str(spirit_row.primary_emotion_label)
+                if spirit_row.primary_emotion_label
+                else None
+            ),
         )
         remote_search_on = spirit.remote_search_on
     else:
@@ -267,17 +235,6 @@ async def load_bootstrap_aggregate_rows(
     quotas: tuple[UsageRow, ...] = ()
     latest_emotion: str | None = None
     if spirit is not None:
-        sight = (await session.execute(text(PENDING_SIGHT_SQL), params)).first()
-        if sight is not None:
-            source = _as_sight_source(sight.source)
-            status = _as_pending_status(sight.status)
-            if source is not None and status is not None:
-                pending = PendingSightRow(
-                    feed_id=sight.feed_id,
-                    source=source,
-                    status=status,
-                    updated_at=sight.updated_at,
-                )
         unread_rows = (await session.execute(text(UNREAD_POSTCARD_SQL), params)).all()
         unread = tuple(row.id for row in unread_rows)
         if unread_rows:
@@ -285,11 +242,6 @@ async def load_bootstrap_aggregate_rows(
                 resource_id=unread_rows[0].id,
                 occurred_at=unread_rows[0].created_at,
             )
-        promise = (
-            await session.execute(text(DUE_PROMISE_SQL), {"user_id": owner_id, "now": now})
-        ).first()
-        if promise is not None:
-            due_promise = RoomLetterFact(resource_id=promise.id, occurred_at=promise.remind_at)
         memories = tuple(
             row.id
             for row in (
@@ -298,14 +250,6 @@ async def load_bootstrap_aggregate_rows(
                 )
             ).all()
         )
-        pact = (await session.execute(text(ACTIVE_PACT_SQL), params)).first()
-        if pact is not None:
-            pact_id = pact.id
-            pact_recap = RoomLetterFact(resource_id=pact.id, occurred_at=pact.created_at)
-        report = (await session.execute(text(REPORT_SQL), params)).first()
-        if report is not None:
-            report_id = report.id
-            report_status = str(report.status)
         usage_rows = (
             await session.execute(text(USAGE_SQL), {"user_id": owner_id, "now": now})
         ).all()
@@ -319,9 +263,6 @@ async def load_bootstrap_aggregate_rows(
             )
             for row in usage_rows
         )
-        emotion_row = (await session.execute(text(LATEST_EMOTION_SQL), params)).first()
-        if emotion_row is not None and emotion_row.emotion:
-            latest_emotion = str(emotion_row.emotion)
 
     return BootstrapAggregateRows(
         spirit=spirit,

@@ -17,17 +17,38 @@ from app.contracts.breaking import HTTP_METHODS
 from app.contracts.openapi import SOURCE_APP, OpenApiExport
 from app.core.errors import KNOWN_ERROR_CODES
 from app.schemas.account import DeleteAccountRequest, DeletionResult
+from app.schemas.ask import (
+    AskQuestionDetail,
+    AskQuestionPage,
+    AskRateRequest,
+    AskRateResult,
+    AskRecent,
+    AskSubmitRequest,
+    AskSubmitResult,
+    AskTurnRequest,
+    AskTurnResult,
+    HelpedResult,
+    SpiritPublicProfile,
+)
 from app.schemas.bootstrap import BootstrapSnapshot
 from app.schemas.chat import ChatRequest, ChatTurnResult
+from app.schemas.craft import (
+    CraftDeleted,
+    CraftDeleteRequest,
+    CraftRedeemEligibility,
+    CraftRedeemMark,
+    CraftRedeemMarkRequest,
+    CraftSelfTestTicket,
+    CraftSelfTestTurn,
+    CraftSelfTestTurnRequest,
+    CraftSkillDetail,
+    CraftSkillPage,
+    CraftSkillWriteRequest,
+    CraftVisibilityRequest,
+)
 from app.schemas.devices import DeviceRegistration, RegisterDeviceRequest
 from app.schemas.envelope import Envelope
 from app.schemas.extract import ExtractRequest, ExtractResult
-from app.schemas.feed import (
-    FeedCreateRequest,
-    FeedMutationResult,
-    PromiseActionRequest,
-    PromisePatchRequest,
-)
 from app.schemas.memory import (
     MemoryClearRequest,
     MemoryDeleteRequest,
@@ -39,20 +60,8 @@ from app.schemas.memory import (
     MemoryTombstone,
 )
 from app.schemas.messages import MessagePage, MessagePublic
-from app.schemas.moderate import ModerateSightRequest, ModerateSightResult
 from app.schemas.onboarding import CompleteOnboardingRequest, OnboardingCompleteResult
-from app.schemas.pact import (
-    CreatePactRequest,
-    CreatePactResult,
-    PactAnswerRequest,
-    PactAnswerResult,
-    PactSessionRequest,
-    PactSessionResult,
-    PactSkipRequest,
-    PactSkipResult,
-)
 from app.schemas.recall import RecallMutationResult, RecallRequest
-from app.schemas.report import ReportLineRequest, ReportLineResult, ReportSnapshot
 from app.schemas.settings import PatchSpiritRequest, SpiritPatchResult
 from app.schemas.social_api import (
     AddFriendRequest,
@@ -66,7 +75,17 @@ from app.schemas.social_api import (
 )
 from app.schemas.speech import SynthesizeRequest, SynthesizeResult, TranscribeForm, TranscribeResult
 from app.schemas.spirit import CreateSpiritRequest, MutationResult
-from app.schemas.storage import SightUploadUrlRequest, SightUploadUrlResult
+from app.schemas.visit_card import (
+    VisitCardDraft,
+    VisitCardReadResult,
+    VisitCardReplyRequest,
+    VisitCardReplyResult,
+    VisitCardSaveRequest,
+    VisitCardSealed,
+    VisitCardUploadRequest,
+    VisitCardUploadResult,
+    VisitFootprintPage,
+)
 
 BASE_SCENARIOS = ("success", "business_error", "missing_required_field")
 LIST_PAGE_SCENARIOS = (
@@ -110,6 +129,34 @@ REPORT_LINE_ENTRY_ID = "POST_api_v1_report_line"
 SPIRIT_PATCH_ENTRY_ID = "PATCH_api_v1_spirit"
 ACCOUNT_DELETE_ENTRY_ID = "DELETE_api_v1_account"
 RECALL_ENTRY_ID = "POST_api_v1_recall"
+VISIT_CARD_GET_ENTRY_ID = "GET_api_v1_visit-card"
+VISIT_CARD_PUT_ENTRY_ID = "PUT_api_v1_visit-card"
+VISIT_CARD_UPLOAD_ENTRY_ID = "POST_api_v1_visit-card_uploads"
+VISIT_CARD_LIST_ENTRY_ID = "GET_api_v1_visit-cards"
+VISIT_CARD_READ_ENTRY_ID = "GET_api_v1_visit-cards_{card_id}"
+VISIT_CARD_MARK_ENTRY_ID = "POST_api_v1_visit-cards_{card_id}_read"
+VISIT_CARD_REPLY_ENTRY_ID = "POST_api_v1_visit-cards_{card_id}_reply"
+CRAFT_REDEEM_ENTRY_ID = "GET_api_v1_craft_redeem"
+CRAFT_SELF_TEST_TURN_ENTRY_ID = "POST_api_v1_craft_self-test_turns"
+CRAFT_LIST_ENTRY_ID = "GET_api_v1_craft_skills"
+CRAFT_CREATE_ENTRY_ID = "POST_api_v1_craft_skills"
+CRAFT_DELETE_ENTRY_ID = "DELETE_api_v1_craft_skills_{craft_id}"
+CRAFT_DETAIL_ENTRY_ID = "GET_api_v1_craft_skills_{craft_id}"
+CRAFT_SAVE_ENTRY_ID = "PATCH_api_v1_craft_skills_{craft_id}"
+CRAFT_SELF_TEST_ENTRY_ID = "POST_api_v1_craft_skills_{craft_id}_self-test"
+CRAFT_VISIBILITY_ENTRY_ID = "POST_api_v1_craft_skills_{craft_id}_visibility"
+ASK_HELPED_ENTRY_ID = "GET_api_v1_ask_helped"
+ASK_LIST_ENTRY_ID = "GET_api_v1_ask_questions"
+ASK_SUBMIT_ENTRY_ID = "POST_api_v1_ask_questions"
+ASK_RECENT_ENTRY_ID = "GET_api_v1_ask_questions_recent"
+ASK_DETAIL_ENTRY_ID = "GET_api_v1_ask_questions_{question_id}"
+ASK_RATE_ENTRY_ID = "POST_api_v1_ask_questions_{question_id}_rating"
+ASK_TURN_ENTRY_ID = "POST_api_v1_ask_questions_{question_id}_turns"
+OPS_REDEEM_ENTRY_ID = "POST_api_v1_ops_craft-redeem"
+SPIRIT_PUBLIC_ENTRY_ID = "GET_api_v1_spirits_{spirit_id}_public"
+ASK_LIST_EXTRA_SCENARIOS = LIST_PAGE_SCENARIOS
+ASK_SUBMIT_EXTRA_SCENARIOS = ("unmatched",)
+ASK_HELPED_EXTRA_SCENARIOS = ("empty",)
 SPIRITS_BUSINESS_CODES = frozenset({"CONFLICT", "IDEMPOTENCY_CONFLICT"})
 BOOTSTRAP_BUSINESS_CODES = frozenset({"DEPENDENCY_UNAVAILABLE"})
 CHAT_BUSINESS_CODES = frozenset({"MODEL_UNAVAILABLE"})
@@ -196,7 +243,6 @@ SPIRIT_PATCH_EXTRA_SCENARIOS = (
     "idempotent_replay",
     "version_conflict",
     "illegal_timezone",
-    "illegal_dnd",
     "name_too_long",
 )
 ACCOUNT_DELETE_BUSINESS_CODES = frozenset({"ACCOUNT_DELETE_PENDING"})
@@ -205,14 +251,10 @@ ACCOUNT_DELETE_EXTRA_SCENARIOS = (
     "confirm_mismatch",
     "pending",
 )
-RECALL_BUSINESS_CODES = frozenset({"SPIRIT_NOT_LOST"})
+RECALL_BUSINESS_CODES = frozenset({"SPIRIT_NOT_AWAY"})
 RECALL_EXTRA_SCENARIOS = (
     "idempotent_replay",
     "not_lost",
-    "sealed_memory",
-    "deleted_memory",
-    "wrong_owner",
-    "non_sight",
     "quota_full_food",
 )
 FORBIDDEN_KEY_FRAGMENTS = (
@@ -227,6 +269,8 @@ FORBIDDEN_KEY_FRAGMENTS = (
     "latitude",
     "longitude",
     "apns_token",
+    "skill_id",
+    "skillid",
 )
 FORBIDDEN_SUBSTRINGS = (
     "bearer ",
@@ -327,14 +371,6 @@ def catalog_for_openapi(document: dict[str, Any]) -> tuple[CatalogEntry, ...]:
                 scenarios = BASE_SCENARIOS + TRANSCRIBE_EXTRA_SCENARIOS
             elif endpoint == "POST /api/v1/synthesize":
                 scenarios = BASE_SCENARIOS + SYNTHESIZE_EXTRA_SCENARIOS
-            elif endpoint == "POST /api/v1/pacts":
-                scenarios = BASE_SCENARIOS + PACTS_EXTRA_SCENARIOS
-            elif endpoint == "POST /api/v1/pact-session":
-                scenarios = BASE_SCENARIOS + PACT_SESSION_EXTRA_SCENARIOS
-            elif endpoint == "POST /api/v1/pact-answer":
-                scenarios = BASE_SCENARIOS + PACT_ANSWER_EXTRA_SCENARIOS
-            elif endpoint == "POST /api/v1/pact-skip":
-                scenarios = BASE_SCENARIOS + PACT_SKIP_EXTRA_SCENARIOS
             elif endpoint == "GET /api/v1/friends":
                 scenarios = BASE_SCENARIOS + LIST_PAGE_SCENARIOS
             elif endpoint == "POST /api/v1/friends":
@@ -347,16 +383,22 @@ def catalog_for_openapi(document: dict[str, Any]) -> tuple[CatalogEntry, ...]:
                 scenarios = BASE_SCENARIOS + POSTCARDS_READ_EXTRA_SCENARIOS
             elif endpoint == "POST /api/v1/devices":
                 scenarios = BASE_SCENARIOS + DEVICES_EXTRA_SCENARIOS
-            elif endpoint == "GET /api/v1/report":
-                scenarios = BASE_SCENARIOS + REPORT_EXTRA_SCENARIOS
-            elif endpoint == "POST /api/v1/report/line":
-                scenarios = BASE_SCENARIOS + REPORT_LINE_EXTRA_SCENARIOS
             elif endpoint == "PATCH /api/v1/spirit":
                 scenarios = BASE_SCENARIOS + SPIRIT_PATCH_EXTRA_SCENARIOS
             elif endpoint == "DELETE /api/v1/account":
                 scenarios = BASE_SCENARIOS + ACCOUNT_DELETE_EXTRA_SCENARIOS
             elif endpoint == "POST /api/v1/recall":
                 scenarios = BASE_SCENARIOS + RECALL_EXTRA_SCENARIOS
+            elif endpoint == "GET /api/v1/visit-cards":
+                scenarios = BASE_SCENARIOS + LIST_PAGE_SCENARIOS
+            elif endpoint == "GET /api/v1/craft/skills":
+                scenarios = BASE_SCENARIOS + LIST_PAGE_SCENARIOS
+            elif endpoint == "GET /api/v1/ask/questions":
+                scenarios = BASE_SCENARIOS + ASK_LIST_EXTRA_SCENARIOS
+            elif endpoint == "POST /api/v1/ask/questions":
+                scenarios = BASE_SCENARIOS + ASK_SUBMIT_EXTRA_SCENARIOS
+            elif endpoint == "GET /api/v1/ask/helped":
+                scenarios = BASE_SCENARIOS + ASK_HELPED_EXTRA_SCENARIOS
             entries.append(
                 CatalogEntry(
                     id=_endpoint_entry_id(str(method), str(path)),
@@ -485,18 +527,6 @@ def evaluate_entry(root: Path, entry: CatalogEntry) -> None:
     if entry.id == EXTRACT_ENTRY_ID:
         _evaluate_extract_entry(root)
         return
-    if entry.id == FEED_ENTRY_ID:
-        _evaluate_feed_entry(root)
-        return
-    if entry.id == FEED_PATCH_ENTRY_ID:
-        _evaluate_promise_mutation_entry(root, FEED_PATCH_ENTRY_ID, PromisePatchRequest)
-        return
-    if entry.id == FEED_COMPLETE_ENTRY_ID:
-        _evaluate_promise_mutation_entry(root, FEED_COMPLETE_ENTRY_ID, PromiseActionRequest)
-        return
-    if entry.id == FEED_CANCEL_ENTRY_ID:
-        _evaluate_promise_mutation_entry(root, FEED_CANCEL_ENTRY_ID, PromiseActionRequest)
-        return
     if entry.id == MESSAGES_ENTRY_ID:
         _evaluate_messages_entry(root)
         return
@@ -515,29 +545,11 @@ def evaluate_entry(root: Path, entry: CatalogEntry) -> None:
     if entry.id == COMPLETE_ENTRY_ID:
         _evaluate_complete_entry(root)
         return
-    if entry.id == STORAGE_UPLOAD_ENTRY_ID:
-        _evaluate_storage_upload_entry(root)
-        return
-    if entry.id == MODERATE_SIGHT_ENTRY_ID:
-        _evaluate_moderate_sight_entry(root)
-        return
     if entry.id == TRANSCRIBE_ENTRY_ID:
         _evaluate_transcribe_entry(root)
         return
     if entry.id == SYNTHESIZE_ENTRY_ID:
         _evaluate_synthesize_entry(root)
-        return
-    if entry.id == PACTS_ENTRY_ID:
-        _evaluate_pacts_entry(root)
-        return
-    if entry.id == PACT_SESSION_ENTRY_ID:
-        _evaluate_pact_session_entry(root)
-        return
-    if entry.id == PACT_ANSWER_ENTRY_ID:
-        _evaluate_pact_answer_entry(root)
-        return
-    if entry.id == PACT_SKIP_ENTRY_ID:
-        _evaluate_pact_skip_entry(root)
         return
     if entry.id == FRIENDS_LIST_ENTRY_ID:
         _evaluate_friends_list_entry(root)
@@ -557,12 +569,6 @@ def evaluate_entry(root: Path, entry: CatalogEntry) -> None:
     if entry.id == DEVICES_ENTRY_ID:
         _evaluate_devices_entry(root)
         return
-    if entry.id == REPORT_ENTRY_ID:
-        _evaluate_report_entry(root)
-        return
-    if entry.id == REPORT_LINE_ENTRY_ID:
-        _evaluate_report_line_entry(root)
-        return
     if entry.id == SPIRIT_PATCH_ENTRY_ID:
         _evaluate_spirit_patch_entry(root)
         return
@@ -572,7 +578,491 @@ def evaluate_entry(root: Path, entry: CatalogEntry) -> None:
     if entry.id == RECALL_ENTRY_ID:
         _evaluate_recall_entry(root)
         return
+    if entry.id == VISIT_CARD_GET_ENTRY_ID:
+        _evaluate_visit_card_model_entry(root, entry.id, VisitCardDraft, frozenset({"NOT_FOUND"}))
+        return
+    if entry.id == VISIT_CARD_PUT_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root, entry.id, VisitCardDraft, VisitCardSaveRequest, frozenset({"CARD_TEXT_REJECTED"})
+        )
+        return
+    if entry.id == VISIT_CARD_UPLOAD_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root,
+            entry.id,
+            VisitCardUploadResult,
+            VisitCardUploadRequest,
+            frozenset({"CARD_IMAGE_REJECTED"}),
+        )
+        return
+    if entry.id == VISIT_CARD_LIST_ENTRY_ID:
+        _evaluate_visit_card_list_entry(root)
+        return
+    if entry.id == VISIT_CARD_READ_ENTRY_ID:
+        _evaluate_visit_card_model_entry(root, entry.id, VisitCardSealed, frozenset({"NOT_FOUND"}))
+        return
+    if entry.id == VISIT_CARD_MARK_ENTRY_ID:
+        _evaluate_visit_card_model_entry(root, entry.id, VisitCardReadResult, frozenset({"NOT_FOUND"}))
+        return
+    if entry.id == VISIT_CARD_REPLY_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root, entry.id, VisitCardReplyResult, VisitCardReplyRequest, frozenset({"NOT_VISIT_HOST"})
+        )
+        return
+    if entry.id == CRAFT_LIST_ENTRY_ID:
+        _evaluate_craft_list_entry(root)
+        return
+    if entry.id == CRAFT_DETAIL_ENTRY_ID:
+        _evaluate_visit_card_model_entry(root, entry.id, CraftSkillDetail, frozenset({"NOT_FOUND"}))
+        return
+    if entry.id == CRAFT_REDEEM_ENTRY_ID:
+        _evaluate_visit_card_model_entry(
+            root, entry.id, CraftRedeemEligibility, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == CRAFT_SELF_TEST_ENTRY_ID:
+        _evaluate_visit_card_model_entry(
+            root, entry.id, CraftSelfTestTicket, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == CRAFT_CREATE_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root,
+            entry.id,
+            CraftSkillDetail,
+            CraftSkillWriteRequest,
+            frozenset({"INVALID_INPUT"}),
+        )
+        return
+    if entry.id == CRAFT_SAVE_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root, entry.id, CraftSkillDetail, CraftSkillWriteRequest, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == CRAFT_VISIBILITY_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root, entry.id, CraftSkillDetail, CraftVisibilityRequest, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == CRAFT_DELETE_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root, entry.id, CraftDeleted, CraftDeleteRequest, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == CRAFT_SELF_TEST_TURN_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root,
+            entry.id,
+            CraftSelfTestTurn,
+            CraftSelfTestTurnRequest,
+            frozenset({"NOT_FOUND"}),
+        )
+        return
+    if entry.id == ASK_LIST_ENTRY_ID:
+        _evaluate_ask_list_entry(root)
+        return
+    if entry.id == ASK_SUBMIT_ENTRY_ID:
+        _evaluate_ask_submit_entry(root)
+        return
+    if entry.id == ASK_RECENT_ENTRY_ID:
+        _evaluate_ask_recent_entry(root)
+        return
+    if entry.id == ASK_DETAIL_ENTRY_ID:
+        _evaluate_visit_card_model_entry(
+            root, entry.id, AskQuestionDetail, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == ASK_RATE_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root, entry.id, AskRateResult, AskRateRequest, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == ASK_TURN_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root, entry.id, AskTurnResult, AskTurnRequest, frozenset({"ASK_CLOSED"})
+        )
+        return
+    if entry.id == ASK_HELPED_ENTRY_ID:
+        _evaluate_ask_helped_entry(root)
+        return
+    if entry.id == SPIRIT_PUBLIC_ENTRY_ID:
+        _evaluate_spirit_public_entry(root)
+        return
+    if entry.id == OPS_REDEEM_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root, entry.id, CraftRedeemMark, CraftRedeemMarkRequest, frozenset({"INVALID_INPUT"})
+        )
+        return
     raise FixtureValidationError(f"no fixture evaluator for {entry.id}")
+
+
+def _evaluate_ask_list_entry(root: Path) -> None:
+    success = load_success(root, ASK_LIST_ENTRY_ID)
+    page = _load_ask_page(root, FixtureKind.SUCCESS, success.data)
+    if not page.items:
+        raise FixtureValidationError("ask list success must include a question")
+    if page.items[0].rank_name is None:
+        raise FixtureValidationError("ask list success must keep the opening rank name")
+    mapped = load_business_error(root, ASK_LIST_ENTRY_ID)
+    if mapped.code != "INVALID_CURSOR":
+        raise FixtureValidationError("ask list business_error must be INVALID_CURSOR")
+    payload = load_json_fixture(root, ASK_LIST_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
+    try:
+        AskQuestionPage.model_validate(payload)
+    except ValidationError as exc:
+        if not _missing_field_names(exc):
+            raise FixtureValidationError(
+                "ask list missing_required_field must omit a required field"
+            ) from exc
+    else:
+        raise FixtureValidationError("ask list missing_required_field unexpectedly validated")
+    pages = {
+        name: _load_ask_page(root, name)
+        for name in ("page_empty", "page_first", "page_middle", "page_last")
+    }
+    empty = pages["page_empty"]
+    first = pages["page_first"]
+    middle = pages["page_middle"]
+    last = pages["page_last"]
+    if empty.items or empty.has_more or empty.next_cursor is not None:
+        raise FixtureValidationError("ask page_empty must have no items and next_cursor=null")
+    if not first.items or not first.has_more or not first.next_cursor:
+        raise FixtureValidationError("ask page_first must have items, has_more, and next_cursor")
+    if not any(item.rated and item.rating is not None for item in first.items):
+        raise FixtureValidationError("ask page_first must include a rated question")
+    if not any(not item.rated and item.rating is None for item in first.items):
+        raise FixtureValidationError("ask page_first must include an unrated question")
+    if not middle.items or not middle.has_more or not middle.next_cursor:
+        raise FixtureValidationError("ask page_middle must have items, has_more, and next_cursor")
+    if first.next_cursor == middle.next_cursor:
+        raise FixtureValidationError("ask page_middle cursor must differ from page_first")
+    if not last.items or last.has_more or last.next_cursor is not None:
+        raise FixtureValidationError("ask page_last must have items and next_cursor=null")
+    expired = parse_business_error(
+        load_json_fixture(root, ASK_LIST_ENTRY_ID, "invalid_or_expired_cursor")
+    )
+    if expired.code != "INVALID_CURSOR":
+        raise FixtureValidationError("ask invalid_or_expired_cursor must use INVALID_CURSOR")
+
+
+def _load_ask_page(root: Path, scenario: str, data: Any | None = None) -> AskQuestionPage:
+    payload = data
+    if payload is None:
+        payload = parse_success(load_json_fixture(root, ASK_LIST_ENTRY_ID, scenario)).data
+    try:
+        return AskQuestionPage.model_validate(payload)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"{scenario} data is not AskQuestionPage: {exc}") from exc
+
+
+def _evaluate_ask_submit_entry(root: Path) -> None:
+    success = load_success(root, ASK_SUBMIT_ENTRY_ID)
+    try:
+        answered = AskSubmitResult.model_validate(success.data)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"ask submit success data is invalid: {exc}") from exc
+    if not answered.matched or answered.question is None:
+        raise FixtureValidationError("ask submit success must include the matched dialogue")
+    mapped = load_business_error(root, ASK_SUBMIT_ENTRY_ID)
+    if mapped.code != "MODERATION_REJECTED":
+        raise FixtureValidationError("ask submit business_error must be MODERATION_REJECTED")
+    payload = load_json_fixture(root, ASK_SUBMIT_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
+    try:
+        AskSubmitRequest.model_validate(payload)
+    except ValidationError as exc:
+        if not _missing_field_names(exc):
+            raise FixtureValidationError(
+                "ask submit missing_required_field must omit a required field"
+            ) from exc
+    else:
+        raise FixtureValidationError("ask submit missing_required_field unexpectedly validated")
+    unmatched_raw = load_json_fixture(root, ASK_SUBMIT_ENTRY_ID, "unmatched")
+    try:
+        unmatched = AskSubmitResult.model_validate(parse_success(unmatched_raw).data)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"ask unmatched data is invalid: {exc}") from exc
+    if unmatched.matched or unmatched.question is not None:
+        raise FixtureValidationError("unmatched submit must not include a dialogue")
+    blob = json.dumps(parse_success(unmatched_raw).data)
+    for leaked in ("turns", "spirit_name", "rank_name", "keywords", "skill_id"):
+        if leaked in blob:
+            raise FixtureValidationError(f"unmatched submit leaks {leaked}")
+
+
+def _evaluate_ask_recent_entry(root: Path) -> None:
+    success = load_success(root, ASK_RECENT_ENTRY_ID)
+    try:
+        recent = AskRecent.model_validate(success.data)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"ask recent success data is invalid: {exc}") from exc
+    if len(recent.items) != 3:
+        raise FixtureValidationError("ask recent success must be exactly three questions")
+    if "next_cursor" in success.data or "has_more" in success.data:
+        raise FixtureValidationError("ask recent must not paginate")
+    mapped = load_business_error(root, ASK_RECENT_ENTRY_ID)
+    if mapped.code != "NOT_FOUND":
+        raise FixtureValidationError("ask recent business_error must be NOT_FOUND")
+    payload = load_json_fixture(root, ASK_RECENT_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
+    try:
+        AskRecent.model_validate(payload)
+    except ValidationError as exc:
+        if not _missing_field_names(exc):
+            raise FixtureValidationError(
+                "ask recent missing_required_field must omit a required field"
+            ) from exc
+    else:
+        raise FixtureValidationError("ask recent missing_required_field unexpectedly validated")
+
+
+def _evaluate_ask_helped_entry(root: Path) -> None:
+    success = load_success(root, ASK_HELPED_ENTRY_ID)
+    try:
+        row = HelpedResult.model_validate(success.data)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"ask helped success data is invalid: {exc}") from exc
+    if row.item is None:
+        raise FixtureValidationError("ask helped success must be the one row")
+    if set(success.data) != {"item"} or set(success.data["item"]) != {"spirit_name", "help_count"}:
+        raise FixtureValidationError("ask helped row may only carry the name and count")
+    mapped = load_business_error(root, ASK_HELPED_ENTRY_ID)
+    if mapped.code != "NOT_FOUND":
+        raise FixtureValidationError("ask helped business_error must be NOT_FOUND")
+    payload = load_json_fixture(root, ASK_HELPED_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
+    try:
+        HelpedResult.model_validate(payload)
+    except ValidationError as exc:
+        if not _missing_field_names(exc):
+            raise FixtureValidationError(
+                "ask helped missing_required_field must omit a required field"
+            ) from exc
+    else:
+        raise FixtureValidationError("ask helped missing_required_field unexpectedly validated")
+    empty_raw = parse_success(load_json_fixture(root, ASK_HELPED_ENTRY_ID, "empty")).data
+    try:
+        empty = HelpedResult.model_validate(empty_raw)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"ask helped empty data is invalid: {exc}") from exc
+    if empty.item is not None:
+        raise FixtureValidationError("ask helped empty must omit the row")
+
+
+def _evaluate_spirit_public_entry(root: Path) -> None:
+    success = load_success(root, SPIRIT_PUBLIC_ENTRY_ID)
+    try:
+        profile = SpiritPublicProfile.model_validate(success.data)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"spirit public success data is invalid: {exc}") from exc
+    allowed = {"id", "name", "help_count", "skills"}
+    if set(success.data) != allowed:
+        raise FixtureValidationError("spirit public profile has fields outside the whitelist")
+    if not any(skill.rank_name is None for skill in profile.skills):
+        raise FixtureValidationError("spirit public profile must allow a skill with no rank")
+    if not any(skill.rank_name is not None for skill in profile.skills):
+        raise FixtureValidationError("spirit public profile must show a current rank name")
+    for skill in success.data["skills"]:
+        if set(skill) != {"title", "rank_name"}:
+            raise FixtureValidationError("public skill may only carry title and rank name")
+    mapped = load_business_error(root, SPIRIT_PUBLIC_ENTRY_ID)
+    if mapped.code != "NOT_FOUND":
+        raise FixtureValidationError("spirit public business_error must be NOT_FOUND")
+    payload = load_json_fixture(root, SPIRIT_PUBLIC_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
+    try:
+        SpiritPublicProfile.model_validate(payload)
+    except ValidationError as exc:
+        if not _missing_field_names(exc):
+            raise FixtureValidationError(
+                "spirit public missing_required_field must omit a required field"
+            ) from exc
+    else:
+        raise FixtureValidationError("spirit public missing_required_field unexpectedly validated")
+
+
+def _evaluate_craft_list_entry(root: Path) -> None:
+    success = load_success(root, CRAFT_LIST_ENTRY_ID)
+    page = _load_craft_page(root, FixtureKind.SUCCESS, success.data)
+    if page.total_points < 0 or not page.items:
+        raise FixtureValidationError("craft list success must include the ledger total and a skill")
+    shown = page.items[0]
+    if shown.rank_name is None or shown.points_to_next is None:
+        raise FixtureValidationError("craft list success must show rank name and points to next")
+    mapped = load_business_error(root, CRAFT_LIST_ENTRY_ID)
+    if mapped.code != "INVALID_CURSOR":
+        raise FixtureValidationError("craft list business_error must be INVALID_CURSOR")
+    payload = load_json_fixture(root, CRAFT_LIST_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
+    try:
+        CraftSkillPage.model_validate(payload)
+    except ValidationError as exc:
+        if not _missing_field_names(exc):
+            raise FixtureValidationError(
+                "craft list missing_required_field must omit a required field"
+            ) from exc
+    else:
+        raise FixtureValidationError("craft list missing_required_field unexpectedly validated")
+    pages = {name: _load_craft_page(root, name) for name in LIST_PAGE_SCENARIOS[:4]}
+    empty = pages["page_empty"]
+    first = pages["page_first"]
+    middle = pages["page_middle"]
+    last = pages["page_last"]
+    if empty.items or empty.has_more or empty.next_cursor is not None:
+        raise FixtureValidationError("craft page_empty must have no items and next_cursor=null")
+    if not first.items or not first.has_more or not first.next_cursor:
+        raise FixtureValidationError("craft page_first must have items, has_more, and next_cursor")
+    if not any(item.points == 0 and item.rank_name is None for item in first.items):
+        raise FixtureValidationError(
+            "craft page_first must include a zero-point skill with no rank"
+        )
+    if not middle.items or not middle.has_more or not middle.next_cursor:
+        raise FixtureValidationError("craft page_middle must have items, has_more, and next_cursor")
+    if first.next_cursor == middle.next_cursor:
+        raise FixtureValidationError("craft page_middle cursor must differ from page_first")
+    if not last.items or last.has_more or last.next_cursor is not None:
+        raise FixtureValidationError("craft page_last must have items and next_cursor=null")
+    if not any(item.at_max_rank and item.points_to_next is None for item in last.items):
+        raise FixtureValidationError("craft page_last must show the top rank")
+    for name in ("page_first", "page_middle", "page_last"):
+        _assert_craft_newest_first(pages[name].items)
+    expired = parse_business_error(
+        load_json_fixture(root, CRAFT_LIST_ENTRY_ID, "invalid_or_expired_cursor")
+    )
+    if expired.code != "INVALID_CURSOR":
+        raise FixtureValidationError("craft invalid_or_expired_cursor must use INVALID_CURSOR")
+
+
+def _load_craft_page(root: Path, scenario: str, data: Any | None = None) -> CraftSkillPage:
+    payload = data
+    if payload is None:
+        payload = parse_success(load_json_fixture(root, CRAFT_LIST_ENTRY_ID, scenario)).data
+    try:
+        return CraftSkillPage.model_validate(payload)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"{scenario} data is not CraftSkillPage: {exc}") from exc
+
+
+def _assert_craft_newest_first(items: list[Any]) -> None:
+    previous: tuple[Any, Any] | None = None
+    for item in items:
+        key = (item.updated_at, item.id)
+        if previous is not None and key > previous:
+            raise FixtureValidationError("craft items must be updated_at desc, id desc")
+        previous = key
+
+
+def _evaluate_visit_card_model_entry(
+    root: Path,
+    entry_id: str,
+    model: type[Any],
+    error_codes: frozenset[str],
+) -> None:
+    success = load_success(root, entry_id)
+    try:
+        model.model_validate(success.data)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"{entry_id} success data is invalid: {exc}") from exc
+    mapped = load_business_error(root, entry_id)
+    if mapped.code not in error_codes:
+        raise FixtureValidationError(f"{entry_id} business_error must be one of {error_codes}")
+    payload = load_json_fixture(root, entry_id, FixtureKind.MISSING_REQUIRED_FIELD)
+    try:
+        model.model_validate(payload)
+    except ValidationError as exc:
+        if not _missing_field_names(exc):
+            raise FixtureValidationError(
+                f"{entry_id} missing_required_field must omit a required field"
+            ) from exc
+    else:
+        raise FixtureValidationError(f"{entry_id} missing_required_field unexpectedly validated")
+
+
+def _evaluate_visit_card_list_entry(root: Path) -> None:
+    success = load_success(root, VISIT_CARD_LIST_ENTRY_ID)
+    try:
+        page = VisitFootprintPage.model_validate(success.data)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"visit card list success data is invalid: {exc}") from exc
+    if page.items or page.has_more or page.next_cursor is not None:
+        raise FixtureValidationError("visit card success fixture must be the empty page")
+    mapped = load_business_error(root, VISIT_CARD_LIST_ENTRY_ID)
+    if mapped.code != "INVALID_CURSOR":
+        raise FixtureValidationError("visit card list business_error must be INVALID_CURSOR")
+    payload = load_json_fixture(root, VISIT_CARD_LIST_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
+    try:
+        VisitFootprintPage.model_validate(payload)
+    except ValidationError as exc:
+        if not _missing_field_names(exc):
+            raise FixtureValidationError(
+                "visit card list missing_required_field must omit a required field"
+            ) from exc
+    else:
+        raise FixtureValidationError("visit card list missing_required_field unexpectedly validated")
+    pages = {
+        name: _load_visit_card_page(root, name)
+        for name in ("page_empty", "page_first", "page_middle", "page_last")
+    }
+    empty = pages["page_empty"]
+    first = pages["page_first"]
+    middle = pages["page_middle"]
+    last = pages["page_last"]
+    if empty.items or empty.has_more or empty.next_cursor is not None:
+        raise FixtureValidationError("page_empty must have no items and next_cursor=null")
+    if not first.items or not first.has_more or not first.next_cursor:
+        raise FixtureValidationError("page_first must have items, has_more, and next_cursor")
+    if not middle.items or not middle.has_more or not middle.next_cursor:
+        raise FixtureValidationError("page_middle must have items, has_more, and next_cursor")
+    if first.next_cursor == middle.next_cursor:
+        raise FixtureValidationError("page_middle cursor must differ from page_first")
+    if not last.items or last.has_more or last.next_cursor is not None:
+        raise FixtureValidationError("page_last must have items and next_cursor=null")
+    for name in ("page_first", "page_middle", "page_last"):
+        _assert_footprints_newest_first(pages[name].items)
+    expired = parse_business_error(
+        load_json_fixture(root, VISIT_CARD_LIST_ENTRY_ID, "invalid_or_expired_cursor")
+    )
+    if expired.code != "INVALID_CURSOR":
+        raise FixtureValidationError("invalid_or_expired_cursor must use INVALID_CURSOR")
+
+
+def _load_visit_card_page(root: Path, scenario: str) -> VisitFootprintPage:
+    loaded = parse_success(load_json_fixture(root, VISIT_CARD_LIST_ENTRY_ID, scenario))
+    try:
+        return VisitFootprintPage.model_validate(loaded.data)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"{scenario} data is not VisitFootprintPage: {exc}") from exc
+
+
+def _assert_footprints_newest_first(items: list[Any]) -> None:
+    previous: tuple[str, str] | None = None
+    for item in items:
+        key = (item.occurred_at, str(item.id))
+        if previous is not None and key > previous:
+            raise FixtureValidationError("visit footprint items must be occurred_at desc, id desc")
+        previous = key
+
+
+def _evaluate_visit_card_write_entry(
+    root: Path,
+    entry_id: str,
+    result_model: type[Any],
+    request_model: type[Any],
+    error_codes: frozenset[str],
+) -> None:
+    success = load_success(root, entry_id)
+    try:
+        result_model.model_validate(success.data)
+    except ValidationError as exc:
+        raise FixtureValidationError(f"{entry_id} success data is invalid: {exc}") from exc
+    mapped = load_business_error(root, entry_id)
+    if mapped.code not in error_codes:
+        raise FixtureValidationError(f"{entry_id} business_error must be one of {error_codes}")
+    payload = load_json_fixture(root, entry_id, FixtureKind.MISSING_REQUIRED_FIELD)
+    try:
+        request_model.model_validate(payload)
+    except ValidationError as exc:
+        if not _missing_field_names(exc):
+            raise FixtureValidationError(
+                f"{entry_id} missing_required_field must omit a required field"
+            ) from exc
+    else:
+        raise FixtureValidationError(f"{entry_id} missing_required_field unexpectedly validated")
 
 
 def _evaluate_spirits_entry(root: Path) -> None:
@@ -635,8 +1125,6 @@ def _evaluate_chat_entry(root: Path) -> None:
         raise FixtureValidationError(f"chat success data is not ChatTurnResult: {exc}") from exc
     if result.resource.generation_source != "stub":
         raise FixtureValidationError("chat success fixture must identify generation_source=stub")
-    if result.resource.onboarding is not True:
-        raise FixtureValidationError("chat success fixture must be an onboarding turn")
     if result.resource.speech_audio is not None:
         raise FixtureValidationError("chat success fixture must keep speech_audio null")
     mapped = load_business_error(root, CHAT_ENTRY_ID)
@@ -653,9 +1141,9 @@ def _evaluate_chat_entry(root: Path) -> None:
             raise FixtureValidationError(
                 "chat missing_required_field must omit a required field, not use a wrong type"
             ) from exc
-        if "onboarding" not in missing:
+        if "source" not in missing:
             raise FixtureValidationError(
-                "chat missing_required_field must omit onboarding so the server can distinguish it"
+                "chat missing_required_field must omit source"
             ) from exc
         return
     raise FixtureValidationError("chat missing_required_field unexpectedly validated")
@@ -671,8 +1159,6 @@ def _evaluate_extract_entry(root: Path) -> None:
         raise FixtureValidationError("extract success fixture must be status=extracted")
     if len(result.resource.memories) > 2:
         raise FixtureValidationError("extract success fixture must have 0-2 memories")
-    if len(result.resource.style_samples) > 1:
-        raise FixtureValidationError("extract success fixture must have 0-1 style samples")
     mapped = load_business_error(root, EXTRACT_ENTRY_ID)
     if mapped.code not in EXTRACT_BUSINESS_CODES:
         raise FixtureValidationError(
@@ -1254,194 +1740,6 @@ def _evaluate_synthesize_entry(root: Path) -> None:
         raise FixtureValidationError("tts quota_exceeded must include details.quota=tts")
 
 
-def _evaluate_pacts_entry(root: Path) -> None:
-    success = load_success(root, PACTS_ENTRY_ID)
-    try:
-        result = CreatePactResult.model_validate(success.data)
-    except ValidationError as exc:
-        raise FixtureValidationError(f"pacts success data is not CreatePactResult: {exc}") from exc
-    if result.resource.status != "active" or result.resource.theme != "interview":
-        raise FixtureValidationError("pacts success fixture must be an active interview pact")
-    if result.resource.question_bank_version == "":
-        raise FixtureValidationError("pacts success must lock question_bank_version")
-    if result.patch.pact is None or result.patch.pact.id != result.resource.id:
-        raise FixtureValidationError("pacts success must patch the created pact")
-    mapped = load_business_error(root, PACTS_ENTRY_ID)
-    if mapped.code not in PACTS_BUSINESS_CODES or mapped.retryable:
-        raise FixtureValidationError(
-            "pacts business_error must be non-retryable PACT_ALREADY_ACTIVE"
-        )
-    payload = load_json_fixture(root, PACTS_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
-    try:
-        CreatePactRequest.model_validate(payload)
-    except ValidationError as exc:
-        missing = _missing_field_names(exc)
-        if not missing or "client_id" not in missing:
-            raise FixtureValidationError(
-                "pacts missing_required_field must omit client_id"
-            ) from exc
-    else:
-        raise FixtureValidationError("pacts missing_required_field unexpectedly validated")
-    conflict = parse_business_error(load_json_fixture(root, PACTS_ENTRY_ID, "active_conflict"))
-    if conflict.code != "PACT_ALREADY_ACTIVE":
-        raise FixtureValidationError("active_conflict must be PACT_ALREADY_ACTIVE")
-    notes = parse_business_error(load_json_fixture(root, PACTS_ENTRY_ID, "notes_not_found"))
-    if notes.code != "NOT_FOUND":
-        raise FixtureValidationError("notes_not_found must be NOT_FOUND")
-
-
-def _evaluate_pact_session_entry(root: Path) -> None:
-    success = load_success(root, PACT_SESSION_ENTRY_ID)
-    try:
-        result = PactSessionResult.model_validate(success.data)
-    except ValidationError as exc:
-        raise FixtureValidationError(
-            f"pact-session success data is not PactSessionResult: {exc}"
-        ) from exc
-    if len(result.resource.questions) != 3:
-        raise FixtureValidationError("pact-session success must return exactly 3 questions")
-    ids = [item.question_id for item in result.resource.questions]
-    if len(set(ids)) != 3:
-        raise FixtureValidationError("pact-session questions must have stable unique question_id")
-    if result.resource.row_version < 1:
-        raise FixtureValidationError("pact-session success must lock row_version")
-    mapped = load_business_error(root, PACT_SESSION_ENTRY_ID)
-    if mapped.code not in PACT_SESSION_BUSINESS_CODES:
-        raise FixtureValidationError("pact-session business_error must be PACT_DAY_CLOSED")
-    payload = load_json_fixture(root, PACT_SESSION_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
-    try:
-        PactSessionRequest.model_validate(payload)
-    except ValidationError as exc:
-        missing = _missing_field_names(exc)
-        if not missing or "pact_id" not in missing:
-            raise FixtureValidationError(
-                "pact-session missing_required_field must omit pact_id"
-            ) from exc
-    else:
-        raise FixtureValidationError("pact-session missing_required_field unexpectedly validated")
-    closed = parse_business_error(load_json_fixture(root, PACT_SESSION_ENTRY_ID, "day_closed"))
-    if closed.code != "PACT_DAY_CLOSED":
-        raise FixtureValidationError("day_closed must be PACT_DAY_CLOSED")
-    replay = load_success_from_scenario(root, PACT_SESSION_ENTRY_ID, "idempotent_replay")
-    replayed = PactSessionResult.model_validate(replay.data)
-    if replayed.resource.id != result.resource.id:
-        raise FixtureValidationError("idempotent_replay must return the same session id")
-
-
-def _evaluate_pact_answer_entry(root: Path) -> None:
-    success = load_success(root, PACT_ANSWER_ENTRY_ID)
-    try:
-        result = PactAnswerResult.model_validate(success.data)
-    except ValidationError as exc:
-        raise FixtureValidationError(
-            f"pact-answer success data is not PactAnswerResult: {exc}"
-        ) from exc
-    if result.resource.finalized or result.resource.answered_count != 1:
-        raise FixtureValidationError("pact-answer success must be a non-final first question")
-    if result.resource.score is not None or result.resource.pact_status is not None:
-        raise FixtureValidationError("non-final answers must omit score and pact_status")
-    mapped = load_business_error(root, PACT_ANSWER_ENTRY_ID)
-    if mapped.code not in PACT_ANSWER_BUSINESS_CODES:
-        raise FixtureValidationError(
-            "pact-answer business_error must be PACT_QUESTION_ALREADY_ANSWERED"
-        )
-    payload = load_json_fixture(root, PACT_ANSWER_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
-    try:
-        PactAnswerRequest.model_validate(payload)
-    except ValidationError as exc:
-        missing = _missing_field_names(exc)
-        if not missing or "expected_session_version" not in missing:
-            raise FixtureValidationError(
-                "pact-answer missing_required_field must omit expected_session_version"
-            ) from exc
-    else:
-        raise FixtureValidationError("pact-answer missing_required_field unexpectedly validated")
-    finalized = load_success_from_scenario(root, PACT_ANSWER_ENTRY_ID, "last_question_finalize")
-    final_result = PactAnswerResult.model_validate(finalized.data)
-    if (
-        not final_result.resource.finalized
-        or final_result.resource.score is None
-        or final_result.resource.pact_status is None
-        or final_result.patch.pact is None
-        or final_result.patch.spirit is None
-    ):
-        raise FixtureValidationError(
-            "last_question_finalize must lock score, pact_status, and patch"
-        )
-    if not final_result.resource.mistakes:
-        raise FixtureValidationError("last_question_finalize must include mistake summaries")
-    already = parse_business_error(
-        load_json_fixture(root, PACT_ANSWER_ENTRY_ID, "already_answered")
-    )
-    if already.code != "PACT_QUESTION_ALREADY_ANSWERED":
-        raise FixtureValidationError("already_answered must be PACT_QUESTION_ALREADY_ANSWERED")
-    missing_q = parse_business_error(
-        load_json_fixture(root, PACT_ANSWER_ENTRY_ID, "question_not_found")
-    )
-    if missing_q.code != "PACT_QUESTION_NOT_FOUND":
-        raise FixtureValidationError("question_not_found must be PACT_QUESTION_NOT_FOUND")
-    version = parse_business_error(
-        load_json_fixture(root, PACT_ANSWER_ENTRY_ID, "version_conflict")
-    )
-    if version.code != "CONFLICT":
-        raise FixtureValidationError("version_conflict must be CONFLICT")
-    order = parse_business_error(load_json_fixture(root, PACT_ANSWER_ENTRY_ID, "out_of_order"))
-    if order.code != "INVALID_INPUT":
-        raise FixtureValidationError("out_of_order must be INVALID_INPUT")
-    racing = parse_business_error(
-        load_json_fixture(root, PACT_ANSWER_ENTRY_ID, "last_question_in_progress")
-    )
-    if racing.code != "IDEMPOTENCY_IN_PROGRESS" or not racing.retryable:
-        raise FixtureValidationError("last_question_in_progress must be retryable")
-    fallback = load_success_from_scenario(root, PACT_ANSWER_ENTRY_ID, "provider_fallback")
-    fallback_result = PactAnswerResult.model_validate(fallback.data)
-    if fallback_result.resource.finalized:
-        raise FixtureValidationError("provider_fallback must stay incremental")
-
-
-def _evaluate_pact_skip_entry(root: Path) -> None:
-    success = load_success(root, PACT_SKIP_ENTRY_ID)
-    try:
-        result = PactSkipResult.model_validate(success.data)
-    except ValidationError as exc:
-        raise FixtureValidationError(
-            f"pact-skip success data is not PactSkipResult: {exc}"
-        ) from exc
-    if result.resource.status != "skipped":
-        raise FixtureValidationError("pact-skip success must be status=skipped")
-    if result.patch.pact is None or result.patch.pact.completed_sessions != 0:
-        raise FixtureValidationError("skip must not count a completed session")
-    mapped = load_business_error(root, PACT_SKIP_ENTRY_ID)
-    if mapped.code not in PACT_SKIP_BUSINESS_CODES:
-        raise FixtureValidationError(
-            "pact-skip business_error must be PACT_SESSION_ALREADY_SUBMITTED"
-        )
-    payload = load_json_fixture(root, PACT_SKIP_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
-    try:
-        PactSkipRequest.model_validate(payload)
-    except ValidationError as exc:
-        missing = _missing_field_names(exc)
-        if not missing or "session_date" not in missing:
-            raise FixtureValidationError(
-                "pact-skip missing_required_field must omit session_date"
-            ) from exc
-    else:
-        raise FixtureValidationError("pact-skip missing_required_field unexpectedly validated")
-    submitted = parse_business_error(
-        load_json_fixture(root, PACT_SKIP_ENTRY_ID, "already_submitted")
-    )
-    if submitted.code != "PACT_SESSION_ALREADY_SUBMITTED":
-        raise FixtureValidationError("already_submitted must be PACT_SESSION_ALREADY_SUBMITTED")
-    replay = load_success_from_scenario(root, PACT_SKIP_ENTRY_ID, "skip_replay")
-    replayed = PactSkipResult.model_validate(replay.data)
-    if replayed.resource.id != result.resource.id:
-        raise FixtureValidationError("skip_replay must return the same session")
-    complete = load_success_from_scenario(root, PACT_SKIP_ENTRY_ID, "completeness")
-    complete_result = PactSkipResult.model_validate(complete.data)
-    if complete_result.patch.pact is None or complete_result.patch.pact.completeness < 70:
-        raise FixtureValidationError("completeness fixture must expose completeness")
-
-
 def _evaluate_friends_list_entry(root: Path) -> None:
     success = load_success(root, FRIENDS_LIST_ENTRY_ID)
     try:
@@ -1723,115 +2021,6 @@ def _evaluate_devices_entry(root: Path) -> None:
         raise FixtureValidationError("idempotent_replay must return the same device_id")
 
 
-def _evaluate_report_entry(root: Path) -> None:
-    success = load_success(root, REPORT_ENTRY_ID)
-    try:
-        locked = ReportSnapshot.model_validate(success.data)
-    except ValidationError as exc:
-        raise FixtureValidationError(f"report success data is not ReportSnapshot: {exc}") from exc
-    if locked.status != "locked" or locked.report_id is not None or locked.card is not None:
-        raise FixtureValidationError("report success fixture must be locked with null id/card")
-    mapped = load_business_error(root, REPORT_ENTRY_ID)
-    if mapped.code not in REPORT_BUSINESS_CODES:
-        raise FixtureValidationError(
-            f"report business_error must be DEPENDENCY_UNAVAILABLE, got {mapped.code}"
-        )
-    payload = load_json_fixture(root, REPORT_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
-    try:
-        ReportSnapshot.model_validate(payload)
-    except ValidationError as exc:
-        missing = _missing_field_names(exc)
-        if not missing:
-            raise FixtureValidationError(
-                "report missing_required_field must omit a required field, not use a wrong type"
-            ) from exc
-    else:
-        raise FixtureValidationError("report missing_required_field unexpectedly validated")
-    generating = ReportSnapshot.model_validate(
-        load_success_from_scenario(root, REPORT_ENTRY_ID, "generating").data
-    )
-    if (
-        generating.status != "generating"
-        or generating.report_id is None
-        or generating.card is not None
-    ):
-        raise FixtureValidationError("generating fixture must have report_id and null card")
-    partial = ReportSnapshot.model_validate(
-        load_success_from_scenario(root, REPORT_ENTRY_ID, "partial").data
-    )
-    if (
-        partial.status != "partial"
-        or partial.card is None
-        or partial.card.signature_line is not None
-    ):
-        raise FixtureValidationError("partial fixture must include a card with null signature_line")
-    unavailable = [item for item in partial.card.top_memories if item.unavailable]
-    if not unavailable or unavailable[0].type is not None or unavailable[0].summary is not None:
-        raise FixtureValidationError(
-            "partial fixture must include an unavailable memory without body"
-        )
-    ready = ReportSnapshot.model_validate(
-        load_success_from_scenario(root, REPORT_ENTRY_ID, "ready").data
-    )
-    if ready.status != "ready" or ready.card is None or ready.card.signature_line is None:
-        raise FixtureValidationError("ready fixture must include signature_line")
-    failed = ReportSnapshot.model_validate(
-        load_success_from_scenario(root, REPORT_ENTRY_ID, "failed").data
-    )
-    if failed.status != "failed" or failed.report_id is None or failed.card is not None:
-        raise FixtureValidationError("failed fixture must have report_id and null card")
-
-
-def _evaluate_report_line_entry(root: Path) -> None:
-    success = load_success(root, REPORT_LINE_ENTRY_ID)
-    try:
-        result = ReportLineResult.model_validate(success.data)
-    except ValidationError as exc:
-        raise FixtureValidationError(
-            f"report line success data is not ReportLineResult: {exc}"
-        ) from exc
-    if result.resource.status != "ready" or result.resource.signature_line is None:
-        raise FixtureValidationError("report line success must return a ready card")
-    if result.patch.report.card is None:
-        raise FixtureValidationError("report line patch must include the report snapshot")
-    mapped = load_business_error(root, REPORT_LINE_ENTRY_ID)
-    if mapped.code not in REPORT_LINE_BUSINESS_CODES:
-        raise FixtureValidationError(
-            f"report line business_error must be REPORT_LINE_UNAVAILABLE, got {mapped.code}"
-        )
-    payload = load_json_fixture(root, REPORT_LINE_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
-    try:
-        ReportLineRequest.model_validate(payload)
-    except ValidationError as exc:
-        missing = _missing_field_names(exc)
-        if not missing:
-            raise FixtureValidationError(
-                "report line missing_required_field must omit a required field"
-            ) from exc
-    else:
-        raise FixtureValidationError("report line missing_required_field unexpectedly validated")
-    replay = ReportLineResult.model_validate(
-        load_success_from_scenario(root, REPORT_LINE_ENTRY_ID, "idempotent_replay").data
-    )
-    if replay.resource.signature_line != result.resource.signature_line:
-        raise FixtureValidationError("idempotent_replay must keep the same signature_line")
-    conflict = parse_business_error(
-        load_json_fixture(root, REPORT_LINE_ENTRY_ID, "version_conflict")
-    )
-    if conflict.code != "CONFLICT":
-        raise FixtureValidationError("version_conflict must be CONFLICT")
-    exhausted = parse_business_error(load_json_fixture(root, REPORT_LINE_ENTRY_ID, "max_attempts"))
-    if exhausted.code != "REPORT_LINE_UNAVAILABLE":
-        raise FixtureValidationError("max_attempts must be REPORT_LINE_UNAVAILABLE")
-    failed = ReportLineResult.model_validate(
-        load_success_from_scenario(root, REPORT_LINE_ENTRY_ID, "provider_fail").data
-    )
-    if failed.resource.status != "partial" or failed.resource.signature_line is not None:
-        raise FixtureValidationError("provider_fail must keep partial with null signature_line")
-    if failed.resource.title != result.resource.title:
-        raise FixtureValidationError("provider_fail must not change title")
-
-
 def _evaluate_spirit_patch_entry(root: Path) -> None:
     success = load_success(root, SPIRIT_PATCH_ENTRY_ID)
     try:
@@ -1840,8 +2029,8 @@ def _evaluate_spirit_patch_entry(root: Path) -> None:
         raise FixtureValidationError(
             f"spirit patch success data is not SpiritPatchResult: {exc}"
         ) from exc
-    if result.patch.preferences.dnd_start != "23:00":
-        raise FixtureValidationError("settings success must use HH:MM DND")
+    if result.patch.preferences.tts_on is not True:
+        raise FixtureValidationError("settings success must keep tts_on")
     mapped = load_business_error(root, SPIRIT_PATCH_ENTRY_ID)
     if mapped.code not in SPIRIT_PATCH_BUSINESS_CODES:
         raise FixtureValidationError(
@@ -1871,7 +2060,7 @@ def _evaluate_spirit_patch_entry(root: Path) -> None:
     )
     if conflict.code != "CONFLICT":
         raise FixtureValidationError("version_conflict must be CONFLICT")
-    for scenario in ("illegal_timezone", "illegal_dnd", "name_too_long"):
+    for scenario in ("illegal_timezone", "name_too_long"):
         illegal = parse_business_error(load_json_fixture(root, SPIRIT_PATCH_ENTRY_ID, scenario))
         if illegal.code != "INVALID_INPUT":
             raise FixtureValidationError(f"{scenario} must be INVALID_INPUT")
@@ -1930,16 +2119,14 @@ def _evaluate_recall_entry(root: Path) -> None:
         raise FixtureValidationError("recall success must be food method")
     if result.patch.spirit is None or result.patch.spirit.status != "home":
         raise FixtureValidationError("recall success must return home")
-    if result.patch.spirit.hunger != 80:
-        raise FixtureValidationError("food recall must not apply ordinary food hunger")
     if not any(item.summary == "你离开过" for item in result.patch.memories_upsert):
-        raise FixtureValidationError("recall success must upsert the relation memory")
+        raise FixtureValidationError("recall success must upsert the relationship memory")
     if not any(event.type == "recall.returned" for event in result.events):
         raise FixtureValidationError("recall success must emit recall.returned")
     mapped = load_business_error(root, RECALL_ENTRY_ID)
     if mapped.code not in RECALL_BUSINESS_CODES:
         raise FixtureValidationError(
-            f"recall business_error must be SPIRIT_NOT_LOST, got {mapped.code}"
+            f"recall business_error must be SPIRIT_NOT_AWAY, got {mapped.code}"
         )
     payload = load_json_fixture(root, RECALL_ENTRY_ID, FixtureKind.MISSING_REQUIRED_FIELD)
     try:
@@ -1961,19 +2148,13 @@ def _evaluate_recall_entry(root: Path) -> None:
     ):
         raise FixtureValidationError("idempotent_replay must return the same recall resource")
     not_lost = parse_business_error(load_json_fixture(root, RECALL_ENTRY_ID, "not_lost"))
-    if not_lost.code != "SPIRIT_NOT_LOST":
-        raise FixtureValidationError("not_lost must be SPIRIT_NOT_LOST")
-    for scenario in ("sealed_memory", "deleted_memory", "wrong_owner", "non_sight"):
-        illegal = parse_business_error(load_json_fixture(root, RECALL_ENTRY_ID, scenario))
-        if illegal.code != "RECALL_SOURCE_INVALID":
-            raise FixtureValidationError(f"{scenario} must be RECALL_SOURCE_INVALID")
+    if not_lost.code != "SPIRIT_NOT_AWAY":
+        raise FixtureValidationError("not_lost must be SPIRIT_NOT_AWAY")
     full = RecallMutationResult.model_validate(
         load_success_from_scenario(root, RECALL_ENTRY_ID, "quota_full_food").data
     )
     if full.patch.spirit is None or full.patch.spirit.status != "home":
         raise FixtureValidationError("quota_full_food must still return home")
-    if full.patch.spirit.hunger != 80:
-        raise FixtureValidationError("quota_full_food must not apply ordinary food hunger")
     food_quota = next((item for item in full.quotas if item.capability == "food"), None)
     if food_quota is None or food_quota.used < food_quota.limit:
         raise FixtureValidationError("quota_full_food must show a full food quota")

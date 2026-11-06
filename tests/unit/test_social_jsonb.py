@@ -57,10 +57,24 @@ def test_report_snapshots_reject_private_payloads() -> None:
             "dialogue_rounds_remaining": 7,
         }
     )
-    parse_report_memory_snapshots([{"id": str(uuid4()), "type": "sight", "summary": "雨夜路灯"}])
+    parse_report_memory_snapshots(
+        [{"id": str(uuid4()), "type": "relationship", "summary": "雨夜路灯"}]
+    )
     with pytest.raises(ValidationError):
         parse_report_memory_snapshots(
-            [{"id": str(uuid4()), "type": "sight", "summary": "雨夜路灯", "content": "全文"}]
+            [{"id": str(uuid4()), "type": "speech", "summary": "口头禅"}]
+        )
+    with pytest.raises(ValidationError):
+        parse_report_memory_snapshots(
+            [{"id": str(uuid4()), "type": "sight", "summary": "雨夜路灯"}]
+        )
+    with pytest.raises(ValidationError):
+        parse_report_memory_snapshots(
+            [{"id": str(uuid4()), "type": "relation", "summary": "称呼"}]
+        )
+    with pytest.raises(ValidationError):
+        parse_report_memory_snapshots(
+            [{"id": str(uuid4()), "type": "knowledge", "summary": "雨夜路灯", "content": "全文"}]
         )
 
 

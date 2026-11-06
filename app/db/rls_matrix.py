@@ -363,19 +363,6 @@ RLS_MATRIX: tuple[RlsTableExpectation, ...] = (
         notes="spec §7.2 'styles'",
     ),
     _t(
-        "feeds",
-        spec_section="7.2/6.4",
-        owner_kind=OwnerKind.USER_AND_SPIRIT,
-        owner="user_id = auth.uid() and spirit.user_id = auth.uid()",
-        participant="none",
-        owner_sql=_user_and_spirit(),
-        write_path=WritePath.OWNER_DML,
-        api=OWNER_CRUD,
-        worker=OWNER_CRUD,
-        test_cases=_owner_isolation_cases(writes=True, association=True),
-        notes="forged spirit_id of B with user_id of A must deny",
-    ),
-    _t(
         "sight_uploads",
         spec_section="7.2/6.4",
         owner_kind=OwnerKind.USER_AND_SPIRIT,
@@ -387,20 +374,6 @@ RLS_MATRIX: tuple[RlsTableExpectation, ...] = (
         worker=OWNER_CRUD,
         test_cases=_owner_isolation_cases(writes=True, association=True),
         notes="client has no direct table write; API writes owner rows",
-    ),
-    _t(
-        "growth_events",
-        spec_section="7.2/6.4",
-        owner_kind=OwnerKind.SPIRIT_OWNER,
-        owner="spirits.user_id via spirit_id",
-        participant="none",
-        owner_sql=_spirit_owner(),
-        write_path=WritePath.API_OWNER_WRITE,
-        api=OWNER_CRUD,
-        worker=OWNER_CRUD,
-        test_cases=_owner_isolation_cases(writes=True, association=True),
-        notes="no anon/authenticated policy; API/worker with claim",
-        cross_user_entry="private.settle_spirit_state",
     ),
     _t(
         "daily_usage",
@@ -668,6 +641,43 @@ RLS_MATRIX: tuple[RlsTableExpectation, ...] = (
 )
 
 
+def _spirit_owned_v1(table: str, *, notes: str = "") -> RlsTableExpectation:
+    return _t(
+        table,
+        spec_section="7.2/v1",
+        owner_kind=OwnerKind.SPIRIT_OWNER,
+        owner="spirits.user_id via spirit_id",
+        participant="none",
+        owner_sql=_spirit_owner(),
+        write_path=WritePath.OWNER_DML,
+        api=OWNER_CRUD,
+        worker=OWNER_CRUD,
+        test_cases=_owner_isolation_cases(writes=True, association=True),
+        notes=notes,
+    )
+
+
+RLS_MATRIX_V1: tuple[RlsTableExpectation, ...] = (
+    _spirit_owned_v1("spirit_awareness", notes="V1 awareness write owner"),
+    _spirit_owned_v1("chat_overlays", notes="V1 chat session overlay"),
+    _spirit_owned_v1("room_projections", notes="V1 room four-piece projection"),
+    _spirit_owned_v1("action_events", notes="V1 user-action fact events"),
+    _t(
+        "action_quotas",
+        spec_section="7.2/v1",
+        owner_kind=OwnerKind.USER_AND_SPIRIT,
+        owner="user_id = auth.uid() and spirit.user_id = auth.uid()",
+        participant="none",
+        owner_sql=_user_and_spirit(),
+        write_path=WritePath.OWNER_DML,
+        api=OWNER_READ_WRITE,
+        worker=OWNER_READ_WRITE,
+        test_cases=_owner_isolation_cases(writes=True, association=True),
+        notes="V1 action quotas; no sight capability",
+    ),
+)
+
+
 SPEC_7_2_GROUPS: dict[str, tuple[str, ...]] = {
     "spirits": ("spirits",),
     "account_consents": ("account_consents",),
@@ -678,7 +688,7 @@ SPEC_7_2_GROUPS: dict[str, tuple[str, ...]] = {
         "memories",
         "style_samples",
     ),
-    "feeds/sight_uploads": ("feeds", "sight_uploads"),
+    "sight_uploads": ("sight_uploads",),
     "daily_usage": ("daily_usage",),
     "pacts/sessions/mistakes": ("pacts", "pact_sessions", "pact_mistakes"),
     "friends": ("friends",),
@@ -686,7 +696,7 @@ SPEC_7_2_GROUPS: dict[str, tuple[str, ...]] = {
     "postcards": ("postcards",),
     "reports": ("reports",),
     "devices": ("devices",),
-    "growth_events/ai_usage": ("growth_events", "ai_usage"),
+    "ai_usage": ("ai_usage",),
     "outbox/notification/idempotency/deletions": (
         "outbox_events",
         "notification_deliveries",
@@ -698,6 +708,12 @@ SPEC_7_2_GROUPS: dict[str, tuple[str, ...]] = {
 
 def matrix_by_table() -> dict[str, RlsTableExpectation]:
     return {row.table: row for row in RLS_MATRIX}
+
+
+def _iter_matrix(
+    matrix: tuple[RlsTableExpectation, ...] | None = None,
+) -> tuple[RlsTableExpectation, ...]:
+    return RLS_MATRIX if matrix is None else matrix
 
 
 def _role_access(row: RlsTableExpectation, role: str) -> RoleAccess:
@@ -724,9 +740,11 @@ def _access_active(access: RoleAccess) -> bool:
     return bool(access.select or access.insert or access.update or access.delete)
 
 
-def enable_force_statements() -> tuple[str, ...]:
+def enable_force_statements(
+    matrix: tuple[RlsTableExpectation, ...] | None = None,
+) -> tuple[str, ...]:
     statements: list[str] = []
-    for row in RLS_MATRIX:
+    for row in _iter_matrix(matrix):
         if row.enable_rls:
             statements.append(f"ALTER TABLE public.{row.table} ENABLE ROW LEVEL SECURITY")
         if row.force_rls:
@@ -734,9 +752,11 @@ def enable_force_statements() -> tuple[str, ...]:
     return tuple(statements)
 
 
-def policy_blueprints() -> tuple[PolicyBlueprint, ...]:
+def policy_blueprints(
+    matrix: tuple[RlsTableExpectation, ...] | None = None,
+) -> tuple[PolicyBlueprint, ...]:
     blueprints: list[PolicyBlueprint] = []
-    for row in RLS_MATRIX:
+    for row in _iter_matrix(matrix):
         for role in RUNTIME_POLICY_ROLES:
             access = _role_access(row, role)
             if not _access_active(access):
@@ -802,9 +822,11 @@ def policy_blueprints() -> tuple[PolicyBlueprint, ...]:
     return tuple(blueprints)
 
 
-def policy_create_statements() -> tuple[str, ...]:
+def policy_create_statements(
+    matrix: tuple[RlsTableExpectation, ...] | None = None,
+) -> tuple[str, ...]:
     statements: list[str] = []
-    for blueprint in policy_blueprints():
+    for blueprint in policy_blueprints(matrix):
         roles = ", ".join(blueprint.roles)
         chunks = [
             f"CREATE POLICY {blueprint.name} ON public.{blueprint.table}",
@@ -820,9 +842,11 @@ def policy_create_statements() -> tuple[str, ...]:
     return tuple(statements)
 
 
-def grant_statements() -> tuple[str, ...]:
+def grant_statements(
+    matrix: tuple[RlsTableExpectation, ...] | None = None,
+) -> tuple[str, ...]:
     statements: list[str] = []
-    for row in RLS_MATRIX:
+    for row in _iter_matrix(matrix):
         for role in RUNTIME_POLICY_ROLES:
             access = _role_access(row, role)
             table_privs: list[str] = []
@@ -842,6 +866,289 @@ def grant_statements() -> tuple[str, ...]:
                 columns = ", ".join(access.update_columns)
                 statements.append(f"GRANT UPDATE ({columns}) ON TABLE public.{row.table} TO {role}")
     return tuple(statements)
+
+
+def _match_index_cases() -> tuple[RlsTestCase, ...]:
+    return (
+        RlsTestCase("A_select_own", "A", Command.SELECT, "allow"),
+        RlsTestCase("B_select_A_staged", "B", Command.SELECT, "empty", "staged slot only"),
+        RlsTestCase(
+            "B_select_A_active",
+            "B",
+            Command.SELECT,
+            "allow",
+            "active projection is readable",
+        ),
+        RlsTestCase("no_claim_select", "no_claim", Command.SELECT, "empty"),
+        RlsTestCase("A_insert_own", "A", Command.INSERT, "allow"),
+        RlsTestCase("B_insert_into_A", "B", Command.INSERT, "deny"),
+        RlsTestCase("A_update_own", "A", Command.UPDATE, "allow"),
+        RlsTestCase("B_update_A", "B", Command.UPDATE, "deny"),
+        RlsTestCase("A_delete_own", "A", Command.DELETE, "deny"),
+        RlsTestCase("B_delete_A", "B", Command.DELETE, "deny"),
+    )
+
+
+def _ledger_cases() -> tuple[RlsTestCase, ...]:
+    return (
+        RlsTestCase("A_select_own", "A", Command.SELECT, "allow"),
+        RlsTestCase("B_select_A", "B", Command.SELECT, "empty"),
+        RlsTestCase("no_claim_select", "no_claim", Command.SELECT, "empty"),
+        RlsTestCase("A_insert_own", "A", Command.INSERT, "deny"),
+        RlsTestCase("A_update_own", "A", Command.UPDATE, "deny"),
+        RlsTestCase("A_delete_own", "A", Command.DELETE, "deny"),
+        RlsTestCase("B_insert_into_A", "B", Command.INSERT, "deny"),
+        RlsTestCase("B_update_A", "B", Command.UPDATE, "deny"),
+        RlsTestCase("B_delete_A", "B", Command.DELETE, "deny"),
+    )
+
+
+def _ask_owner_cases(*, update: Expectation) -> tuple[RlsTestCase, ...]:
+    return (
+        RlsTestCase("A_select_own", "A", Command.SELECT, "allow"),
+        RlsTestCase("B_select_A", "B", Command.SELECT, "empty"),
+        RlsTestCase("no_claim_select", "no_claim", Command.SELECT, "empty"),
+        RlsTestCase("A_insert_own", "A", Command.INSERT, "allow"),
+        RlsTestCase("B_insert_into_A", "B", Command.INSERT, "deny"),
+        RlsTestCase("A_update_own", "A", Command.UPDATE, update),
+        RlsTestCase("B_update_A", "B", Command.UPDATE, "deny"),
+        RlsTestCase("A_delete_own", "A", Command.DELETE, "deny"),
+        RlsTestCase("B_delete_A", "B", Command.DELETE, "deny"),
+    )
+
+
+def _craft_owner_cases(*, delete: Expectation) -> tuple[RlsTestCase, ...]:
+    return (
+        RlsTestCase("A_select_own", "A", Command.SELECT, "allow"),
+        RlsTestCase("B_select_A", "B", Command.SELECT, "empty"),
+        RlsTestCase("no_claim_select", "no_claim", Command.SELECT, "empty"),
+        RlsTestCase("A_insert_own", "A", Command.INSERT, "allow"),
+        RlsTestCase("B_insert_into_A", "B", Command.INSERT, "deny"),
+        RlsTestCase("A_update_own", "A", Command.UPDATE, "allow"),
+        RlsTestCase("B_update_A", "B", Command.UPDATE, "deny"),
+        RlsTestCase("A_delete_own", "A", Command.DELETE, delete),
+        RlsTestCase("B_delete_A", "B", Command.DELETE, "deny"),
+    )
+
+
+_MATCH_VISIBLE = f"({_spirit_owner()}) OR active_title IS NOT NULL"
+_NO_DELETE = RoleAccess(select=True, insert=True, update=True, delete=False)
+
+
+RLS_MATRIX_V3: tuple[RlsTableExpectation, ...] = (
+    _t(
+        "craft_skills",
+        spec_section="v3/4.1",
+        owner_kind=OwnerKind.SPIRIT_OWNER,
+        owner="spirits.user_id via spirit_id",
+        participant="none",
+        owner_sql=_spirit_owner(),
+        write_path=WritePath.OWNER_DML,
+        api=_NO_DELETE,
+        worker=RoleAccess(
+            select=True,
+            update=True,
+            delete=False,
+            using_sql=TRUE,
+            with_check_sql=TRUE,
+            update_columns=("points", "rank_name"),
+        ),
+        test_cases=_craft_owner_cases(delete="deny"),
+        notes="soft delete only; the worker settles points and rank on any skill",
+    ),
+    _t(
+        "craft_match_index",
+        spec_section="v3/4.3",
+        owner_kind=OwnerKind.SPIRIT_OWNER,
+        owner="spirits.user_id via spirit_id",
+        participant="kelin_api may select active projections",
+        owner_sql=_spirit_owner(),
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(
+            select=True,
+            insert=True,
+            update=True,
+            delete=False,
+            using_sql=_MATCH_VISIBLE,
+            with_check_sql=_spirit_owner(),
+        ),
+        worker=OWNER_CRUD,
+        test_cases=_match_index_cases(),
+        notes="active title and keywords are readable; staged rows stay with the owner",
+    ),
+    _t(
+        "craft_self_test_tickets",
+        spec_section="v3/4.2",
+        owner_kind=OwnerKind.SPIRIT_OWNER,
+        owner="spirits.user_id via spirit_id",
+        participant="none",
+        owner_sql=_spirit_owner(),
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(select=True, insert=True, update=False, delete=False),
+        worker=RoleAccess(delete=True, using_sql=TRUE),
+        test_cases=_craft_owner_cases(delete="deny"),
+        notes="API cannot update or delete a snapshot; worker deletes expired tickets only",
+    ),
+    _t(
+        "ask_questions",
+        spec_section="v3/4.4",
+        owner_kind=OwnerKind.USER_COLUMN,
+        owner="asker_user_id = auth.uid()",
+        participant="none",
+        owner_sql=_uid("asker_user_id"),
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(
+            select=True,
+            insert=True,
+            update=True,
+            delete=False,
+            update_columns=("first_reply_at",),
+        ),
+        worker=DENY,
+        test_cases=_ask_owner_cases(update="allow"),
+        notes="asker owns the dialogue; snapshot columns are not granted for update",
+    ),
+    _t(
+        "ask_turns",
+        spec_section="v3/4.4",
+        owner_kind=OwnerKind.USER_COLUMN,
+        owner="asker_user_id = auth.uid()",
+        participant="none",
+        owner_sql=_uid("asker_user_id"),
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(
+            select=True,
+            insert=True,
+            update=True,
+            delete=False,
+            update_columns=("reply_text", "status"),
+        ),
+        worker=DENY,
+        test_cases=_ask_owner_cases(update="allow"),
+        notes="one client key per dialogue; a failed reply stays on the row",
+    ),
+    _t(
+        "ask_ratings",
+        spec_section="v3/4.4",
+        owner_kind=OwnerKind.USER_COLUMN,
+        owner="asker_user_id = auth.uid()",
+        participant="none",
+        owner_sql=_uid("asker_user_id"),
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(select=True, insert=True, update=False, delete=False),
+        worker=DENY,
+        test_cases=_ask_owner_cases(update="deny"),
+        notes="one rating row per dialogue",
+    ),
+    _t(
+        "craft_ledgers",
+        spec_section="v3/4.6",
+        owner_kind=OwnerKind.SPIRIT_OWNER,
+        owner="spirits.user_id via spirit_id",
+        participant="none",
+        owner_sql=_spirit_owner(),
+        write_path=WritePath.WORKER_INTERNAL,
+        api=RoleAccess(select=True),
+        worker=RoleAccess(
+            select=True,
+            insert=True,
+            update=True,
+            delete=False,
+            using_sql=TRUE,
+            with_check_sql=TRUE,
+            update_columns=("total_points", "help_count", "updated_at"),
+        ),
+        test_cases=_ledger_cases(),
+        notes="API reads the spirit ledger; only the worker adds points or help count",
+    ),
+    _t(
+        "craft_settlements",
+        spec_section="v3/4.7",
+        owner_kind=OwnerKind.INTERNAL_WORKER,
+        owner="worker settles one dialogue; API has no policy",
+        participant="none",
+        owner_sql=TRUE,
+        write_path=WritePath.WORKER_INTERNAL,
+        api=DENY,
+        worker=RoleAccess(
+            select=True,
+            insert=True,
+            update=False,
+            delete=False,
+            using_sql=TRUE,
+            with_check_sql=TRUE,
+        ),
+        test_cases=(
+            *_internal_worker_cases(),
+            RlsTestCase("B_select_A", "B", Command.SELECT, "empty"),
+            RlsTestCase("B_insert_into_A", "B", Command.INSERT, "deny"),
+        ),
+        notes="unique on the ask dialogue; a second insert is the retry stop",
+    ),
+)
+
+
+@dataclass(frozen=True)
+class V3WriteIdempotency:
+    action: str
+    operation: str
+    table: str
+    constraint: str
+    live_dual_account: str = "V3-S9-T01"
+
+
+_IDEMPOTENCY_PK = "pk_idempotency_records_user_operation_client"
+
+V3_WRITE_IDEMPOTENCY: tuple[V3WriteIdempotency, ...] = (
+    V3WriteIdempotency(
+        "创建技能",
+        "craft.skill.create",
+        "idempotency_records",
+        _IDEMPOTENCY_PK,
+    ),
+    V3WriteIdempotency(
+        "保存修改",
+        "craft.skill.save",
+        "idempotency_records",
+        _IDEMPOTENCY_PK,
+    ),
+    V3WriteIdempotency(
+        "设为私密或再公开",
+        "craft.skill.visibility",
+        "idempotency_records",
+        _IDEMPOTENCY_PK,
+    ),
+    V3WriteIdempotency(
+        "删除技能",
+        "craft.skill.delete",
+        "idempotency_records",
+        _IDEMPOTENCY_PK,
+    ),
+    V3WriteIdempotency(
+        "提交问题",
+        "ask.question.submit",
+        "ask_questions",
+        "uq_ask_questions_asker_client",
+    ),
+    V3WriteIdempotency(
+        "发送一轮",
+        "ask.turn.send",
+        "ask_turns",
+        "uq_ask_turns_question_client",
+    ),
+    V3WriteIdempotency(
+        "评分",
+        "ask.rating.submit",
+        "ask_ratings",
+        "uq_ask_ratings_question",
+    ),
+    V3WriteIdempotency(
+        "结算",
+        "craft.rating.settle",
+        "craft_settlements",
+        "uq_craft_settlements_question",
+    ),
+)
 
 
 def role_table_privileges() -> frozenset[tuple[str, str, str]]:

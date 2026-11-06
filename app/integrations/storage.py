@@ -7,8 +7,16 @@ Adapters get/delete by an already owner-checked key and have no list grant.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Protocol
 from uuid import UUID
 
+from app.domain.visit_card import (
+    CARD_MEDIA_MAX_BYTES,
+    VISIT_CARD_BUCKET,
+    VISIT_CARD_KEY_PREFIX,
+    visit_card_magic_ok,
+    visit_card_media_type,
+)
 from app.domain.sight_upload import (
     ALLOWED_MIME,
     JPEG_MAGIC,
@@ -19,6 +27,7 @@ from app.domain.sight_upload import (
 )
 from app.domain.speech import (
     TTS_BUCKET,
+    TTS_OUTPUT_MIME,
     TtsCacheRecord,
     tts_cache_expired,
     tts_cache_key,
@@ -37,15 +46,63 @@ class StorageObjectMissing(Exception):
     """Exact object key is not present."""
 
 
+class StorageUnavailable(Exception):
+    """Object storage could not be reached. Callers must not treat this as a missing file."""
+
+
+class ObjectBackend(Protocol):
+    def put(self, bucket: str, object_path: str, body: bytes, *, content_type: str) -> None: ...
+
+    def get(self, bucket: str, object_path: str) -> bytes: ...
+
+    def delete(self, bucket: str, object_path: str) -> bool: ...
+
+    def list_prefix(self, bucket: str, prefix: str) -> list[str]: ...
+
+    def contains(self, bucket: str, object_path: str) -> bool: ...
+
+
+class _MemoryObjects:
+    def __init__(self) -> None:
+        self._objects: dict[tuple[str, str], bytes] = {}
+
+    def put(self, bucket: str, object_path: str, body: bytes, *, content_type: str) -> None:
+        del content_type
+        self._objects[(bucket, object_path)] = bytes(body)
+
+    def get(self, bucket: str, object_path: str) -> bytes:
+        try:
+            return self._objects[(bucket, object_path)]
+        except KeyError as exc:
+            raise StorageObjectMissing("object is missing") from exc
+
+    def delete(self, bucket: str, object_path: str) -> bool:
+        return self._objects.pop((bucket, object_path), None) is not None
+
+    def list_prefix(self, bucket: str, prefix: str) -> list[str]:
+        return sorted(
+            path
+            for key_bucket, path in self._objects
+            if key_bucket == bucket and path.startswith(prefix)
+        )
+
+    def contains(self, bucket: str, object_path: str) -> bool:
+        return (bucket, object_path) in self._objects
+
+
 class StoragePutRejected(Exception):
     """Signed PUT failed MIME magic, size, or signature checks."""
 
+    def __init__(self, message: str, *, public_code: str = "NOT_FOUND") -> None:
+        super().__init__(message)
+        self.public_code = public_code
+
 
 class PrivateSightStorage:
-    """In-process private bucket used when no live Storage project is injected."""
+    """Private sight bucket. Bytes stay in memory unless an object backend is injected."""
 
-    def __init__(self) -> None:
-        self._objects: dict[tuple[str, str], bytes] = {}
+    def __init__(self, backend: ObjectBackend | None = None) -> None:
+        self._blobs: ObjectBackend = backend if backend is not None else _MemoryObjects()
 
     def client_put(
         self,
@@ -68,7 +125,7 @@ class PrivateSightStorage:
             raise StoragePutRejected("size is outside 1..5 MiB")
         if not body.startswith(JPEG_MAGIC):
             raise StoragePutRejected("jpeg magic mismatch")
-        self._objects[(bucket, object_path)] = bytes(body)
+        self._blobs.put(bucket, object_path, body, content_type=ALLOWED_MIME)
 
     def client_get(self, bucket: str, object_path: str) -> bytes:
         raise StorageAccessDenied("client has no read policy")
@@ -80,35 +137,28 @@ class PrivateSightStorage:
         raise StorageListDenied("client has no list policy")
 
     def service_get(self, bucket: str, object_path: str) -> bytes:
-        try:
-            return self._objects[(bucket, object_path)]
-        except KeyError as exc:
-            raise StorageObjectMissing("object is missing") from exc
+        return self._blobs.get(bucket, object_path)
 
     def service_delete(self, bucket: str, object_path: str) -> bool:
-        return self._objects.pop((bucket, object_path), None) is not None
+        return self._blobs.delete(bucket, object_path)
 
     def service_list(self, bucket: str, prefix: str) -> list[str]:
         raise StorageListDenied("cleanup adapter has no bucket list grant")
 
     def deletion_list_prefix(self, bucket: str, prefix: str) -> list[str]:
         """Account-deletion worker listing. Not a client/cleanup list grant."""
-        return sorted(
-            path
-            for key_bucket, path in self._objects
-            if key_bucket == bucket and path.startswith(prefix)
-        )
+        return self._blobs.list_prefix(bucket, prefix)
 
     def seed_object(self, bucket: str, object_path: str, body: bytes) -> None:
         """Test helper to place bytes without a signed PUT."""
-        self._objects[(bucket, object_path)] = bytes(body)
+        self._blobs.put(bucket, object_path, body, content_type=ALLOWED_MIME)
 
 
 class PrivateTtsStorage:
-    """In-process private TTS bucket. Cache index is not a bucket list grant."""
+    """Private TTS bucket. Cache index stays in process; bytes follow the object backend."""
 
-    def __init__(self) -> None:
-        self._objects: dict[tuple[str, str], bytes] = {}
+    def __init__(self, backend: ObjectBackend | None = None) -> None:
+        self._blobs: ObjectBackend = backend if backend is not None else _MemoryObjects()
         self._cache: dict[tuple[UUID, str], TtsCacheRecord] = {}
 
     def client_get(self, bucket: str, object_path: str) -> bytes:
@@ -124,16 +174,13 @@ class PrivateTtsStorage:
         raise StorageListDenied("client has no list policy")
 
     def service_put(self, bucket: str, object_path: str, body: bytes) -> None:
-        self._objects[(bucket, object_path)] = bytes(body)
+        self._blobs.put(bucket, object_path, body, content_type=TTS_OUTPUT_MIME)
 
     def service_get(self, bucket: str, object_path: str) -> bytes:
-        try:
-            return self._objects[(bucket, object_path)]
-        except KeyError as exc:
-            raise StorageObjectMissing("object is missing") from exc
+        return self._blobs.get(bucket, object_path)
 
     def service_delete(self, bucket: str, object_path: str) -> bool:
-        return self._objects.pop((bucket, object_path), None) is not None
+        return self._blobs.delete(bucket, object_path)
 
     def service_list(self, bucket: str, prefix: str) -> list[str]:
         del bucket, prefix
@@ -141,11 +188,7 @@ class PrivateTtsStorage:
 
     def deletion_list_prefix(self, bucket: str, prefix: str) -> list[str]:
         """Account-deletion worker listing. Not a client/cleanup list grant."""
-        return sorted(
-            path
-            for key_bucket, path in self._objects
-            if key_bucket == bucket and path.startswith(prefix)
-        )
+        return self._blobs.list_prefix(bucket, prefix)
 
     def put_cache(self, record: TtsCacheRecord) -> None:
         self._cache[
@@ -166,7 +209,7 @@ class PrivateTtsStorage:
         if tts_cache_expired(created_at=record.created_at, now=now):
             self.expire_record(record)
             return None
-        if (TTS_BUCKET, record.object_path) not in self._objects:
+        if not self._blobs.contains(TTS_BUCKET, record.object_path):
             self._cache.pop((owner_id, cache_key), None)
             return None
         return record
@@ -194,3 +237,59 @@ class PrivateTtsStorage:
             ),
             None,
         )
+
+
+def _content_type(headers: dict[str, str]) -> str:
+    raw = headers.get("content-type") or headers.get("Content-Type") or ""
+    return raw.split(";", 1)[0].strip().lower()
+
+
+class PrivateVisitCardStorage:
+    """Visit-card voice and images. Signature is the write grant; bytes follow the backend."""
+
+    def __init__(self, backend: ObjectBackend | None = None) -> None:
+        self._blobs: ObjectBackend = backend if backend is not None else _MemoryObjects()
+
+    def client_put(
+        self,
+        url: str,
+        headers: dict[str, str],
+        body: bytes,
+        *,
+        secret: bytes,
+        now: datetime,
+    ) -> None:
+        try:
+            bucket, object_path = verify_signed_put_url(url, secret=secret, now=now)
+        except InvalidSightUpload as exc:
+            raise StoragePutRejected(str(exc)) from exc
+        if bucket != VISIT_CARD_BUCKET or not _visit_card_path(object_path):
+            raise StoragePutRejected("object path is not a visit card")
+        mime = visit_card_media_type(object_path)
+        if mime is None or _content_type(headers) != mime:
+            code = "CARD_VOICE_REJECTED" if mime and mime.startswith("audio/") else "CARD_IMAGE_REJECTED"
+            if mime is None and object_path.lower().endswith((".m4a", ".mp3")):
+                code = "CARD_VOICE_REJECTED"
+            raise StoragePutRejected("content-type does not match the object", public_code=code)
+        if len(body) < MIN_SIZE_BYTES or len(body) > CARD_MEDIA_MAX_BYTES:
+            code = "CARD_VOICE_REJECTED" if mime.startswith("audio/") else "CARD_IMAGE_REJECTED"
+            raise StoragePutRejected("size is outside 1..5 MiB", public_code=code)
+        if not visit_card_magic_ok(mime, body):
+            code = "CARD_VOICE_REJECTED" if mime.startswith("audio/") else "CARD_IMAGE_REJECTED"
+            raise StoragePutRejected("media magic mismatch", public_code=code)
+        self._blobs.put(bucket, object_path, body, content_type=mime)
+
+    def service_get(self, bucket: str, object_path: str) -> bytes:
+        return self._blobs.get(bucket, object_path)
+
+    def service_delete(self, bucket: str, object_path: str) -> bool:
+        return self._blobs.delete(bucket, object_path)
+
+    def deletion_list_prefix(self, bucket: str, prefix: str) -> list[str]:
+        return self._blobs.list_prefix(bucket, prefix)
+
+
+def _visit_card_path(object_path: str) -> bool:
+    if not object_path.startswith(VISIT_CARD_KEY_PREFIX):
+        return False
+    return ".." not in object_path.split("/")

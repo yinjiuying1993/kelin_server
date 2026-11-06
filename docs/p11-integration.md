@@ -9,7 +9,7 @@ P14 语音契约见 [`p14-integration.md`](p14-integration.md)（OpenAPI SHA 已
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `5aea0b23c6f4f8a49528acc05c8dd9b744a0bcee7a4c1c33332a509b8a9326d6` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | Alembic head | `20260908_0007` |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/`（与 SHA 同锁） |
@@ -50,7 +50,7 @@ P08–P10 文档里的 SHA `f46da36ea05c7eb3a7d9a87ba9cd92c28ea4662a68c9986a9a41
 
 ### 必须改：DTO 对齐 SHA
 
-锁定 SHA：`5aea0b23c6f4f8a49528acc05c8dd9b744a0bcee7a4c1c33332a509b8a9326d6`。  
+锁定 SHA：`d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e`。  
 新增解码：
 
 - `GET_api_v1_memories/{success,business_error,missing_required_field,page_empty,page_first,page_middle,page_last,invalid_or_expired_cursor,filter_mismatch_cursor}.json`

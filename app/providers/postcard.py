@@ -69,11 +69,8 @@ class ChatBackedPostcardProvider:
         assert_public_postcard_payload(payload)
         raw = await self._inner.chat(
             ChatInput(
-                onboarding=False,
-                onboarding_step=0,
                 content=json.dumps(payload, ensure_ascii=False, sort_keys=True),
                 memories=[],
-                style_samples=[],
             )
         )
         output = require_postcard_output({"text": raw.reply.strip()})

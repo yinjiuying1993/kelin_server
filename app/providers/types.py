@@ -11,7 +11,17 @@ from pydantic import BaseModel, ConfigDict, Field
 StubMode = Literal["success", "delay", "cancel", "error"]
 StubOutcome = Literal["success", "error", "cancelled"]
 ProviderSource = Literal["stub", "provider"]
-MemoryType = Literal["preference", "knowledge", "emotion", "relation", "speech", "sight"]
+MemoryType = Literal["preference", "knowledge", "emotion", "relationship"]
+MemorySignal = Literal["explicit", "repeated", "commitment", "teachable", "stable_emotion"]
+ChatIntent = Literal[
+    "safety",
+    "recall_only",
+    "away_note",
+    "knowledge",
+    "tired",
+    "hungry",
+    "companion",
+]
 TraitDimension = Literal["closeness", "curiosity", "sharpness", "nocturnal", "stubborn"]
 
 
@@ -25,17 +35,11 @@ class PromptMemory(_ForbidExtra):
     summary: str = Field(min_length=1, max_length=500)
 
 
-class PromptStyleSample(_ForbidExtra):
-    kind: Literal["user_dialect", "user_filler", "spirit_catchphrase"]
-    text: str = Field(min_length=1, max_length=100)
-
-
 class ChatInput(_ForbidExtra):
-    onboarding: bool
-    onboarding_step: int
-    content: str = Field(min_length=1, max_length=4000)
+    content: str = Field(min_length=1)
     memories: list[PromptMemory] = Field(default_factory=list, max_length=20)
-    style_samples: list[PromptStyleSample] = Field(default_factory=list, max_length=20)
+    emotion_context: str = ""
+    thinking: bool = True
 
 
 class ChatCitation(_ForbidExtra):
@@ -44,11 +48,15 @@ class ChatCitation(_ForbidExtra):
 
 
 class ChatOutput(_ForbidExtra):
-    reply: str = Field(min_length=1, max_length=4000)
-    intent: Literal["chat"] = "chat"
+    reply: str = Field(min_length=1)
+    intent: ChatIntent | None = None
     citations: list[ChatCitation] = Field(default_factory=list)
     safety: Literal["allow"] = "allow"
-    search_query: str | None = Field(default=None, max_length=500)
+    search_query: str | None = None
+    tool: str | None = None
+    tool_arg: str | None = None
+    naming: bool = False
+    given_name: str | None = None
 
 
 class SearchInput(_ForbidExtra):
@@ -64,7 +72,7 @@ class ExtractTurn(_ForbidExtra):
     """Server-owned window transcript. Clients never submit these turns or message IDs."""
 
     role: Literal["user", "spirit"]
-    content: str = Field(min_length=1, max_length=4000)
+    content: str = Field(min_length=1)
 
 
 class ExtractInput(_ForbidExtra):
@@ -72,28 +80,18 @@ class ExtractInput(_ForbidExtra):
     turns: list[ExtractTurn] = Field(default_factory=list)
 
 
-class PersonalityDelta(_ForbidExtra):
-    dimension: TraitDimension
-    value: int = Field(ge=-2, le=2)
-
-
 class ExtractMemoryDraft(_ForbidExtra):
     type: MemoryType
     summary: str = Field(min_length=1, max_length=500)
-    tags: list[str] = Field(default_factory=list)
-    salience: int = Field(ge=0, le=100)
+    normalized_topic_key: str = Field(min_length=1, max_length=128)
+    source_quote: str = Field(min_length=1, max_length=500)
     confidence: float = Field(ge=0, le=1)
-    personality_delta: PersonalityDelta | None = None
-
-
-class ExtractStyleSample(_ForbidExtra):
-    kind: Literal["user_dialect", "user_filler", "spirit_catchphrase"]
-    text: str = Field(min_length=1, max_length=100)
+    signal: MemorySignal
+    tags: list[str] = Field(default_factory=list)
 
 
 class ExtractOutput(_ForbidExtra):
     memories: list[ExtractMemoryDraft] = Field(default_factory=list, max_length=2)
-    style_samples: list[ExtractStyleSample] = Field(default_factory=list, max_length=1)
 
 
 @dataclass(frozen=True, slots=True)

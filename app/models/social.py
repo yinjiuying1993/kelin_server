@@ -791,3 +791,59 @@ class AccountDeletion(Base):
     owner_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     dead_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class VisitCard(Base):
+    __tablename__ = "visit_cards"
+    __table_args__ = (
+        CheckConstraint("role IN ('draft', 'sealed', 'reply')", name="ck_visit_cards_role"),
+        CheckConstraint(
+            "status IN ('empty', 'ready', 'sealed', 'delivered', 'open', 'returned', 'late')",
+            name="ck_visit_cards_status",
+        ),
+        {"schema": "public"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sql_text("gen_random_uuid()"),
+    )
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    spirit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("spirits.id", ondelete="CASCADE"), nullable=True
+    )
+    visit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("visits.id", ondelete="CASCADE"), nullable=True
+    )
+    host_spirit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("spirits.id", ondelete="CASCADE"), nullable=True
+    )
+    visitor_spirit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("spirits.id", ondelete="CASCADE"), nullable=True
+    )
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("visit_cards.id", ondelete="CASCADE"), nullable=True
+    )
+    client_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    voice_object_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    voice_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    image_object_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    voice_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_caption: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reply_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    host_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    visitor_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_default: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sql_text("false")
+    )
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=sql_text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=sql_text("now()")
+    )

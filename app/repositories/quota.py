@@ -177,8 +177,12 @@ async def consume(
                 "SET used = used + :amount, version = version + 1, updated_at = :now "
                 "WHERE user_id = :user_id AND usage_date = :usage_date "
                 "AND capability = :capability "
-                "AND used + reserved + :amount <= limit_value "
-                "RETURNING used, reserved, limit_value, usage_date, timezone, version"
+                + (
+                    ""
+                    if cap == "tts"
+                    else "AND used + reserved + :amount <= limit_value "
+                )
+                + "RETURNING used, reserved, limit_value, usage_date, timezone, version"
             ),
             {
                 "user_id": owner_id,
@@ -209,7 +213,9 @@ async def apply_reserved_delta(
         raise ValueError("quota amount must be positive")
     if mode == "reserve":
         assignment = "reserved = reserved + :amount"
-        predicate = "used + reserved + :amount <= limit_value"
+        predicate = (
+            "TRUE" if cap == "tts" else "used + reserved + :amount <= limit_value"
+        )
     elif mode == "release":
         assignment = "reserved = reserved - :amount"
         predicate = "reserved >= :amount"

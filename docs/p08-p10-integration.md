@@ -1,6 +1,6 @@
 # 刻灵 P08–P10 联调说明
 
-V0 全量入口：[`ios-integration.md`](ios-integration.md)（当前 SHA `fed40c13…`）。本文 SHA 是加记忆/投喂等路由 **之前** 的快照。
+现行字段以 [`ios-integration.md`](ios-integration.md) 为准。本文 SHA 是加记忆/投喂等路由 **之前** 的历史快照，不能当作现行锁。
 
 面向 iOS ↔ 本机 FastAPI，覆盖 **P08 房间四态、P09 消息历史与 Chat 框架、P10 真实 Chat + Extract**。  
 前置：已按 [`p01-p07-integration.md`](p01-p07-integration.md) 完成匿名登录、创建精灵、S04 五句、`POST /onboarding/complete`，`hatched_at` 有值。  
@@ -12,7 +12,7 @@ P14 语音契约见 [`p14-integration.md`](p14-integration.md)（**SHA 已换**�
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `f46da36ea05c7eb3a7d9a87ba9cd92c28ea4662a68c9986a9a41abcbcbe48843` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | Alembic head | `20260908_0007` |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/`（与 SHA 同锁） |
@@ -54,7 +54,7 @@ P01–P07 文档里的 SHA `fc79081f…` 是加 `/messages`、`/extract` **之�
 
 ### 必须改：DTO 对齐 SHA
 
-锁定 SHA：`f46da36ea05c7eb3a7d9a87ba9cd92c28ea4662a68c9986a9a41abcbcbe48843`。  
+锁定 SHA：`d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e`。  
 新增解码：
 
 - `GET_api_v1_messages/{success,business_error,missing_required_field,page_empty,page_first,page_middle,page_last,invalid_or_expired_cursor}.json`
@@ -300,14 +300,14 @@ iOS：`should_extract=true` 时用返回的 `conversation_window_id` 触发 Extr
 | 窗口状态 | 行为 |
 | :--- | :--- |
 | `ready` / `failed` | 可抽 |
-| `extracted` | **200 回放**原 memories / style / patch，不重复落库 |
+| `extracted` | **200 回放**原 memories，不重复落库 |
 | `extracting`（同一 client） | 200，`resource.status=processing` |
 | `extracting`（其它 client） | `409 IDEMPOTENCY_IN_PROGRESS` |
 | `open` / onboarding 窗口 | `422 INVALID_INPUT` |
 | 非 owner | `404 NOT_FOUND` |
 
 `resource.status`：`processing` | `extracted`。  
-`memories` 最多 2 条，`style_samples` 最多 1 条。`confidence < 0.75` 的记忆服务端不会入库。  
+`memories` 最多 2 条。`confidence < 0.75` 的记忆服务端不会入库。  
 `patch.memories_upsert` 合入 SessionStore；性格变化只信 patch 里的 spirit 字段。
 
 Extract 上游约 **30s**；失败窗口可稍后用 **同一** `client_id` + `conversation_window_id` 再打。

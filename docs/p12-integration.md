@@ -8,7 +8,7 @@ P14 语音契约见 [`p14-integration.md`](p14-integration.md)（**SHA 已换**�
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `cdb52009a4ec253303a483f7a706d0439bc3fae8c728f146bbb7fa89fec71ae2` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | Alembic head | `20260908_0008` |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/`（与 SHA 同锁） |
@@ -51,7 +51,7 @@ P11 文档里的 SHA `5aea0b23…` 是加 Feed / Storage / moderate **之前** �
 
 ### 必须改：DTO 对齐 SHA
 
-锁定 SHA：`cdb52009a4ec253303a483f7a706d0439bc3fae8c728f146bbb7fa89fec71ae2`（P14-T01 起；见 [`p14-integration.md`](p14-integration.md)）。  
+锁定 SHA：`d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e`（P14-T01 起；见 [`p14-integration.md`](p14-integration.md)）。  
 新增 / 续用解码：
 
 - `POST_api_v1_feed/{success,business_error,missing_required_field}.json`

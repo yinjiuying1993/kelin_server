@@ -87,7 +87,7 @@ def test_friends_sql_is_keyset_owner_filtered_without_offset() -> None:
     router = ROUTER.read_text(encoding="utf-8")
     assert "claimed_read_transaction" in router
     assert "claimed_transaction" in router
-    assert "load_friend_page" in router
+    assert "load_settled_friend_page" in router
     assert "add_owned_friend" in router
     assert "remove_owned_friend" in router
     assert "list_postcards" in router

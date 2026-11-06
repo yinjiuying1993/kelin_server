@@ -79,10 +79,6 @@ async def _assert_new_user_and_readonly(url: str) -> None:
     assert snapshot.onboarding.step == 0
     assert snapshot.latest_memories == []
     assert snapshot.unread_postcards == []
-    assert snapshot.active_pact is None
-    assert snapshot.report.status == "locked"
-    assert snapshot.report.report_id is None
-    assert snapshot.report.card is None
     assert snapshot.quotas == []
     assert snapshot.feature_flags.remote_search is True
     assert snapshot.feature_flags.image_feed is True
@@ -180,8 +176,6 @@ async def _assert_owner_isolation_and_latest_version(url: str) -> None:
     assert before.room.pending_sight is not None
     assert before.room.unread_footprint_count == 0
     assert before.latest_memories == []
-    assert before.active_pact is None
-    assert before.report.status == "locked"
     assert str(created_b.spirit_id) not in before.model_dump_json()
     assert str(memory_b) not in before.model_dump_json()
     assert memory_b not in rows_before.memory_ids
@@ -190,7 +184,8 @@ async def _assert_owner_isolation_and_latest_version(url: str) -> None:
     async with claimed_transaction(factory, user_a) as session:
         await session.execute(
             text(
-                "UPDATE public.spirits SET name = '雾生', version = version + 1 "
+                "UPDATE public.spirits SET name = '雾生', "
+                "version = version + 1, snapshot_version = snapshot_version + 1 "
                 "WHERE user_id = :user_id"
             ),
             {"user_id": user_a.id},

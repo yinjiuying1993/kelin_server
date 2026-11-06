@@ -14,12 +14,6 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from app.domain.bootstrap import utc_z
-from app.domain.feed import (
-    EMOTION_DAILY_LIMIT,
-    FOOD_DAILY_LIMIT,
-    KNOWLEDGE_DAILY_LIMIT,
-    SIGHT_DAILY_LIMIT,
-)
 from app.domain.spirit_state import require_aware
 from app.schemas.spirit import QuotaUsage
 
@@ -27,13 +21,6 @@ QuotaCapability = Literal[
     "chat",
     "asr",
     "tts",
-    "sight",
-    "search",
-    "food",
-    "knowledge",
-    "emotion",
-    "visit",
-    "pact",
 ]
 
 QUOTA_CAPABILITIES: Final[frozenset[str]] = frozenset(
@@ -41,22 +28,12 @@ QUOTA_CAPABILITIES: Final[frozenset[str]] = frozenset(
         "chat",
         "asr",
         "tts",
-        "sight",
-        "search",
-        "food",
-        "knowledge",
-        "emotion",
-        "visit",
-        "pact",
     }
 )
 DEFAULT_TIMEZONE = "Asia/Shanghai"
-CHAT_DAILY_LIMIT = 100
+CHAT_DAILY_LIMIT = 1000
 ASR_DAILY_LIMIT = 60
 TTS_DAILY_LIMIT = 20
-SEARCH_DAILY_LIMIT = 20
-VISIT_DAILY_LIMIT = 3
-PACT_DAILY_LIMIT = 1
 RESERVATION_TTL = timedelta(seconds=120)
 QUOTA_RESERVE_EVENT = "quota.expire"
 
@@ -64,13 +41,6 @@ DEFAULT_DAILY_LIMITS: Final[dict[str, int]] = {
     "chat": CHAT_DAILY_LIMIT,
     "asr": ASR_DAILY_LIMIT,
     "tts": TTS_DAILY_LIMIT,
-    "sight": SIGHT_DAILY_LIMIT,
-    "search": SEARCH_DAILY_LIMIT,
-    "food": FOOD_DAILY_LIMIT,
-    "knowledge": KNOWLEDGE_DAILY_LIMIT,
-    "emotion": EMOTION_DAILY_LIMIT,
-    "visit": VISIT_DAILY_LIMIT,
-    "pact": PACT_DAILY_LIMIT,
 }
 
 

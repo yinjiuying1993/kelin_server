@@ -3,7 +3,6 @@
   "data": {
     "resource": {
       "type": "chat_turn",
-      "onboarding": true,
       "generation_source": "stub",
       "user_message": {
         "id": "00000000-0000-4000-8000-000000000040",
@@ -30,31 +29,18 @@
         "name": "未名",
         "egg": "warm",
         "invite_code": "ABCD2345",
-        "closeness": 65,
-        "curiosity": 55,
-        "sharpness": 35,
-        "nocturnal": 40,
-        "stubborn": 40,
-        "hunger": 80,
-        "energy": 80,
-        "mood": 60,
-        "bond": 0,
-        "stage": "whelp",
+        "stage": "formed",
         "status": "home",
-        "scholar_marks": [],
         "version": 1,
-        "onboarding_step": 1,
-        "onboarding_completed_at": null,
-        "hatched_at": null,
+        "hatched_at": "2026-09-08T00:00:00Z",
         "created_at": "2026-09-08T00:00:00Z"
       },
       "preferences": null,
-      "room": null,
-      "onboarding": {
-        "required": true,
-        "step": 1,
-        "total_steps": 5,
-        "completed_at": null
+      "room": {
+        "stage_image_key": "formed_image",
+        "letter_key": null,
+        "text_status": "home",
+        "status": "home"
       },
       "report": null,
       "social": null,

@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "not found",
+    "retryable": false
+  },
+  "request_id": "00000000-0000-4000-8000-0000000000ea",
+  "server_time": "2026-10-20T00:00:00Z"
+}

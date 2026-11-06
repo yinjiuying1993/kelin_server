@@ -87,6 +87,33 @@ async def lock_spirit_state_for_owner(
     )
 
 
+async def fetch_spirit_row_version(
+    session: AsyncSession, owner_id: uuid.UUID, spirit_id: uuid.UUID
+) -> int:
+    value = await session.scalar(
+        text("SELECT version FROM public.spirits WHERE id = :id AND user_id = :user_id"),
+        {"id": spirit_id, "user_id": owner_id},
+    )
+    if value is None:
+        raise RuntimeError("spirit version lookup matched no owner row")
+    return int(value)
+
+
+async def bump_spirit_row_version(
+    session: AsyncSession, owner_id: uuid.UUID, spirit_id: uuid.UUID
+) -> int:
+    value = await session.scalar(
+        text(
+            "UPDATE public.spirits SET version = version + 1 "
+            "WHERE id = :id AND user_id = :user_id RETURNING version"
+        ),
+        {"id": spirit_id, "user_id": owner_id},
+    )
+    if value is None:
+        raise RuntimeError("spirit version bump matched no owner row")
+    return int(value)
+
+
 async def apply_spirit_state_patch(
     session: AsyncSession,
     owner_id: uuid.UUID,
@@ -94,14 +121,19 @@ async def apply_spirit_state_patch(
     patch: SpiritStatePatch,
     *,
     expected_version: int,
+    bump_row_version: bool = True,
 ) -> int:
+    assignments = (
+        "status = :status, study_until = :study_until, "
+        "away_until = :away_until, has_been_lost = :has_been_lost"
+    )
+    if bump_row_version:
+        assignments += ", version = version + 1"
     row = (
         await session.execute(
             text(
                 "UPDATE public.spirits "
-                "SET status = :status, study_until = :study_until, "
-                "away_until = :away_until, has_been_lost = :has_been_lost, "
-                "version = version + 1 "
+                f"SET {assignments} "
                 "WHERE id = :id AND user_id = :user_id AND version = :expected_version "
                 "RETURNING version"
             ),

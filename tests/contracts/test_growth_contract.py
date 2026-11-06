@@ -8,29 +8,19 @@ from typing import Any
 
 from app.contracts.openapi import export_openapi
 from app.core.config import Settings
-from app.domain.growth import CLIENT_DELTA_FIELD_NAMES, GROWTH_PAYLOAD_FIELDS
 from app.main import create_app
 from app.schemas.chat import ChatRequest
 from app.schemas.extract import ExtractRequest
-from app.schemas.feed import FeedCreateRequest, PromiseActionRequest, PromisePatchRequest
 from app.schemas.memory import MemoryClearRequest, MemoryDeleteRequest, MemoryPatchRequest
-from app.schemas.moderate import ModerateSightRequest
 from app.schemas.onboarding import CompleteOnboardingRequest
-from app.schemas.pact import (
-    CreatePactRequest,
-    PactAnswerRequest,
-    PactSessionRequest,
-    PactSkipRequest,
-)
 from app.schemas.recall import RecallRequest
 from app.schemas.social_api import AddFriendRequest, PostcardReadRequest, RemoveFriendRequest
 from app.schemas.speech import SynthesizeRequest
 from app.schemas.spirit import CreateSpiritRequest
-from app.schemas.storage import SightUploadUrlRequest
 from pydantic import TypeAdapter
 
 _FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
-_CLIENT_GROWTH_FIELDS = GROWTH_PAYLOAD_FIELDS | {
+_CLIENT_GROWTH_FIELDS = {
     "hunger",
     "energy",
     "mood",
@@ -46,21 +36,12 @@ _CLIENT_GROWTH_FIELDS = GROWTH_PAYLOAD_FIELDS | {
 _REQUEST_MODELS = (
     ChatRequest,
     ExtractRequest,
-    FeedCreateRequest,
-    PromiseActionRequest,
-    PromisePatchRequest,
-    ModerateSightRequest,
-    SightUploadUrlRequest,
     SynthesizeRequest,
     MemoryPatchRequest,
     MemoryDeleteRequest,
     MemoryClearRequest,
     CreateSpiritRequest,
     CompleteOnboardingRequest,
-    CreatePactRequest,
-    PactSessionRequest,
-    PactAnswerRequest,
-    PactSkipRequest,
     AddFriendRequest,
     RemoveFriendRequest,
     PostcardReadRequest,
@@ -133,12 +114,12 @@ def test_openapi_request_bodies_have_no_client_delta() -> None:
     assert leaked == []
 
 
-def test_t01_does_not_change_openapi_sha() -> None:
+def test_live_export_matches_fixture_manifest_not_v0_sha() -> None:
     exported = export_openapi(create_app(Settings(app_env="test")))
     manifest = json.loads((_FIXTURES / "manifest.json").read_text(encoding="utf-8"))
     assert exported.sha256 == manifest["openapi_sha256"]
-    assert exported.sha256 == "98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af"
+    assert exported.sha256 != "98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af"
 
 
 def test_client_delta_field_names_cover_payload_keys() -> None:
-    assert GROWTH_PAYLOAD_FIELDS <= CLIENT_DELTA_FIELD_NAMES
+    assert "closeness" in _CLIENT_GROWTH_FIELDS

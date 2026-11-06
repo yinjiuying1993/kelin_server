@@ -204,10 +204,13 @@ async def _assert_success_and_replay_conflict(url: str) -> None:
     data = MutationResult.model_validate(payload["data"])
     assert data.patch.spirit is not None
     assert data.patch.spirit.egg == "warm"
-    assert data.patch.spirit.closeness == 65
+    assert data.patch.spirit.hatched_at is not None
     assert data.patch.preferences is None
-    assert data.patch.onboarding is not None
-    assert data.patch.onboarding.step == 0
+    assert data.patch.model_dump().get("onboarding") is None
+    assert data.patch.room is not None
+    assert data.patch.spirit.stage == "formed"
+    assert data.patch.room.stage_image_key == "formed_image"
+    assert data.patch.room.status == "home"
     assert data.patch.snapshot_version == 1
     assert invite_code_is_valid(data.patch.spirit.invite_code)
     assert replay.status_code == 200

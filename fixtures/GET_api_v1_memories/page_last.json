@@ -4,9 +4,11 @@
     "items": [
       {
         "id": "00000000-0000-4000-8000-000000000084",
-        "type": "speech",
+        "type": "knowledge",
         "summary": "口头禅是「那就这样」",
-        "tags": ["口癖"],
+        "tags": [
+          "口癖"
+        ],
         "salience": 50,
         "confidence": 0.84,
         "status": "active",
@@ -15,9 +17,11 @@
       },
       {
         "id": "00000000-0000-4000-8000-000000000085",
-        "type": "sight",
+        "type": "knowledge",
         "summary": "雨夜里的一盏路灯",
-        "tags": ["见闻"],
+        "tags": [
+          "见闻"
+        ],
         "salience": 65,
         "confidence": 0.86,
         "status": "active",

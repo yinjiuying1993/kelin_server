@@ -44,6 +44,7 @@ def _unavailable() -> ApiError:
     response_model=DeviceRegisterSuccessEnvelope,
     responses=_ERRORS,
     status_code=status.HTTP_200_OK,
+    include_in_schema=False,
     summary="Register or rotate an APNs device",
     description=(
         "Upsert by installation_id and environment. Token is stored hashed and encrypted. "

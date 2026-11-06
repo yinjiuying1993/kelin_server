@@ -7,7 +7,7 @@ ASR 手势 / 互斥 / 权限仍见 [`p14-integration.md`](p14-integration.md)。
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | Alembic head | `20260908_0019`（**未改库**） |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture | `fixtures/POST_api_v1_chat/success.json`（文字回合 `speech_audio=null`）；合成形状同 `fixtures/POST_api_v1_synthesize/success.json` 的 `resource` |
@@ -163,7 +163,7 @@ patch.snapshot_version  >= 本地  →  合入
 
 前置：已孵化（`hatched_at` 有值）；API 已重启加载本契约；真机 ATS 放行 `192.168.100.212`。
 
-1. DTO 锁 SHA `98d1c742…`；`ChatTurnResource.speech_audio` 可解 `null` 与对象。  
+1. DTO 锁 SHA `d688d428…`；`ChatTurnResource.speech_audio` 可解 `null` 与对象。  
 2. `POST /chat` `source=text` → 200，`speech_audio==null`，有精灵文字。  
 3. `POST /transcribe` 合法 m4a → 200 `text`。  
 4. `POST /chat` `source=voice`，`client_message_id` 新 UUID，超时 48s → 200。  
@@ -190,7 +190,7 @@ patch.snapshot_version  >= 本地  →  合入
 
 ## 9. 人工清单
 
-- [ ] SHA `98d1c742…`，不是 `cdb52009…` / `fed40c13…`  
+- [ ] SHA `d688d428…`，不是 `cdb52009…` / `fed40c13…`  
 - [ ] Chat DTO 必解 `speech_audio`（含 null）  
 - [ ] 语音 FIFO：transcribe → chat `source=voice`；两套 client id 不混  
 - [ ] Chat 超时 48s  

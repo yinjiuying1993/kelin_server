@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "data": {
+    "id": "00000000-0000-4000-8000-0000000000c9",
+    "kind": "visit",
+    "official": false,
+    "unread": false,
+    "occurred_at": "2026-10-20T00:00:00Z",
+    "peer": {
+      "title": "少去",
+      "stage": "formed"
+    },
+    "is_default": false,
+    "status": "open",
+    "body": "路上小心。",
+    "reply_title": "茶室剪影",
+    "reply_status": "open",
+    "client_id": "00000000-0000-4000-8000-0000000000ca"
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000cb",
+  "server_time": "2026-10-20T00:00:00Z"
+}

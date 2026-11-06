@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "status": "ready",
+    "body": "它来看你了。",
+    "voice_key": null,
+    "voice_seconds": null,
+    "image_key": null,
+    "client_id": "00000000-0000-4000-8000-0000000000c3"
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000c4",
+  "server_time": "2026-10-20T00:00:00Z"
+}

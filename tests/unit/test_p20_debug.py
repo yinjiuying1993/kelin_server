@@ -65,13 +65,15 @@ def test_source_and_identity_rules() -> None:
 
 
 def test_state_schema_forbids_arbitrary_fields() -> None:
-    DebugSpiritStateRequest.model_validate({"status": "lost", "hunger": 10})
+    DebugSpiritStateRequest.model_validate({"status": "away"})
+    with raises(ValidationError):
+        DebugSpiritStateRequest.model_validate({"status": "lost", "hunger": 10})
     with raises(ValidationError):
         DebugSpiritStateRequest.model_validate({"user_id": str(uuid4()), "status": "lost"})
     with raises(ValidationError):
-        DebugSpiritStateRequest.model_validate({"sql": "drop table", "hunger": 1})
+        DebugSpiritStateRequest.model_validate({"sql": "drop table", "status": "lost"})
     with raises(ValidationError):
-        DebugSpiritStateRequest.model_validate({"hunger": 101})
+        DebugSpiritStateRequest.model_validate({})
 
 
 def test_prod_and_default_test_openapi_have_no_debug() -> None:
@@ -80,7 +82,7 @@ def test_prod_and_default_test_openapi_have_no_debug() -> None:
     prod_app = create_app(_prod_settings())
     client = TestClient(prod_app)
     assert client.get("/api/v1/debug/usage").status_code == 404
-    assert client.post("/api/v1/debug/spirit/state", json={"status": "lost"}).status_code == 404
+    assert client.post("/api/v1/debug/spirit/state", json={"status": "away"}).status_code == 404
 
 
 def test_debug_auth_negatives_and_illegal_body() -> None:
@@ -97,13 +99,13 @@ def test_debug_auth_negatives_and_illegal_body() -> None:
     )
     application.dependency_overrides[require_current_user] = lambda: CurrentUser(id=outsider)
     client = TestClient(application)
-    denied = client.post("/api/v1/debug/spirit/state", json={"status": "lost"})
+    denied = client.post("/api/v1/debug/spirit/state", json={"status": "away"})
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "FORBIDDEN"
     assert token not in denied.text
     wrong = client.post(
         "/api/v1/debug/spirit/state",
-        json={"status": "lost"},
+        json={"status": "away"},
         headers={"X-Debug-Token": "guessable"},
     )
     assert wrong.status_code == 403

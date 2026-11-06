@@ -35,6 +35,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from tests.db.harness import upgrade_empty_kelin_test_to_head
 
 NOW = datetime(2026, 9, 12, 11, 0, tzinfo=UTC)
+HOME = NOW + timedelta(hours=3)
 NEXT_BUCKET = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
 SECRET = b"kelin-dev-cursor-hmac"
 PRIVATE_TEXT = ("user_id", "记忆", "对话", "坐标", "照片", "latitude", "prompt")
@@ -130,7 +131,7 @@ async def _assert_review(url: str) -> None:
     factory = create_session_factory(engine)
     try:
         await _assert_ab_c_full_chain(url, factory)
-        await _assert_visit_off_uses_npc(url, factory)
+        await _assert_visit_off_stays_home(url, factory)
         await _assert_dest_isolation(url, factory)
     finally:
         await engine.dispose()
@@ -203,18 +204,19 @@ async def _assert_ab_c_full_chain(url: str, factory: Any) -> None:
         ).all()
     await engine.dispose()
     assert [int(row.destination_index) for row in visits] == [1, 2]
-    assert {row.host_spirit_id for row in visits} == {spirit_b, spirit_d}
+    assert {row.host_spirit_id for row in visits} <= {spirit_b, spirit_d, _spirit_c}
+    assert spirit_a not in {row.host_spirit_id for row in visits}
     for row in visits:
         context = row.public_context
         payload = context if isinstance(context, dict) else json.loads(json.dumps(context))
         assert set(payload) <= PUBLIC_VISIT_CONTEXT_FIELD_NAMES
         _assert_public_blob(payload)
 
-    scan = await scan_due_visit_settle_jobs(factory, now=NOW)
+    scan = await scan_due_visit_settle_jobs(factory, now=HOME)
     assert scan.inserted == 2
-    ticks = await process_due_visit_settles(factory, now=NOW, limit=8, worker_id="t09-a")
+    ticks = await process_due_visit_settles(factory, now=HOME, limit=8, worker_id="t09-a")
     assert {tick.outcome for tick in ticks} == {"done"}
-    again = await process_due_visit_settles(factory, now=NOW, limit=8, worker_id="t09-repeat")
+    again = await process_due_visit_settles(factory, now=HOME, limit=8, worker_id="t09-repeat")
     assert again == ()
 
     async with claimed_read_transaction(factory, user_a) as session:
@@ -233,16 +235,20 @@ async def _assert_ab_c_full_chain(url: str, factory: Any) -> None:
         cards_c = await load_postcard_page(
             session, user_c, unread_only=False, cursor=None, limit=30, secret=SECRET
         )
+    visited = {row.host_spirit_id for row in visits}
+    host_pages = {spirit_b: cards_b, spirit_d: cards_d, _spirit_c: cards_c}
     assert len(cards_a.items) == 2
-    assert len(cards_b.items) == 1
-    assert len(cards_d.items) == 1
-    assert cards_c.items == []
-    for card in (*cards_a.items, *cards_b.items, *cards_d.items):
-        _assert_public_blob(card.model_dump(mode="json"))
-        assert card.text
+    assert sum(len(page.items) for page in host_pages.values()) == 2
+    for spirit_id, page in host_pages.items():
+        assert len(page.items) == (1 if spirit_id in visited else 0)
+    for card in (cards_a.items, *(page.items for page in host_pages.values())):
+        for item in card:
+            _assert_public_blob(item.model_dump(mode="json"))
+            assert item.text
     visitor_by_visit = {item.visit_id: item.text for item in cards_a.items}
-    for host_card in (*cards_b.items, *cards_d.items):
-        assert visitor_by_visit[host_card.visit_id] != host_card.text
+    for page in host_pages.values():
+        for host_card in page.items:
+            assert visitor_by_visit[host_card.visit_id] != host_card.text
 
     target = cards_a.items[0]
     async with claimed_transaction(factory, user_c) as session:
@@ -284,7 +290,7 @@ async def _assert_ab_c_full_chain(url: str, factory: Any) -> None:
     assert len(after_a.items) == 1
     assert after_b.items == []
     assert len(kept.items) == 2
-    assert len(kept_b.items) == 1
+    assert len(kept_b.items) == len(cards_b.items)
 
     engine = create_async_engine(url)
     async with engine.connect() as conn:
@@ -322,9 +328,24 @@ async def _assert_ab_c_full_chain(url: str, factory: Any) -> None:
 
     later = await handle_visit_plan(factory, now=NEXT_BUCKET)
     assert later.inserted == 2
+    engine = create_async_engine(url)
+    async with engine.connect() as conn:
+        fresh = (
+            await conn.execute(
+                text(
+                    "SELECT host_spirit_id, npc_id FROM public.visits "
+                    "WHERE visitor_spirit_id = :id AND eligibility_key LIKE :bucket"
+                ),
+                {"id": spirit_a, "bucket": "%:2026091212:%"},
+            )
+        ).all()
+    await engine.dispose()
+    assert len(fresh) == 2
+    assert {row.host_spirit_id for row in fresh} <= {spirit_b, spirit_d, _spirit_c}
+    assert all(row.npc_id is None for row in fresh)
 
 
-async def _assert_visit_off_uses_npc(url: str, factory: Any) -> None:
+async def _assert_visit_off_stays_home(url: str, factory: Any) -> None:
     visitor_id = uuid.uuid4()
     host_id = uuid.uuid4()
     visitor, visitor_spirit, _ = await _boot(url, factory, visitor_id, name="拒访客")
@@ -348,8 +369,10 @@ async def _assert_visit_off_uses_npc(url: str, factory: Any) -> None:
             )
         ).all()
     await engine.dispose()
+    assert len(rows) == 2
     assert host_spirit not in {row.host_spirit_id for row in rows}
-    assert all(row.npc_id in {"fog", "lamp", "silent"} for row in rows)
+    assert visitor_spirit not in {row.host_spirit_id for row in rows}
+    assert all(row.npc_id is None for row in rows)
 
 
 async def _assert_dest_isolation(url: str, factory: Any) -> None:
@@ -364,7 +387,7 @@ async def _assert_dest_isolation(url: str, factory: Any) -> None:
     async with claimed_transaction(factory, visitor) as session:
         await _set_idle(session, visitor_id, now=NOW)
     await handle_visit_plan(factory, now=NOW)
-    await scan_due_visit_settle_jobs(factory, now=NOW)
+    await scan_due_visit_settle_jobs(factory, now=HOME)
     engine = create_async_engine(url)
     async with engine.connect() as conn:
         rows = (
@@ -387,12 +410,12 @@ async def _assert_dest_isolation(url: str, factory: Any) -> None:
                 "WHERE dedupe_key = :key"
             ),
             {
-                "expired": NOW - timedelta(seconds=5),
+                "expired": HOME - timedelta(seconds=5),
                 "key": visit_settle_dedupe_key(leftover),
             },
         )
     await engine.dispose()
-    await process_due_visit_settles(factory, now=NOW, limit=8, worker_id="t09-iso")
+    await process_due_visit_settles(factory, now=HOME, limit=8, worker_id="t09-iso")
     engine = create_async_engine(url)
     async with engine.connect() as conn:
         statuses = (

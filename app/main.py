@@ -6,24 +6,22 @@ from fastapi import FastAPI, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.account import router as account_router
+from app.api.v1.ask import router as ask_router
 from app.api.v1.bootstrap import router as bootstrap_router
 from app.api.v1.chat import router as chat_router
-from app.api.v1.devices import router as devices_router
+from app.api.v1.craft import router as craft_router
 from app.api.v1.extract import router as extract_router
-from app.api.v1.feeds import router as feeds_router
 from app.api.v1.memories import router as memories_router
 from app.api.v1.messages import router as messages_router
-from app.api.v1.moderate import router as moderate_router
-from app.api.v1.onboarding import router as onboarding_router
-from app.api.v1.pacts import router as pacts_router
+from app.api.v1.ops import router as ops_router
 from app.api.v1.recall import router as recall_router
-from app.api.v1.report import router as report_router
 from app.api.v1.settings import router as settings_router
 from app.api.v1.social import router as social_router
 from app.api.v1.speech import playback_router
 from app.api.v1.speech import router as speech_router
 from app.api.v1.spirits import router as spirits_router
-from app.api.v1.storage import router as storage_router
+from app.api.v1.v3_shell import router as v3_shell_router
+from app.api.v1.visit_cards import router as visit_card_router
 from app.core.config import Settings, get_settings
 from app.core.db_probe import DatabaseProbe, build_database_probe
 from app.core.envelope import (
@@ -35,7 +33,8 @@ from app.core.logging import configure_logging, get_logger
 from app.core.security import HttpxJwksFetcher, JwtVerifier
 from app.domain.debug import debug_router_enabled
 from app.health import router as health_router
-from app.integrations.storage import PrivateSightStorage, PrivateTtsStorage
+from app.integrations.oss import backend_from_settings
+from app.integrations.storage import PrivateSightStorage, PrivateTtsStorage, PrivateVisitCardStorage
 
 RequestResponseEndpoint = Callable[[Request], Awaitable[Response]]
 
@@ -43,6 +42,9 @@ RequestResponseEndpoint = Callable[[Request], Awaitable[Response]]
 @asynccontextmanager
 async def _lifespan(application: FastAPI) -> AsyncIterator[None]:
     yield
+    backend = getattr(application.state, "object_backend", None)
+    if backend is not None:
+        backend.close()
     engine = getattr(application.state, "engine", None)
     if engine is not None:
         await engine.dispose()
@@ -88,28 +90,29 @@ def create_app(
     application.state.jwt_verifier = _build_jwt_verifier(resolved)
     application.state.engine = None
     application.state.session_factory = None
-    application.state.sight_storage = PrivateSightStorage()
-    application.state.tts_storage = PrivateTtsStorage()
+    backend = backend_from_settings(resolved)
+    application.state.object_backend = backend
+    application.state.sight_storage = PrivateSightStorage(backend)
+    application.state.tts_storage = PrivateTtsStorage(backend)
+    application.state.visit_card_storage = PrivateVisitCardStorage(backend)
     application.include_router(health_router)
     application.include_router(bootstrap_router)
     application.include_router(chat_router)
+    application.include_router(ask_router)
+    application.include_router(craft_router)
+    application.include_router(ops_router)
     application.include_router(extract_router)
-    application.include_router(feeds_router)
     application.include_router(memories_router)
     application.include_router(messages_router)
-    application.include_router(moderate_router)
-    application.include_router(onboarding_router)
     application.include_router(recall_router)
-    application.include_router(pacts_router)
-    application.include_router(report_router)
     application.include_router(settings_router)
     application.include_router(account_router)
-    application.include_router(devices_router)
     application.include_router(social_router)
+    application.include_router(visit_card_router)
     application.include_router(speech_router)
     application.include_router(playback_router)
     application.include_router(spirits_router)
-    application.include_router(storage_router)
+    application.include_router(v3_shell_router)
     if debug_router_enabled(resolved):
         from app.api.v1.debug import router as debug_router
 

@@ -64,11 +64,10 @@ async def _assert_debug(url: str) -> None:
     await _insert_user(url, owner_id)
     await _insert_spirit(url, user_id=owner_id, spirit_id=spirit_id)
     owner = CurrentUser(id=owner_id)
-    body = DebugSpiritStateRequest.model_validate({"status": "lost", "hunger": 12})
+    body = DebugSpiritStateRequest.model_validate({"status": "lost"})
     async with claimed_transaction(factory, owner) as session:
         settled = await apply_spirit_state(session, owner, body, now=NOW)
     assert settled.spirit.status == "lost"
-    assert settled.spirit.hunger == 12
     assert settled.snapshot_version == 2
     inject_failure(
         owner,
@@ -83,7 +82,6 @@ async def _assert_debug(url: str) -> None:
             now=NOW,
         )
     assert reset.spirit.status == "home"
-    assert reset.spirit.hunger == 80
     assert reset.snapshot_version == 3
     assert get_failure(owner_id, "chat") is None
     await engine.dispose()

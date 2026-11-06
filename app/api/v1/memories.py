@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -25,12 +26,8 @@ from app.schemas.memory import (
     MemoryPageSuccessEnvelope,
     MemoryPatchRequest,
 )
-from app.services.memory import (
-    clear_owned_memories,
-    delete_owned_memory,
-    load_memory_page,
-    patch_owned_memory,
-)
+from app.services.central import execute_memory_control
+from app.services.memory import load_memory_page
 
 router = APIRouter(prefix="/api/v1", tags=["memories"])
 
@@ -145,13 +142,15 @@ async def patch_memory(
     factory = session_factory_from_app(request.app)
     try:
         async with claimed_transaction(factory, _user) as session:
-            settled = await patch_owned_memory(session, _user, memory_id, body)
+            settled = await execute_memory_control(
+                session, _user, body, memory_id=memory_id, now=datetime.now(UTC)
+            )
     except ApiError:
         raise
     except (DBAPIError, OSError, TimeoutError) as exc:
         raise _unavailable() from exc
     return MemoryMutationSuccessEnvelope(
-        data=memory_mutation_from_settlement(settled),
+        data=memory_mutation_from_settlement(settled.settlement),
         request_id=request_id_of(request),
         server_time=utc_server_time(),
     )
@@ -173,13 +172,15 @@ async def delete_memory(
     factory = session_factory_from_app(request.app)
     try:
         async with claimed_transaction(factory, _user) as session:
-            settled = await delete_owned_memory(session, _user, memory_id, body)
+            settled = await execute_memory_control(
+                session, _user, body, memory_id=memory_id, now=datetime.now(UTC)
+            )
     except ApiError:
         raise
     except (DBAPIError, OSError, TimeoutError) as exc:
         raise _unavailable() from exc
     return MemoryMutationSuccessEnvelope(
-        data=memory_mutation_from_settlement(settled),
+        data=memory_mutation_from_settlement(settled.settlement),
         request_id=request_id_of(request),
         server_time=utc_server_time(),
     )
@@ -200,13 +201,15 @@ async def clear_memories(
     factory = session_factory_from_app(request.app)
     try:
         async with claimed_transaction(factory, _user) as session:
-            settled = await clear_owned_memories(session, _user, body)
+            settled = await execute_memory_control(
+                session, _user, body, memory_id=None, now=datetime.now(UTC)
+            )
     except ApiError:
         raise
     except (DBAPIError, OSError, TimeoutError) as exc:
         raise _unavailable() from exc
     return MemoryMutationSuccessEnvelope(
-        data=memory_mutation_from_settlement(settled),
+        data=memory_mutation_from_settlement(settled.settlement),
         request_id=request_id_of(request),
         server_time=utc_server_time(),
     )

@@ -2,32 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
-from app.domain.spirit import SpiritCreateResult
-from app.schemas.spirit import (
-    MutationPatch,
-    MutationResource,
-    MutationResult,
-    OnboardingState,
-    SpiritPublic,
+from app.api.v1.public_map import (
+    hatched_at_public,
+    home_room_public,
+    spirit_public_from_mapping,
+    utc_z,
+    utc_z_optional,
 )
+from app.domain.spirit import SpiritCreateResult
+from app.schemas.spirit import MutationPatch, MutationResource, MutationResult
 
-
-def utc_z(value: datetime) -> str:
-    aware = value if value.tzinfo is not None else value.replace(tzinfo=UTC)
-    return aware.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def utc_z_optional(value: datetime | None) -> str | None:
-    if value is None:
-        return None
-    return utc_z(value)
+__all__ = ["mutation_result_from_create", "utc_z", "utc_z_optional"]
 
 
 def mutation_result_from_create(result: SpiritCreateResult) -> MutationResult:
-    completed = utc_z_optional(result.onboarding_completed_at)
-    spirit = SpiritPublic.model_validate(
+    spirit = spirit_public_from_mapping(
         {
             "id": result.spirit_id,
             "name": result.name,
@@ -44,11 +33,10 @@ def mutation_result_from_create(result: SpiritCreateResult) -> MutationResult:
             "bond": result.bond,
             "stage": result.stage,
             "status": result.status,
-            "scholar_marks": list(result.scholar_marks),
             "version": result.version,
-            "onboarding_step": result.onboarding_step,
-            "onboarding_completed_at": completed,
-            "hatched_at": utc_z_optional(result.hatched_at),
+            "hatched_at": hatched_at_public(
+                hatched_at=result.hatched_at, created_at=result.created_at
+            ),
             "created_at": utc_z(result.created_at),
         }
     )
@@ -57,11 +45,7 @@ def mutation_result_from_create(result: SpiritCreateResult) -> MutationResult:
         patch=MutationPatch(
             snapshot_version=result.version,
             spirit=spirit,
+            room=home_room_public(stage=result.stage, status=result.status),
             preferences=None,
-            onboarding=OnboardingState(
-                required=True,
-                step=result.onboarding_step,
-                completed_at=completed,
-            ),
         ),
     )

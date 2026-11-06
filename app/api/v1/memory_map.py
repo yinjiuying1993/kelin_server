@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.domain.cursor import utc_iso
-from app.providers.types import MemoryType
+from app.domain.memory_list import require_public_memory_type
 from app.repositories.memory import MemoryMutationRow
 from app.schemas.memory import (
     MemoryClearResource,
@@ -56,7 +56,7 @@ def memory_mutation_from_settlement(settlement: MemoryMutationSettlement) -> Mem
 def _public_memory(row: MemoryMutationRow) -> MemoryPublic:
     return MemoryPublic(
         id=row.id,
-        type=_memory_type(row.type),
+        type=require_public_memory_type(row.type),
         summary=row.summary,
         tags=list(row.tags),
         salience=row.salience,
@@ -65,21 +65,6 @@ def _public_memory(row: MemoryMutationRow) -> MemoryPublic:
         version=row.version,
         created_at=utc_iso(row.created_at),
     )
-
-
-def _memory_type(value: str) -> MemoryType:
-    mapping: dict[str, MemoryType] = {
-        "preference": "preference",
-        "knowledge": "knowledge",
-        "emotion": "emotion",
-        "relation": "relation",
-        "speech": "speech",
-        "sight": "sight",
-    }
-    mapped = mapping.get(value)
-    if mapped is None:
-        raise RuntimeError("invalid memory type")
-    return mapped
 
 
 def _memory_status(value: str) -> MemoryStatus:

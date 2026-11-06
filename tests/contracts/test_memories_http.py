@@ -26,7 +26,14 @@ ISSUER = "https://kelin-test.supabase.co/auth/v1"
 AUDIENCE = "authenticated"
 NOW = datetime.now(UTC)
 ROUTER_PATH = Path(__file__).resolve().parents[2] / "app" / "api" / "v1" / "memories.py"
-ACTIVE_TYPES = ("preference", "knowledge", "emotion", "relation", "speech", "sight")
+ACTIVE_TYPES = (
+    "preference",
+    "knowledge",
+    "emotion",
+    "relationship",
+    "preference",
+    "knowledge",
+)
 
 
 class _StaticJwks:
@@ -206,7 +213,7 @@ async def _assert_pages(url: str) -> None:
             url,
             spirit_id,
             memory_id=newer_id,
-            memory_type="sight",
+            memory_type="preference",
             created_at=None,
         )
         replay_middle = client.get(
@@ -257,26 +264,34 @@ async def _assert_pages(url: str) -> None:
                     "data"
                 ]
             )
-            for name in ("all", "relationship", "knowledge", "speech", "sight")
+            for name in ("all", "relationship", "knowledge", "preference", "emotion")
         }
         type_by_id = {item.id: item.type for item in by_filter["all"].items}
-        assert {type_by_id[item_id] for item_id in public_ids} == set(ACTIVE_TYPES)
-        assert {item.type for item in by_filter["relationship"].items} <= {
+        assert {type_by_id[item_id] for item_id in public_ids} == {
             "preference",
-            "relation",
+            "knowledge",
             "emotion",
+            "relationship",
         }
-        assert {item.id for item in by_filter["relationship"].items} == {
-            public_ids[2],
-            public_ids[3],
-            public_ids[5],
-        }
+        assert {item.type for item in by_filter["relationship"].items} == {"relationship"}
+        assert {item.id for item in by_filter["relationship"].items} == {public_ids[2]}
         assert {item.type for item in by_filter["knowledge"].items} == {"knowledge"}
-        assert {item.type for item in by_filter["speech"].items} == {"speech"}
-        assert {item.type for item in by_filter["sight"].items} == {"sight"}
+        assert {item.id for item in by_filter["knowledge"].items} == {
+            public_ids[0],
+            public_ids[4],
+        }
+        assert {item.type for item in by_filter["preference"].items} == {"preference"}
+        assert {item.id for item in by_filter["emotion"].items} == {public_ids[3]}
         assert sealed_id not in {item.id for item in by_filter["knowledge"].items}
-        assert [row.id for row in by_filter["speech"].tombstones] == [deleted_id]
-        assert by_filter["knowledge"].tombstones == []
+        assert [row.id for row in by_filter["knowledge"].tombstones] == [deleted_id]
+        assert by_filter["preference"].tombstones == []
+        for hidden in ("speech", "sight"):
+            hidden_resp = client.get(
+                f"/api/v1/memories?filter={hidden}&limit=50",
+                headers=owner_auth,
+            )
+            assert hidden_resp.status_code == 422
+            assert hidden_resp.json()["error"]["code"] == "INVALID_INPUT"
 
 
 async def _seed_user(url: str, user_id: UUID) -> None:
@@ -343,7 +358,7 @@ async def _insert_owner_memories(url: str, spirit_id: UUID) -> dict[str, Any]:
                 "INSERT INTO public.memories ("
                 "id, spirit_id, type, summary, salience, confidence, status, deleted_at, created_at"
                 ") VALUES ("
-                ":id, :spirit_id, 'speech', '已删除正文', 80, 0.900, 'deleted', :deleted_at, "
+                ":id, :spirit_id, 'knowledge', '已删除正文', 80, 0.900, 'deleted', :deleted_at, "
                 ":created_at)"
             ),
             {

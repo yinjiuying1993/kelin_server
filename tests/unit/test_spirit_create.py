@@ -4,11 +4,7 @@ import inspect
 from uuid import uuid4
 
 import pytest
-from app.domain.spirit import (
-    EGG_TRAITS,
-    create_spirit_request_hash,
-    traits_for_egg,
-)
+from app.domain.spirit import create_spirit_request_hash
 from app.schemas.spirit import CreateSpiritRequest
 from app.services.spirit import create_spirit_if_absent
 from pydantic import ValidationError
@@ -35,39 +31,6 @@ def _request(
             },
         }
     )
-
-
-def test_egg_traits_match_spec_table() -> None:
-    warm = traits_for_egg("warm")
-    assert (warm.closeness, warm.curiosity, warm.sharpness, warm.nocturnal, warm.stubborn) == (
-        65,
-        55,
-        35,
-        40,
-        40,
-    )
-    cold = traits_for_egg("cold")
-    assert (cold.closeness, cold.curiosity, cold.sharpness, cold.nocturnal, cold.stubborn) == (
-        35,
-        45,
-        70,
-        60,
-        55,
-    )
-    wild = traits_for_egg("wild")
-    assert (wild.closeness, wild.curiosity, wild.sharpness, wild.nocturnal, wild.stubborn) == (
-        50,
-        50,
-        50,
-        50,
-        50,
-    )
-    assert set(EGG_TRAITS) == {"warm", "cold", "wild"}
-
-
-def test_unknown_egg_has_no_traits() -> None:
-    with pytest.raises(KeyError):
-        traits_for_egg("hot")
 
 
 def test_create_command_and_service_do_not_accept_user_id() -> None:

@@ -11,7 +11,7 @@ from app.providers.types import MemoryType
 from app.schemas.envelope import EnvelopeError
 from app.schemas.spirit import MutationEvent, MutationPatch, QuotaUsage
 
-MemoryFilter = Literal["all", "relationship", "knowledge", "speech", "sight"]
+MemoryFilter = Literal["all", "preference", "knowledge", "emotion", "relationship"]
 MemoryStatus = Literal["active", "sealed", "deleted"]
 MemoryPatchAction = Literal["correct", "seal"]
 CLEAR_ALL_MEMORIES = "CLEAR_ALL_MEMORIES"
@@ -67,10 +67,7 @@ class MemoryPage(_ForbidExtra):
 
 class MemoryListQuery(_ForbidExtra):
     filter: MemoryFilter = Field(
-        description=(
-            "Page filter. relationship maps preference, relation, and emotion. "
-            "Changing filter invalidates an old cursor."
-        ),
+        description="Page filter. Changing filter invalidates an old cursor.",
     )
     cursor: str | None = Field(default=None, min_length=1)
     limit: int = Field(default=30, ge=1, le=50)

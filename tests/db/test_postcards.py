@@ -325,6 +325,14 @@ async def _seed_cards(url: str, *, visitor: UUID, host: UUID) -> list[dict[str, 
                 },
             )
             created.append({"id": postcard_id, "kind": "host"})
+        await conn.execute(
+            text(
+                "INSERT INTO public.npc_profiles ("
+                "npc_id, config_version, display_name, title, template_key, enabled"
+                ") VALUES ('fog', 1, '雾里的那只', '雾里的那只', 'npc_fog_v1', true) "
+                "ON CONFLICT (npc_id, config_version) DO NOTHING"
+            )
+        )
         npc_visit = uuid.uuid4()
         npc_card = uuid.uuid4()
         npc_at = NOW - timedelta(seconds=20)

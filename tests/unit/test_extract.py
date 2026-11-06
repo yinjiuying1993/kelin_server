@@ -9,13 +9,14 @@ from app.domain.extract import (
     MEMORY_CONFIDENCE_FLOOR,
     accepted_memories,
     accumulated_trait_deltas,
+    claim_still_held,
     clamp_trait,
     extract_output_hash,
 )
 from app.main import create_app
 from app.providers.errors import ProviderError
 from app.providers.extract_schema import require_extract_output
-from app.providers.types import ExtractMemoryDraft, ExtractOutput, PersonalityDelta
+from app.providers.types import ExtractMemoryDraft, ExtractOutput
 from app.schemas.extract import ExtractRequest, ExtractResult
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -54,16 +55,18 @@ def test_low_confidence_memories_are_dropped() -> None:
             ExtractMemoryDraft(
                 type="preference",
                 summary="弱信号",
-                salience=10,
+                normalized_topic_key="preference:user:item:weak",
+                source_quote="弱信号",
+                signal="explicit",
                 confidence=0.74,
-                personality_delta=PersonalityDelta(dimension="closeness", value=2),
             ),
             ExtractMemoryDraft(
                 type="preference",
                 summary="用户希望被叫阿年",
-                salience=90,
+                normalized_topic_key="preference:user:name:nian",
+                source_quote="用户希望被叫阿年",
+                signal="explicit",
                 confidence=MEMORY_CONFIDENCE_FLOOR,
-                personality_delta=PersonalityDelta(dimension="closeness", value=1),
             ),
         ]
     )
@@ -71,9 +74,18 @@ def test_low_confidence_memories_are_dropped() -> None:
     assert len(kept) == 1
     assert kept[0].summary == "用户希望被叫阿年"
     deltas = accumulated_trait_deltas(kept)
-    assert deltas["closeness"] == 1
+    assert deltas["closeness"] == 0
     assert clamp_trait(99, 2) == 100
     assert clamp_trait(1, -2) == 0
+
+
+def test_claim_is_held_only_while_the_same_client_is_extracting() -> None:
+    client_id = uuid4()
+    assert claim_still_held("extracting", client_id, client_id) is True
+    assert claim_still_held("extracting", uuid4(), client_id) is False
+    assert claim_still_held("extracted", client_id, client_id) is False
+    assert claim_still_held("failed", client_id, client_id) is False
+    assert claim_still_held("extracting", None, client_id) is False
 
 
 def test_extract_output_hash_is_stable() -> None:
@@ -81,13 +93,15 @@ def test_extract_output_hash_is_stable() -> None:
         ExtractMemoryDraft(
             type="preference",
             summary="用户希望被叫阿年",
+            normalized_topic_key="preference:user:name:nian",
+            source_quote="用户希望被叫阿年",
             tags=["称呼"],
-            salience=90,
+            signal="explicit",
             confidence=0.96,
         )
     ]
-    first = extract_output_hash(memories, [])
-    second = extract_output_hash(memories, [])
+    first = extract_output_hash(memories)
+    second = extract_output_hash(memories)
     assert first == second
     assert len(first) == 64
 
@@ -135,12 +149,12 @@ def test_openapi_post_extract_locks_window_id_and_forbids_message_ids() -> None:
     assert "conversation_window_id" in names
     assert "status" in names
     assert "memories" in names
-    assert "style_samples" in names
+    assert "style_samples" not in names
     type_schema = _resolve_property(spec, resource, "type")
     assert type_schema.get("const") == "extract" or "extract" in type_schema.get("enum", [])
 
 
-def test_success_fixture_is_extracted_window() -> None:
+def test_success_fixture_matches_extract_result() -> None:
     from pathlib import Path
 
     from app.contracts.fixtures import EXTRACT_ENTRY_ID, load_success
@@ -148,12 +162,9 @@ def test_success_fixture_is_extracted_window() -> None:
     root = Path(__file__).resolve().parents[2] / "fixtures"
     loaded = load_success(root, EXTRACT_ENTRY_ID)
     result = ExtractResult.model_validate(loaded.data)
-    assert result.resource.type == "extract"
-    assert result.resource.status == "extracted"
-    assert 0 <= len(result.resource.memories) <= 2
-    assert 0 <= len(result.resource.style_samples) <= 1
-    assert result.patch.spirit is not None
-    assert result.patch.spirit.closeness == 66
+    assert result.resource.model_dump().get("style_samples") is None
+    assert result.patch.room is not None
+    assert result.patch.room.status == "home"
 
 
 def test_post_extract_without_auth_is_unauthenticated() -> None:

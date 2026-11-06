@@ -78,8 +78,12 @@ async def _spirit_row(session: AsyncSession, user_id: uuid.UUID) -> Any:
     return (
         await session.execute(
             text(
-                "SELECT id, status, version, last_interact_at, study_until, away_until, "
-                "has_been_lost FROM public.spirits WHERE user_id = :user_id"
+                "SELECT s.id, a.status, s.version, "
+                "COALESCE(a.last_interact_at, s.last_interact_at) AS last_interact_at, "
+                "a.study_until, a.away_until, a.has_been_lost "
+                "FROM public.spirits s "
+                "JOIN public.spirit_awareness a ON a.spirit_id = s.id "
+                "WHERE s.user_id = :user_id"
             ),
             {"user_id": user_id},
         )
@@ -230,8 +234,8 @@ async def _assert_18h_and_until(url: str) -> None:
         await _set_last_interact(session, visit_off_user, NOW - timedelta(hours=18))
         result = await settle_spirit_state(session, visit_off, now=NOW)
         row = await _spirit_row(session, visit_off_user)
-    assert result.status == "study"
-    assert row.status == "study"
+    assert result.status == "away"
+    assert row.status == "away"
 
     pact_user = uuid.uuid4()
     await _insert_auth_user(url, pact_user)
@@ -257,8 +261,8 @@ async def _assert_18h_and_until(url: str) -> None:
         await _set_last_interact(session, pact_user, NOW - timedelta(hours=18))
         result = await settle_spirit_state(session, pact_owner, now=NOW)
         row = await _spirit_row(session, pact_user)
-    assert result.status == "study"
-    assert row.status == "study"
+    assert result.status == "away"
+    assert row.status == "away"
 
     until_user = uuid.uuid4()
     await _insert_auth_user(url, until_user)

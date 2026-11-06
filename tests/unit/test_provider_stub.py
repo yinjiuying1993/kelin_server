@@ -27,8 +27,8 @@ from pydantic import ValidationError
 SECRET_CONTENT = "UNIQUE_STUB_BODY_DO_NOT_LOG"
 
 
-def _input(*, step: int = 0, content: str = SECRET_CONTENT) -> ChatInput:
-    return ChatInput(onboarding=True, onboarding_step=step, content=content)
+def _input(*, content: str = SECRET_CONTENT) -> ChatInput:
+    return ChatInput(content=content)
 
 
 def test_stub_identity_is_not_a_live_provider() -> None:
@@ -71,11 +71,11 @@ def test_stub_module_does_not_import_live_sdks() -> None:
 @pytest.mark.asyncio
 async def test_success_is_deterministic_and_does_not_echo_user_text() -> None:
     stub = ControllableProviderStub()
-    first = await stub.chat(_input(step=0, content="请叫我宝宝"))
-    again = await stub.chat(_input(step=0, content="请叫我宝宝"))
+    first = await stub.chat(_input(content="请叫我宝宝"))
+    again = await stub.chat(_input(content="请叫我宝宝"))
     assert first.reply == again.reply == ONBOARDING_STUB_REPLIES[0]
     assert first.reply != "请叫我宝宝"
-    assert first.intent == "chat"
+    assert first.intent == "companion"
     assert first.citations == []
     assert first.safety == "allow"
     assert first.search_query is None
@@ -99,16 +99,16 @@ async def test_delay_error_cancel_and_fifo_script() -> None:
     assert failed.value.code == "MODEL_UNAVAILABLE"
 
     started = asyncio.get_running_loop().time()
-    delayed = await stub.chat(_input(step=1))
+    delayed = await stub.chat(_input())
     elapsed_ms = (asyncio.get_running_loop().time() - started) * 1000
-    assert delayed.reply == ONBOARDING_STUB_REPLIES[1]
+    assert delayed.reply == ONBOARDING_STUB_REPLIES[0]
     assert elapsed_ms >= 30
 
     with pytest.raises(ProviderCancelled):
         await stub.chat(_input())
 
-    last = await stub.chat(_input(step=2))
-    assert last.reply == ONBOARDING_STUB_REPLIES[2]
+    last = await stub.chat(_input())
+    assert last.reply == ONBOARDING_STUB_REPLIES[0]
     assert [record.mode for record in stub.calls] == ["error", "delay", "cancel", "success"]
     assert [record.outcome for record in stub.calls] == [
         "error",
@@ -164,7 +164,7 @@ async def test_extract_stub_is_deterministic_and_other_capabilities_unsupported(
     stub = ControllableProviderStub()
     empty = await stub.extract(ExtractInput(conversation_window_id=uuid4()))
     assert empty.memories == []
-    assert empty.style_samples == []
+    assert empty.model_dump().get("style_samples") is None
     window_id = uuid4()
     produced = await stub.extract(
         ExtractInput(
@@ -174,9 +174,8 @@ async def test_extract_stub_is_deterministic_and_other_capabilities_unsupported(
     )
     assert len(produced.memories) == 1
     assert produced.memories[0].confidence == 0.96
-    assert produced.memories[0].personality_delta is not None
-    assert produced.memories[0].personality_delta.dimension == "closeness"
-    assert len(produced.style_samples) == 1
+    assert produced.memories[0].model_dump().get("personality_delta") is None
+    assert produced.model_dump().get("style_samples") is None
     with pytest.raises(ProviderStubUnsupported):
         await stub.transcribe(object())
     with pytest.raises(ProviderStubUnsupported):

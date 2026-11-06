@@ -6,7 +6,7 @@
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | Alembic head | `20260908_0019`（P20 **未改库**） |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/` |
@@ -17,10 +17,9 @@
 
 | 文档条目 | 本机实现 | 入口 |
 | :--- | :--- | :--- |
-| Recall | **已接线**。仅 `status=lost`；`food` 或 `sight_memory` | `POST /api/v1/recall` |
+| Recall | **已接线**。仅 `status=lost`，方法只有 `food` | `POST /api/v1/recall` |
 | 成功 | 置 `home`；关系记忆「你离开过」；growth `returned_from_lost`（`source_id=client_id`）；event `recall.returned` | 合入 patch |
 | food 满额 | **仍回家**；不计普通 food 的 hunger/energy；配额记满额免费 | `quota_full_food.json` |
-| sight | 必须本人、`type=sight`、`status=active` | 否则 `RECALL_SOURCE_INVALID` |
 | Debug | **仅 dev**（或测试旗标）。JWT allowlist **或** `X-Debug-Token`；来源 loopback/私网 | `app/api/v1/debug.py` |
 | Debug 请求 | `extra=forbid`，拒绝任意 `user_id` / SQL / URL / Secret | 422 |
 
@@ -40,7 +39,7 @@
 
 ### 必须改：DTO 对齐 SHA
 
-锁定 SHA：`98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af`。
+锁定 SHA：`d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e`。
 
 Recall 解码：
 

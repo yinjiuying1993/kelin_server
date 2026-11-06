@@ -48,14 +48,25 @@ def test_manifest_matches_live_app_export() -> None:
     ]
     assert endpoints == [
         "DELETE /api/v1/account",
+        "GET /api/v1/ask/helped",
+        "GET /api/v1/ask/questions",
+        "POST /api/v1/ask/questions",
+        "GET /api/v1/ask/questions/recent",
+        "GET /api/v1/ask/questions/{question_id}",
+        "POST /api/v1/ask/questions/{question_id}/rating",
+        "POST /api/v1/ask/questions/{question_id}/turns",
         "GET /api/v1/bootstrap",
         "POST /api/v1/chat",
-        "POST /api/v1/devices",
+        "GET /api/v1/craft/redeem",
+        "POST /api/v1/craft/self-test/turns",
+        "GET /api/v1/craft/skills",
+        "POST /api/v1/craft/skills",
+        "DELETE /api/v1/craft/skills/{craft_id}",
+        "GET /api/v1/craft/skills/{craft_id}",
+        "PATCH /api/v1/craft/skills/{craft_id}",
+        "POST /api/v1/craft/skills/{craft_id}/self-test",
+        "POST /api/v1/craft/skills/{craft_id}/visibility",
         "POST /api/v1/extract",
-        "POST /api/v1/feed",
-        "PATCH /api/v1/feeds/{feed_id}",
-        "POST /api/v1/feeds/{feed_id}/cancel",
-        "POST /api/v1/feeds/{feed_id}/complete",
         "GET /api/v1/friends",
         "POST /api/v1/friends",
         "DELETE /api/v1/friends/{friend_id}",
@@ -64,22 +75,22 @@ def test_manifest_matches_live_app_export() -> None:
         "DELETE /api/v1/memories/{memory_id}",
         "PATCH /api/v1/memories/{memory_id}",
         "GET /api/v1/messages",
-        "POST /api/v1/moderate-sight",
-        "POST /api/v1/onboarding/complete",
-        "POST /api/v1/pact-answer",
-        "POST /api/v1/pact-session",
-        "POST /api/v1/pact-skip",
-        "POST /api/v1/pacts",
+        "POST /api/v1/ops/craft-redeem",
         "GET /api/v1/postcards",
         "PATCH /api/v1/postcards/{postcard_id}/read",
         "POST /api/v1/recall",
-        "GET /api/v1/report",
-        "POST /api/v1/report/line",
         "PATCH /api/v1/spirit",
         "POST /api/v1/spirits",
-        "POST /api/v1/storage/sight-upload-url",
+        "GET /api/v1/spirits/{spirit_id}/public",
         "POST /api/v1/synthesize",
         "POST /api/v1/transcribe",
+        "GET /api/v1/visit-card",
+        "PUT /api/v1/visit-card",
+        "POST /api/v1/visit-card/uploads",
+        "GET /api/v1/visit-cards",
+        "GET /api/v1/visit-cards/{card_id}",
+        "POST /api/v1/visit-cards/{card_id}/read",
+        "POST /api/v1/visit-cards/{card_id}/reply",
     ]
 
 
@@ -89,14 +100,25 @@ def test_live_catalog_includes_post_spirits_not_other_api() -> None:
     assert [entry.id for entry in entries] == [
         ENVELOPE_ENTRY_ID,
         "DELETE_api_v1_account",
+        "GET_api_v1_ask_helped",
+        "GET_api_v1_ask_questions",
+        "POST_api_v1_ask_questions",
+        "GET_api_v1_ask_questions_recent",
+        "GET_api_v1_ask_questions_{question_id}",
+        "POST_api_v1_ask_questions_{question_id}_rating",
+        "POST_api_v1_ask_questions_{question_id}_turns",
         "GET_api_v1_bootstrap",
         "POST_api_v1_chat",
-        "POST_api_v1_devices",
+        "GET_api_v1_craft_redeem",
+        "POST_api_v1_craft_self-test_turns",
+        "GET_api_v1_craft_skills",
+        "POST_api_v1_craft_skills",
+        "DELETE_api_v1_craft_skills_{craft_id}",
+        "GET_api_v1_craft_skills_{craft_id}",
+        "PATCH_api_v1_craft_skills_{craft_id}",
+        "POST_api_v1_craft_skills_{craft_id}_self-test",
+        "POST_api_v1_craft_skills_{craft_id}_visibility",
         "POST_api_v1_extract",
-        "POST_api_v1_feed",
-        "PATCH_api_v1_feeds_{feed_id}",
-        "POST_api_v1_feeds_{feed_id}_cancel",
-        "POST_api_v1_feeds_{feed_id}_complete",
         "GET_api_v1_friends",
         "POST_api_v1_friends",
         "DELETE_api_v1_friends_{friend_id}",
@@ -105,22 +127,22 @@ def test_live_catalog_includes_post_spirits_not_other_api() -> None:
         "DELETE_api_v1_memories_{memory_id}",
         "PATCH_api_v1_memories_{memory_id}",
         "GET_api_v1_messages",
-        "POST_api_v1_moderate-sight",
-        "POST_api_v1_onboarding_complete",
-        "POST_api_v1_pact-answer",
-        "POST_api_v1_pact-session",
-        "POST_api_v1_pact-skip",
-        "POST_api_v1_pacts",
+        "POST_api_v1_ops_craft-redeem",
         "GET_api_v1_postcards",
         "PATCH_api_v1_postcards_{postcard_id}_read",
         "POST_api_v1_recall",
-        "GET_api_v1_report",
-        "POST_api_v1_report_line",
         "PATCH_api_v1_spirit",
         "POST_api_v1_spirits",
-        "POST_api_v1_storage_sight-upload-url",
+        "GET_api_v1_spirits_{spirit_id}_public",
         "POST_api_v1_synthesize",
         "POST_api_v1_transcribe",
+        "GET_api_v1_visit-card",
+        "PUT_api_v1_visit-card",
+        "POST_api_v1_visit-card_uploads",
+        "GET_api_v1_visit-cards",
+        "GET_api_v1_visit-cards_{card_id}",
+        "POST_api_v1_visit-cards_{card_id}_read",
+        "POST_api_v1_visit-cards_{card_id}_reply",
     ]
     by_id = {entry.id: entry for entry in entries}
     assert by_id["GET_api_v1_memories"].endpoint == "GET /api/v1/memories"
@@ -129,7 +151,10 @@ def test_live_catalog_includes_post_spirits_not_other_api() -> None:
     )
     assert by_id["GET_api_v1_messages"].endpoint == "GET /api/v1/messages"
     assert by_id["GET_api_v1_messages"].scenarios == BASE_SCENARIOS + LIST_PAGE_SCENARIOS
-    assert by_id["POST_api_v1_onboarding_complete"].endpoint == "POST /api/v1/onboarding/complete"
+    assert "POST_api_v1_onboarding_complete" not in by_id
+    assert "POST_api_v1_devices" not in by_id
+    assert "POST_api_v1_moderate-sight" not in by_id
+    assert "POST_api_v1_storage_sight-upload-url" not in by_id
     assert by_id["POST_api_v1_spirits"].endpoint == "POST /api/v1/spirits"
     assert by_id["POST_api_v1_transcribe"].scenarios == BASE_SCENARIOS + (
         "empty_result",
@@ -141,28 +166,9 @@ def test_live_catalog_includes_post_spirits_not_other_api() -> None:
         "cache_hit",
         "quota_exceeded",
     )
-    assert by_id["POST_api_v1_pacts"].scenarios == BASE_SCENARIOS + (
-        "active_conflict",
-        "notes_not_found",
-    )
-    assert by_id["POST_api_v1_pact-session"].scenarios == BASE_SCENARIOS + (
-        "day_closed",
-        "idempotent_replay",
-    )
-    assert by_id["POST_api_v1_pact-answer"].scenarios == BASE_SCENARIOS + (
-        "last_question_finalize",
-        "already_answered",
-        "question_not_found",
-        "version_conflict",
-        "out_of_order",
-        "last_question_in_progress",
-        "provider_fallback",
-    )
-    assert by_id["POST_api_v1_pact-skip"].scenarios == BASE_SCENARIOS + (
-        "already_submitted",
-        "skip_replay",
-        "completeness",
-    )
+    assert "POST_api_v1_pacts" not in by_id
+    assert "GET_api_v1_report" not in by_id
+    assert "POST_api_v1_report_line" not in by_id
     assert by_id["GET_api_v1_friends"].scenarios == BASE_SCENARIOS + LIST_PAGE_SCENARIOS
     assert by_id["POST_api_v1_friends"].scenarios == BASE_SCENARIOS + (
         "self_friend",
@@ -178,48 +184,56 @@ def test_live_catalog_includes_post_spirits_not_other_api() -> None:
         "not_found",
         "read_replay",
     )
+    assert by_id["GET_api_v1_craft_skills"].scenarios == BASE_SCENARIOS + LIST_PAGE_SCENARIOS
+    assert by_id["POST_api_v1_craft_skills"].scenarios == BASE_SCENARIOS
+    assert by_id["GET_api_v1_craft_redeem"].endpoint == "GET /api/v1/craft/redeem"
+    assert by_id["GET_api_v1_ask_questions"].scenarios == BASE_SCENARIOS + LIST_PAGE_SCENARIOS
+    assert by_id["POST_api_v1_ask_questions"].scenarios == BASE_SCENARIOS + ("unmatched",)
+    assert by_id["GET_api_v1_ask_helped"].scenarios == BASE_SCENARIOS + ("empty",)
     assert by_id["POST_api_v1_recall"].endpoint == "POST /api/v1/recall"
     assert by_id["POST_api_v1_recall"].scenarios == BASE_SCENARIOS + (
         "idempotent_replay",
         "not_lost",
-        "sealed_memory",
-        "deleted_memory",
-        "wrong_owner",
-        "non_sight",
         "quota_full_food",
     )
     api_paths = [path for path in exported.document.get("paths", {}) if path.startswith("/api/")]
     assert api_paths == [
         "/api/v1/account",
+        "/api/v1/ask/helped",
+        "/api/v1/ask/questions",
+        "/api/v1/ask/questions/recent",
+        "/api/v1/ask/questions/{question_id}",
+        "/api/v1/ask/questions/{question_id}/rating",
+        "/api/v1/ask/questions/{question_id}/turns",
         "/api/v1/bootstrap",
         "/api/v1/chat",
-        "/api/v1/devices",
+        "/api/v1/craft/redeem",
+        "/api/v1/craft/self-test/turns",
+        "/api/v1/craft/skills",
+        "/api/v1/craft/skills/{craft_id}",
+        "/api/v1/craft/skills/{craft_id}/self-test",
+        "/api/v1/craft/skills/{craft_id}/visibility",
         "/api/v1/extract",
-        "/api/v1/feed",
-        "/api/v1/feeds/{feed_id}",
-        "/api/v1/feeds/{feed_id}/cancel",
-        "/api/v1/feeds/{feed_id}/complete",
         "/api/v1/friends",
         "/api/v1/friends/{friend_id}",
         "/api/v1/memories",
         "/api/v1/memories/{memory_id}",
         "/api/v1/messages",
-        "/api/v1/moderate-sight",
-        "/api/v1/onboarding/complete",
-        "/api/v1/pact-answer",
-        "/api/v1/pact-session",
-        "/api/v1/pact-skip",
-        "/api/v1/pacts",
+        "/api/v1/ops/craft-redeem",
         "/api/v1/postcards",
         "/api/v1/postcards/{postcard_id}/read",
         "/api/v1/recall",
-        "/api/v1/report",
-        "/api/v1/report/line",
         "/api/v1/spirit",
         "/api/v1/spirits",
-        "/api/v1/storage/sight-upload-url",
+        "/api/v1/spirits/{spirit_id}/public",
         "/api/v1/synthesize",
         "/api/v1/transcribe",
+        "/api/v1/visit-card",
+        "/api/v1/visit-card/uploads",
+        "/api/v1/visit-cards",
+        "/api/v1/visit-cards/{card_id}",
+        "/api/v1/visit-cards/{card_id}/read",
+        "/api/v1/visit-cards/{card_id}/reply",
     ]
 
 

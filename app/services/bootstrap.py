@@ -1,41 +1,40 @@
-"""REPEATABLE READ bootstrap aggregate. Spec §§5.5, 9.1–9.2.
-
-Must run inside claimed_read_transaction. Does not settle or bump version.
-Nested memories/postcards/pact DTOs are not locked; return empty/null.
-"""
+"""Bootstrap snapshot: facade lock, settle(now) transfer, then assemble room."""
 
 from __future__ import annotations
 
+import hashlib
+import uuid
 from datetime import datetime
-from typing import Literal, cast
+from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.public_map import (
+    hatched_at_public,
+    room_public_assembled,
+    spirit_public_from_mapping,
+    utc_z,
+)
 from app.core.config import get_settings
 from app.core.security import CurrentUser
-from app.domain.bootstrap import (
-    V0_IMAGE_FEED,
-    utc_z,
-    utc_z_optional,
-)
-from app.domain.feed import room_weather_for_emotion
+from app.domain.central import OrchestratorRequest
 from app.domain.quota import QuotaSnapshot, quota_usage
-from app.domain.room import RoomProjection, project_room
-from app.domain.spirit_state import SpiritStatus, require_aware
+from app.domain.spirit_state import require_aware
 from app.repositories import bootstrap as bootstrap_repo
-from app.schemas.bootstrap import (
-    BootstrapSnapshot,
-    FeatureFlags,
-    PendingSight,
-    RoomLetter,
-    RoomPublic,
-)
-from app.schemas.spirit import OnboardingState, SpiritPublic
-from app.services.report import load_report_snapshot_readonly
+from app.repositories.central.snapshot import LockedSpirit
+from app.schemas.bootstrap import BootstrapSnapshot, FeatureFlags
+from app.schemas.room import RoomPublic
+from app.schemas.spirit import SpiritPublic
+from app.services.central import SettlementOutcome, run_bootstrap
+from app.services.central.lifecycle import settle_then_resolve
+from app.services.room.store import save_projection
+
+_SCHEMA_VERSION: Literal[2] = 2
+_API_VERSION: Literal["v1"] = "v1"
 
 
 def _spirit_public(row: bootstrap_repo.BootstrapSpiritRow) -> SpiritPublic:
-    return SpiritPublic.model_validate(
+    return spirit_public_from_mapping(
         {
             "id": row.id,
             "name": row.name,
@@ -52,13 +51,34 @@ def _spirit_public(row: bootstrap_repo.BootstrapSpiritRow) -> SpiritPublic:
             "bond": row.bond,
             "stage": row.stage,
             "status": row.status,
-            "scholar_marks": list(row.scholar_marks),
             "version": row.version,
-            "onboarding_step": row.onboarding_step,
-            "onboarding_completed_at": utc_z_optional(row.onboarding_completed_at),
-            "hatched_at": utc_z_optional(row.hatched_at),
+            "hatched_at": hatched_at_public(hatched_at=row.hatched_at, created_at=row.created_at),
             "created_at": utc_z(row.created_at),
         }
+    )
+
+
+def _payload_hash(spirit_id: uuid.UUID, now: datetime) -> str:
+    return hashlib.sha256(f"bootstrap:{spirit_id}:{now.isoformat()}".encode()).hexdigest()
+
+
+async def _legacy_settle_now(
+    session: AsyncSession,
+    locked: LockedSpirit,
+    *,
+    user: CurrentUser,
+    now: datetime,
+) -> SettlementOutcome:
+    """Lock → awareness settle(now). Does not write stage."""
+    awareness = await settle_then_resolve(session, user, now=now)
+    if awareness.decision is None or awareness.spirit_id != locked.id:
+        return SettlementOutcome(changed=False, payload={"reason": "missing_spirit"})
+    return SettlementOutcome(
+        changed=awareness.changed,
+        payload={
+            "status": awareness.decision.status,
+            "spirit_id": str(locked.id),
+        },
     )
 
 
@@ -67,65 +87,96 @@ async def load_bootstrap_snapshot(
     user: CurrentUser,
     *,
     now: datetime,
+    require_read_snapshot: bool = True,
+    snapshot_version: int | None = None,
 ) -> BootstrapSnapshot:
     require_aware(now, field="now")
     settings = get_settings()
     if settings.schema_version != 2 or settings.api_version != "v1":
         raise RuntimeError("bootstrap schema/api version mismatch")
-    schema_version: Literal[2] = 2
-    api_version: Literal["v1"] = "v1"
-    rows = await bootstrap_repo.load_bootstrap_aggregate_rows(session, user.id, now=now)
+    rows = await bootstrap_repo.load_bootstrap_aggregate_rows(
+        session, user.id, now=now, require_read_snapshot=require_read_snapshot
+    )
+    return await _assemble_snapshot(
+        session, user, rows, now=now, snapshot_version=snapshot_version
+    )
+
+
+async def run_bootstrap_snapshot(
+    session: AsyncSession,
+    user: CurrentUser,
+    *,
+    now: datetime,
+) -> BootstrapSnapshot:
+    """Lock → settle(now) → assemble room. Same snapshot_version as later writes."""
+    require_aware(now, field="now")
+    peek = await bootstrap_repo.load_bootstrap_aggregate_rows(
+        session, user.id, now=now, require_read_snapshot=False
+    )
+    if peek.spirit is None:
+        return await _assemble_snapshot(session, user, peek, now=now, snapshot_version=0)
+
+    request = OrchestratorRequest(
+        request_kind="bootstrap",
+        event_id=uuid.uuid4(),
+        spirit_id=peek.spirit.id,
+        occurred_at=now,
+        client_payload_hash=_payload_hash(peek.spirit.id, now),
+        current_snapshot_version=peek.spirit.snapshot_version,
+    )
+
+    async def settle(session: AsyncSession, locked: LockedSpirit) -> SettlementOutcome:
+        return await _legacy_settle_now(session, locked, user=user, now=now)
+
+    result = await run_bootstrap(session, user, request, legacy_settle=settle)
+    snapshot = await load_bootstrap_snapshot(
+        session,
+        user,
+        now=now,
+        require_read_snapshot=False,
+        snapshot_version=result.snapshot_version,
+    )
+    if snapshot.spirit is not None and snapshot.room is not None:
+        await save_projection(
+            session,
+            spirit_id=snapshot.spirit.id,
+            room=snapshot.room,
+            snapshot_version=result.snapshot_version,
+        )
+    return snapshot
+
+
+async def _assemble_snapshot(
+    session: AsyncSession,
+    user: CurrentUser,
+    rows: bootstrap_repo.BootstrapAggregateRows,
+    *,
+    now: datetime,
+    snapshot_version: int | None,
+) -> BootstrapSnapshot:
     if rows.spirit is None:
         return BootstrapSnapshot(
-            schema_version=schema_version,
-            snapshot_version=0,
-            api_version=api_version,
+            schema_version=_SCHEMA_VERSION,
+            snapshot_version=0 if snapshot_version is None else snapshot_version,
+            api_version=_API_VERSION,
             spirit=None,
             room=None,
-            onboarding=OnboardingState(required=True, step=0, completed_at=None),
             latest_memories=[],
             unread_postcards=[],
-            active_pact=None,
-            report=await load_report_snapshot_readonly(
-                session,
-                user,
-                now=now,
-                hatched_at=None,
-                ordinary_dialogue_rounds=0,
-                report_id=None,
-                report_status=None,
-            ),
             quotas=[],
-            feature_flags=FeatureFlags(
-                remote_search=rows.remote_search_on,
-                image_feed=V0_IMAGE_FEED,
-            ),
+            feature_flags=FeatureFlags(remote_search=rows.remote_search_on),
         )
 
     spirit = rows.spirit
+    version = spirit.snapshot_version if snapshot_version is None else snapshot_version
     return BootstrapSnapshot(
-        schema_version=schema_version,
-        snapshot_version=spirit.version,
-        api_version=api_version,
+        schema_version=_SCHEMA_VERSION,
+        snapshot_version=version,
+        api_version=_API_VERSION,
         spirit=spirit_public_from_bootstrap_row(spirit),
         room=room_public_from_aggregate(rows, now=now),
-        onboarding=OnboardingState(
-            required=spirit.onboarding_completed_at is None,
-            step=spirit.onboarding_step,
-            completed_at=utc_z_optional(spirit.onboarding_completed_at),
-        ),
         latest_memories=[],
         unread_postcards=[],
-        active_pact=None,
-        report=await load_report_snapshot_readonly(
-            session,
-            user,
-            now=now,
-            hatched_at=spirit.hatched_at,
-            ordinary_dialogue_rounds=spirit.ordinary_dialogue_rounds,
-            report_id=rows.report_id,
-            report_status=rows.report_status,
-        ),
         quotas=[
             quota_usage(
                 QuotaSnapshot(
@@ -140,10 +191,7 @@ async def load_bootstrap_snapshot(
             )
             for item in rows.quotas
         ],
-        feature_flags=FeatureFlags(
-            remote_search=spirit.remote_search_on,
-            image_feed=V0_IMAGE_FEED,
-        ),
+        feature_flags=FeatureFlags(remote_search=spirit.remote_search_on),
     )
 
 
@@ -156,58 +204,19 @@ def room_public_from_aggregate(
     *,
     now: datetime,
 ) -> RoomPublic:
+    _ = now
     spirit = rows.spirit
     if spirit is None:
         raise RuntimeError("room projection requires a spirit")
-    pending = None
-    if rows.pending_sight is not None:
-        pending = PendingSight(
-            feed_id=rows.pending_sight.feed_id,
-            source=rows.pending_sight.source,
-            status=rows.pending_sight.status,
-            updated_at=utc_z(rows.pending_sight.updated_at),
-        )
-    status = cast(SpiritStatus, spirit.status)
-    projected = project_room(
-        status=status,
-        spirit_id=spirit.id,
-        last_interact_at=spirit.last_interact_at,
-        now=now,
-        scholar_marks=spirit.scholar_marks,
-        due_promise=rows.due_promise,
-        pact_recap=rows.pact_recap,
-        unread_postcard=rows.unread_postcard,
-        pending_sight=pending is not None,
-        unread_footprint_count=len(rows.unread_postcard_ids),
-    )
-    return room_public_from_projection(
-        projected,
-        weather=room_weather_for_emotion(rows.latest_emotion),
-        pending_sight=pending,
-        updated_at=spirit.updated_at,
-    )
-
-
-def room_public_from_projection(
-    projected: RoomProjection,
-    *,
-    weather: str,
-    pending_sight: PendingSight | None,
-    updated_at: datetime,
-) -> RoomPublic:
-    letter = None
-    if projected.letter is not None:
-        letter = RoomLetter(
-            type=projected.letter.type,
-            resource_id=projected.letter.resource_id,
-            title_key=projected.letter.title_key,
-            occurred_at=utc_z(projected.letter.occurred_at),
-        )
-    return RoomPublic(
-        weather=weather,
-        layers=list(projected.layers),
-        letter=letter,
-        pending_sight=pending_sight,
-        unread_footprint_count=projected.unread_footprint_count,
-        updated_at=utc_z(updated_at),
+    candidates: list[str] = []
+    if rows.due_promise is not None:
+        candidates.append("promise_due")
+    return room_public_assembled(
+        status=spirit.status,
+        stage=spirit.stage,
+        hunger=spirit.hunger,
+        energy=spirit.energy,
+        primary_emotion_label=spirit.primary_emotion_label or rows.latest_emotion,
+        letter_candidates=tuple(candidates),
+        image_key=spirit.stage_image_key,
     )

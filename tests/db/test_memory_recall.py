@@ -5,7 +5,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import pytest
 from app.core.errors import ApiError
 from app.core.logging import redact_event_dict
 from app.core.security import CurrentUser
@@ -39,7 +38,6 @@ NOW = datetime(2026, 9, 10, 4, 0, tzinfo=UTC)
 INVITE_A = "MEMRABCD"
 INVITE_B = "MEMREFGH"
 SECRET_SUMMARY = "RECALL_NEG_阿年称呼_DO_NOT_LOG"
-SECRET_STYLE = "RECALL_STYLE_嗯"
 CURSOR_SECRET = b"recall-cursor-hmac"
 FAKE_REPLY = "知道了。"
 
@@ -48,7 +46,7 @@ class _CaptureProvider(ControllableProviderStub):
     def __init__(self, output: ChatOutput | None = None) -> None:
         super().__init__()
         self.seen: list[ChatInput] = []
-        self._output = output or ChatOutput(reply=FAKE_REPLY)
+        self._output = output or ChatOutput(reply=FAKE_REPLY, intent="companion")
 
     async def chat(self, value: ChatInput) -> ChatOutput:
         self.seen.append(value)
@@ -74,9 +72,8 @@ def _chat_request(*, client_message_id: uuid.UUID | None = None) -> ChatRequest:
     return ChatRequest.model_validate(
         {
             "client_message_id": str(client_message_id or uuid.uuid4()),
-            "content": "你好",
+            "content": "阿年你好",
             "source": "text",
-            "onboarding": True,
             "context": {
                 "timezone": "Asia/Shanghai",
                 "local_hour": 21,
@@ -157,13 +154,6 @@ async def _assert_generation_negatives(url: str) -> None:
             ),
             {"id": extra_id, "spirit_id": spirit_id},
         )
-        await session.execute(
-            text(
-                "INSERT INTO public.style_samples (spirit_id, kind, text) "
-                "VALUES (:spirit_id, 'user_filler', :text)"
-            ),
-            {"spirit_id": spirit_id, "text": SECRET_STYLE},
-        )
 
     async with claimed_transaction(factory, owner_user) as session:
         prompt = await recall_repo.load_prompt_recall(session, owner_id=owner, spirit_id=spirit_id)
@@ -181,7 +171,7 @@ async def _assert_generation_negatives(url: str) -> None:
         )
     assert {item.id for item in prompt.memories} == {memory_id, extra_id}
     assert SECRET_SUMMARY in {item.summary for item in prompt.memories}
-    assert SECRET_STYLE in {item.text for item in prompt.style_samples}
+    assert prompt.style_samples == ()
     assert {item.id for item in report} == {memory_id, extra_id}
     assert allowed == frozenset({memory_id, extra_id})
     assert {item.id for item in page.items} == {memory_id, extra_id}
@@ -204,13 +194,13 @@ async def _assert_generation_negatives(url: str) -> None:
     assert capture.seen
     first = capture.seen[0]
     assert SECRET_SUMMARY in {item.summary for item in first.memories}
-    assert SECRET_STYLE in {item.text for item in first.style_samples}
     assert memory_id in {item.id for item in first.memories}
 
     cited_client = uuid.uuid4()
     cited = _CaptureProvider(
         ChatOutput(
             reply=FAKE_REPLY,
+            intent="companion",
             citations=[ChatCitation(type="memory", id=memory_id)],
         )
     )
@@ -279,21 +269,22 @@ async def _assert_generation_negatives(url: str) -> None:
     assert SECRET_SUMMARY not in {item.summary for item in after.seen[0].memories}
     assert memory_id not in {item.id for item in after.seen[0].memories}
 
-    with pytest.raises(ApiError) as inactive:
-        async with claimed_transaction(factory, owner_user) as session:
-            await settle_chat_turn(
-                session,
-                owner_user,
-                _chat_request(),
-                now=NOW + timedelta(seconds=3),
-                provider=_CaptureProvider(
-                    ChatOutput(
-                        reply=FAKE_REPLY,
-                        citations=[ChatCitation(type="memory", id=memory_id)],
-                    )
-                ),
-            )
-    assert inactive.value.code == "MODEL_UNAVAILABLE"
+    async with claimed_transaction(factory, owner_user) as session:
+        sealed_cite = await settle_chat_turn(
+            session,
+            owner_user,
+            _chat_request(),
+            now=NOW + timedelta(seconds=3),
+            provider=_CaptureProvider(
+                ChatOutput(
+                    reply=FAKE_REPLY,
+                    intent="companion",
+                    citations=[ChatCitation(type="memory", id=memory_id)],
+                )
+            ),
+        )
+    assert sealed_cite.spirit_content == FAKE_REPLY
+    assert sealed_cite.spirit_source_refs == ()
 
     async with claimed_transaction(factory, owner_user) as session:
         replayed = await settle_chat_turn(

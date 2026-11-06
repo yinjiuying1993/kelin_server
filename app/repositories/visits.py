@@ -178,6 +178,18 @@ async def claim_due_visit_settle_jobs(
     return tuple(jobs)
 
 
+async def fetch_spirit_owner_id(
+    session: AsyncSession, spirit_id: uuid.UUID
+) -> uuid.UUID | None:
+    value = await session.scalar(
+        text("SELECT private.spirit_owner_id(:id)"),
+        {"id": spirit_id},
+    )
+    if value is None:
+        return None
+    return uuid.UUID(str(value))
+
+
 async def load_visit_postcard_public_input(
     session: AsyncSession, *, visit_id: uuid.UUID
 ) -> VisitPostcardPublicInput | None:

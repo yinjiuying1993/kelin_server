@@ -12,7 +12,6 @@ from app.core.config import Settings
 from app.core.security import JwtVerifier
 from app.main import create_app
 from app.schemas.chat import ChatTurnResult
-from app.schemas.onboarding import OnboardingCompleteResult
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 from fastapi.testclient import TestClient
@@ -80,7 +79,6 @@ def _chat_body(*, client_message_id: UUID | None = None, content: str = "你好"
         "client_message_id": str(client_message_id or uuid4()),
         "content": content,
         "source": "text",
-        "onboarding": True,
         "context": {
             "timezone": "Asia/Shanghai",
             "local_hour": 21,
@@ -109,7 +107,7 @@ def test_router_does_not_contain_settlement_sql() -> None:
     assert "CHAT_COMPLETIONS_URL" not in source
 
 
-def test_onboarding_chat_replays_and_five_rounds_can_complete() -> None:
+def test_ordinary_chat_replays_after_hatch() -> None:
     url = upgrade_empty_kelin_test_to_head()
     asyncio.run(_assert_chat_http(url))
 
@@ -142,7 +140,6 @@ async def _assert_chat_http(url: str) -> None:
             json={
                 "client_message_id": str(uuid4()),
                 "content": "你好",
-                "source": "text",
                 "context": first_body["context"],
             },
             headers=auth,
@@ -151,53 +148,33 @@ async def _assert_chat_http(url: str) -> None:
         assert first.status_code == 200, first.text
         replay = client.post("/api/v1/chat", json=first_body, headers=auth)
         assert replay.status_code == 200, replay.text
-        version = ChatTurnResult.model_validate(first.json()["data"]).patch.spirit
-        assert version is not None
-        current_version = version.version
-        for index in range(4):
-            body = _chat_body()
-            if index == 0:
-                body["source"] = "voice"
-            turn = client.post("/api/v1/chat", json=body, headers=auth)
-            assert turn.status_code == 200, turn.text
-            parsed = ChatTurnResult.model_validate(turn.json()["data"])
-            assert parsed.patch.spirit is not None
-            if index == 0:
-                assert parsed.resource.speech_audio is None
-            current_version = parsed.patch.spirit.version
-        complete = client.post(
-            "/api/v1/onboarding/complete",
-            json={"client_id": str(uuid4()), "expected_spirit_version": current_version},
-            headers=auth,
-        )
+        voice_body = _chat_body()
+        voice_body["source"] = "voice"
+        voice = client.post("/api/v1/chat", json=voice_body, headers=auth)
+        assert voice.status_code == 200, voice.text
     assert created.status_code == 200, created.text
     assert missing.status_code == 422
     assert missing.json()["error"]["code"] == "INVALID_INPUT"
     assert first.status_code == 200, first.text
     data = ChatTurnResult.model_validate(first.json()["data"])
     replayed = ChatTurnResult.model_validate(replay.json()["data"])
+    voiced = ChatTurnResult.model_validate(voice.json()["data"])
     assert data.resource.generation_source == "stub"
-    assert data.resource.onboarding is True
+    assert data.resource.model_dump().get("onboarding") is None
     assert data.resource.should_extract is False
     assert data.resource.usage.input_units == 0
     assert data.resource.usage.output_units == 0
     assert data.resource.spirit_message.content == "嗯。"
     assert data.resource.speech_audio is None
-    assert data.patch.room is None
-    assert data.patch.onboarding is not None
-    assert data.patch.onboarding.required is True
-    assert data.patch.onboarding.step == 1
+    assert data.patch.room is not None
+    assert data.patch.room.status == "home"
+    assert data.patch.model_dump().get("onboarding") is None
     assert data.patch.spirit is not None
-    assert data.patch.spirit.onboarding_step == 1
+    assert data.patch.spirit.hatched_at is not None
     assert replay.status_code == 200
     assert replayed.resource.user_message.id == data.resource.user_message.id
     assert replayed.resource.spirit_message.id == data.resource.spirit_message.id
-    assert replayed.patch.onboarding is not None
-    assert replayed.patch.onboarding.step == 1
-    assert complete.status_code == 200, complete.text
-    hatched = OnboardingCompleteResult.model_validate(complete.json()["data"])
-    assert hatched.patch.spirit is not None
-    assert hatched.patch.spirit.hatched_at is not None
-    dumped = first.text + replay.text + complete.text
+    assert voiced.resource.speech_audio is None
+    dumped = first.text + replay.text + voice.text
     assert token not in dumped
     assert "eyJ" not in dumped

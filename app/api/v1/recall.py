@@ -22,7 +22,7 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
     404: {"model": RecallErrorEnvelope, "description": "NOT_FOUND"},
     409: {
         "model": RecallErrorEnvelope,
-        "description": "SPIRIT_NOT_LOST, IDEMPOTENCY_CONFLICT or IDEMPOTENCY_IN_PROGRESS",
+        "description": "SPIRIT_NOT_AWAY, IDEMPOTENCY_CONFLICT or IDEMPOTENCY_IN_PROGRESS",
     },
     422: {
         "model": RecallErrorEnvelope,
@@ -37,11 +37,8 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
     response_model=RecallSuccessEnvelope,
     responses=_ERRORS,
     status_code=status.HTTP_200_OK,
-    summary="Recall a lost spirit",
-    description=(
-        "Food or owned active sight memory. Only when status=lost. "
-        "Food quota full still returns home without ordinary food attributes."
-    ),
+    summary="Recall a visiting spirit",
+    description="Only when the spirit is away. The spirit comes home.",
 )
 async def post_recall(
     request: Request,

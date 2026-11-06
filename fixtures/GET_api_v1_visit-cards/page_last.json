@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000e4",
+        "kind": "visit",
+        "official": true,
+        "unread": false,
+        "occurred_at": "2026-10-18T12:00:00Z",
+        "peer": {
+          "title": "浅浅偶遇",
+          "stage": "formed"
+        },
+        "is_default": true,
+        "body": "它来看你了。"
+      }
+    ],
+    "next_cursor": null,
+    "has_more": false
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000d5",
+  "server_time": "2026-10-20T00:00:00Z"
+}

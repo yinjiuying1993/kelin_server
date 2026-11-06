@@ -110,6 +110,21 @@ async def fetch_owned_spirit_id(session: AsyncSession, owner_id: uuid.UUID) -> u
     return uuid.UUID(str(value))
 
 
+async def list_active_evidence_ids(
+    session: AsyncSession, spirit_id: uuid.UUID
+) -> tuple[uuid.UUID, ...]:
+    rows = (
+        await session.execute(
+            text(
+                "SELECT id FROM public.memories "
+                "WHERE spirit_id = :spirit_id AND status = 'active'"
+            ),
+            {"spirit_id": spirit_id},
+        )
+    ).all()
+    return tuple(uuid.UUID(str(row[0])) for row in rows)
+
+
 async def list_active_memories_keyset(
     session: AsyncSession,
     *,
@@ -209,6 +224,39 @@ async def fetch_memory_for_update(
     return _mutation_row(row)
 
 
+async def lock_correction_peers(
+    session: AsyncSession, *, spirit_id: uuid.UUID
+) -> tuple[tuple[uuid.UUID, str, str, str, int], ...]:
+    rows = (
+        await session.execute(
+            text(
+                "SELECT id, topic_key, summary, status, salience FROM public.memories "
+                "WHERE spirit_id = :spirit_id AND topic_key IS NOT NULL "
+                "AND status IN ('active', 'sealed', 'deleted') "
+                "FOR UPDATE"
+            ),
+            {"spirit_id": spirit_id},
+        )
+    ).all()
+    return tuple(
+        (row.id, str(row.topic_key), str(row.summary), str(row.status), int(row.salience))
+        for row in rows
+    )
+
+
+async def supersede_active_memories(
+    session: AsyncSession, *, spirit_id: uuid.UUID, memory_ids: tuple[uuid.UUID, ...]
+) -> None:
+    if not memory_ids:
+        return
+    statement = text(
+        "UPDATE public.memories SET status = 'superseded', version = version + 1, "
+        "updated_at = now() "
+        "WHERE spirit_id = :spirit_id AND status = 'active' AND id IN :ids"
+    ).bindparams(bindparam("ids", expanding=True))
+    await session.execute(statement, {"spirit_id": spirit_id, "ids": list(memory_ids)})
+
+
 async def correct_active_memory(
     session: AsyncSession,
     *,
@@ -216,12 +264,17 @@ async def correct_active_memory(
     memory_id: uuid.UUID,
     expected_version: int,
     summary: str,
+    topic_key: str,
+    confirm_delta: int,
+    salience: int,
 ) -> MemoryMutationRow | None:
     row = (
         await session.execute(
             text(
-                "UPDATE public.memories SET summary = :summary, version = version + 1, "
-                "updated_at = now() "
+                "UPDATE public.memories SET summary = :summary, topic_key = :topic_key, "
+                "confirm_count = confirm_count + :confirm_delta, "
+                "salience = GREATEST(salience, :salience), "
+                "last_confirmed_at = now(), version = version + 1, updated_at = now() "
                 "WHERE id = :id AND spirit_id = :spirit_id "
                 "AND status = 'active' AND version = :expected_version "
                 f"RETURNING {_MUTATION_RETURNING}"
@@ -231,6 +284,9 @@ async def correct_active_memory(
                 "spirit_id": spirit_id,
                 "expected_version": expected_version,
                 "summary": summary,
+                "topic_key": topic_key,
+                "confirm_delta": confirm_delta,
+                "salience": salience,
             },
         )
     ).first()
@@ -463,6 +519,48 @@ def _tombstone_row(row: Any) -> MemoryTombstoneRow:
     if not isinstance(deleted_at, datetime):
         raise RuntimeError("memory deleted_at is not a timestamp")
     return MemoryTombstoneRow(id=row.id, deleted_at=_aware(deleted_at))
+
+
+async def list_stale_candidates(
+    session: AsyncSession, *, spirit_id: uuid.UUID
+) -> tuple[tuple[uuid.UUID, str, int, datetime | None, str], ...]:
+    rows = (
+        await session.execute(
+            text(
+                "SELECT id, type, salience, last_confirmed_at, status "
+                "FROM public.memories "
+                "WHERE spirit_id = :spirit_id AND status = 'active'"
+            ),
+            {"spirit_id": spirit_id},
+        )
+    ).all()
+    return tuple(
+        (
+            row.id,
+            str(row.type),
+            int(row.salience),
+            row.last_confirmed_at if isinstance(row.last_confirmed_at, datetime) else None,
+            str(row.status),
+        )
+        for row in rows
+    )
+
+
+async def mark_memories_stale(
+    session: AsyncSession, *, spirit_id: uuid.UUID, memory_ids: tuple[uuid.UUID, ...]
+) -> int:
+    if not memory_ids:
+        return 0
+    statement = text(
+        "UPDATE public.memories SET status = 'stale', version = version + 1, "
+        "updated_at = now() "
+        "WHERE spirit_id = :spirit_id AND status = 'active' AND id IN :ids "
+        "RETURNING id"
+    ).bindparams(bindparam("ids", expanding=True))
+    rows = (
+        await session.execute(statement, {"spirit_id": spirit_id, "ids": list(memory_ids)})
+    ).all()
+    return len(rows)
 
 
 def _mutation_row(row: Any) -> MemoryMutationRow:

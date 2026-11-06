@@ -6,12 +6,12 @@
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `cdb52009a4ec253303a483f7a706d0439bc3fae8c728f146bbb7fa89fec71ae2` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | Alembic head | `20260908_0011`（P14 **未改库**） |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/`（与 SHA 同锁） |
 
-P13 文档里的 SHA `4297869e…` 在 **P14-T01 加语音端点后作废**。P08/P11 旧 SHA 也不要再用。当前全量锁见 [`p16-p20-integration.md`](p16-p20-integration.md)（`98d1c742…`）。  
+P13 文档里的 SHA `4297869e…` 在 **P14-T01 加语音端点后作废**。P08/P11 旧 SHA 也不要再用。当前全量锁见 [`ios-integration.md`](ios-integration.md)（`d688d428…`）。  
 **语音回合 Chat 带回 TTS**：按 [`p14-chat-voice-tts.md`](p14-chat-voice-tts.md) 改 DTO / 超时 / 播放，不要沿用下文「Chat 后再打 `/synthesize`」当主路径。
 
 P13 文末「不要打 ASR/TTS」已被本文取代：本机 **可以**打 `/transcribe` 与 `/synthesize`。T04–T08 仍是 iOS 工程；T09 真机真实百炼未做。Pact 不要按本文「不要打」——改看 P15。
@@ -58,7 +58,7 @@ P13 文末「不要打 ASR/TTS」已被本文取代：本机 **可以**打 `/tra
 
 ### 必须改：DTO 对齐 SHA
 
-锁定 SHA：`cdb52009a4ec253303a483f7a706d0439bc3fae8c728f146bbb7fa89fec71ae2`。
+锁定 SHA：`d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e`。
 
 新增解码：
 

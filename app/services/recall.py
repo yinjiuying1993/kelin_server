@@ -1,4 +1,4 @@
-"""Recall lost spirits with food or owned active sight. Spec §§8.7, 11.5."""
+"""Recall a visiting spirit home. Spec §§8.7, 11.5."""
 
 from __future__ import annotations
 
@@ -12,30 +12,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ApiError, public_error_message
 from app.core.security import CurrentUser
 from app.domain.cursor import utc_iso
-from app.domain.feed import DAILY_LIMITS
 from app.domain.quota import QuotaSnapshot, quota_usage
 from app.domain.recall import (
-    RECALL_GROWTH_EVENT,
     RECALL_MUTATION_EVENT,
-    RECALL_RELATION_CONFIDENCE,
-    RECALL_RELATION_SALIENCE,
-    RECALL_RELATION_SUMMARY,
-    recall_growth_payload,
-    recall_relation_memory_id,
     recall_request_hash,
 )
-from app.providers.types import MemoryType
+from app.domain.user_actions.types import SpiritStatus
 from app.repositories import bootstrap as bootstrap_repo
 from app.repositories import recall as recall_repo
-from app.repositories.feed import IdempotencyClaim, MemoryRow
-from app.schemas.bootstrap import RoomPublic
-from app.schemas.memory import MemoryPublic, MemoryStatus
-from app.schemas.recall import RecallMethod, RecallRequest, RecallSightRequest
+from app.repositories.memory_rows import IdempotencyClaim
+from app.schemas.memory import MemoryPublic
+from app.schemas.recall import RecallMethod, RecallRequest
+from app.schemas.room import RoomPublic
 from app.schemas.spirit import MutationEvent, QuotaUsage, SpiritPublic
 from app.services.bootstrap import room_public_from_aggregate, spirit_public_from_bootstrap_row
-from app.services.evolution import maybe_advance_stage
-from app.services.growth import record_and_apply
-from app.services.quota import consume as consume_quota
+from app.services.central.lifecycle import settle_then_resolve
+from app.services.central import publish_user_action
+from app.services.memory.event_memory import load_event_memory
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +41,29 @@ class RecallSettlement:
     memories: tuple[MemoryPublic, ...]
     quotas: tuple[QuotaUsage, ...]
     events: tuple[MutationEvent, ...]
+
+
+async def _event_memories(
+    session: AsyncSession,
+    spirit_id: uuid.UUID,
+    event_id: uuid.UUID,
+) -> tuple[MemoryPublic, ...]:
+    record = await load_event_memory(session, spirit_id, event_id)
+    if record is None:
+        return ()
+    return (
+        MemoryPublic(
+            id=record.id,
+            type=record.type,  # type: ignore[arg-type]
+            summary=record.summary,
+            tags=list(record.tags),
+            salience=record.salience,
+            confidence=record.confidence,
+            status=record.status,  # type: ignore[arg-type]
+            version=record.version,
+            created_at=utc_iso(record.created_at),
+        ),
+    )
 
 
 def _api_error(
@@ -74,6 +90,7 @@ async def recall_spirit(
     now: datetime,
 ) -> RecallSettlement:
     await recall_repo.assert_writable_transaction(session)
+    await settle_then_resolve(session, user, now=now)
     locked = await recall_repo.lock_owned_spirit(session, user.id)
     if locked is None:
         raise _api_error("NOT_FOUND", status_code=404)
@@ -83,34 +100,27 @@ async def recall_spirit(
     )
     if not claim.inserted:
         return await _replay(session, user, body, claim, request_hash, now=now)
-    if locked.status != "lost":
-        raise _api_error("SPIRIT_NOT_LOST", status_code=409)
-    if isinstance(body, RecallSightRequest):
-        await _require_active_owned_sight(session, spirit_id=locked.id, memory_id=body.memory_id)
-    if body.method == "food":
-        await _try_consume_food(session, user.id, now=now, timezone=locked.timezone)
-    memory = await recall_repo.insert_relation_memory(
+    if body.method != "food":
+        raise _api_error("INVALID_INPUT", status_code=422)
+    if locked.status != "away":
+        raise _api_error("SPIRIT_NOT_AWAY", status_code=409)
+    await _forward_recall(
         session,
-        memory_id=recall_relation_memory_id(owner_id=user.id, client_id=body.client_id),
+        user,
         spirit_id=locked.id,
-        summary=RECALL_RELATION_SUMMARY,
-        salience=RECALL_RELATION_SALIENCE,
-        confidence=RECALL_RELATION_CONFIDENCE,
+        event_id=body.client_id,
+        status="away",
+        timezone=locked.timezone,
+        snapshot_version=locked.version,
+        client_payload_hash=request_hash,
+        now=now,
     )
-    recorded = await record_and_apply(
+    await recall_repo.finish_recall_home(
         session,
         owner_id=user.id,
         spirit_id=locked.id,
-        event_type=RECALL_GROWTH_EVENT,
-        source_id=body.client_id,
-        payload=recall_growth_payload(),
         now=now,
-        touch_interact=True,
     )
-    await maybe_advance_stage(session, owner_id=user.id, spirit_id=locked.id, now=now)
-    marked = await recall_repo.mark_returned_home(session, owner_id=user.id, spirit_id=locked.id)
-    if not marked:
-        raise _api_error("SPIRIT_NOT_LOST", status_code=409)
     await recall_repo.complete_recall_idempotency(session, user.id, body.client_id, body.client_id)
     return await _project(
         session,
@@ -118,44 +128,15 @@ async def recall_spirit(
         client_id=body.client_id,
         method=body.method,
         now=now,
-        memories=(_public_memory(memory),),
+        memories=await _event_memories(session, locked.id, body.client_id),
         events=(
             MutationEvent(
-                id=recorded.event_id,
+                id=body.client_id,
                 type=RECALL_MUTATION_EVENT,
                 occurred_at=utc_iso(now),
             ),
         ),
     )
-
-
-async def _require_active_owned_sight(
-    session: AsyncSession, *, spirit_id: uuid.UUID, memory_id: uuid.UUID
-) -> None:
-    row = await recall_repo.fetch_memory(session, memory_id)
-    if row is None or row.spirit_id != spirit_id or row.type != "sight" or row.status != "active":
-        raise _api_error("RECALL_SOURCE_INVALID", status_code=422)
-
-
-async def _try_consume_food(
-    session: AsyncSession,
-    owner_id: uuid.UUID,
-    *,
-    now: datetime,
-    timezone: str,
-) -> None:
-    try:
-        await consume_quota(
-            session,
-            owner_id,
-            "food",
-            now=now,
-            timezone=timezone,
-            limit_value=DAILY_LIMITS["food"],
-        )
-    except ApiError as exc:
-        if exc.code != "QUOTA_EXCEEDED":
-            raise
 
 
 async def _replay(
@@ -175,18 +156,10 @@ async def _replay(
         raise _api_error("IDEMPOTENCY_CONFLICT", status_code=409)
     if claim.status != "completed":
         raise _api_error("IDEMPOTENCY_IN_PROGRESS", status_code=409, retryable=True)
-    memory = await recall_repo.fetch_memory_row(
-        session, recall_relation_memory_id(owner_id=user.id, client_id=body.client_id)
-    )
+    spirit_id = await recall_repo.lock_owned_spirit(session, user.id)
     memories: tuple[MemoryPublic, ...] = ()
-    if memory is not None:
-        memories = (_public_memory(memory),)
-    event_id = await recall_repo.fetch_growth_event_id(
-        session, source_id=body.client_id, event_type=RECALL_GROWTH_EVENT
-    )
-    events: tuple[MutationEvent, ...] = ()
-    if event_id is not None:
-        events = (MutationEvent(id=event_id, type=RECALL_MUTATION_EVENT, occurred_at=utc_iso(now)),)
+    if spirit_id is not None:
+        memories = await _event_memories(session, spirit_id.id, body.client_id)
     return await _project(
         session,
         user,
@@ -194,7 +167,13 @@ async def _replay(
         method=body.method,
         now=now,
         memories=memories,
-        events=events,
+        events=(
+            MutationEvent(
+                id=body.client_id,
+                type=RECALL_MUTATION_EVENT,
+                occurred_at=utc_iso(now),
+            ),
+        ),
     )
 
 
@@ -238,40 +217,39 @@ async def _project(
     )
 
 
-def _public_memory(row: MemoryRow) -> MemoryPublic:
-    return MemoryPublic(
-        id=row.id,
-        type=_memory_type(row.type),
-        summary=row.summary,
-        tags=list(row.tags),
-        salience=row.salience,
-        confidence=row.confidence,
-        status=_memory_status(row.status),
-        version=row.version,
-        created_at=utc_iso(row.created_at),
+async def _forward_recall(
+    session: AsyncSession,
+    user: CurrentUser,
+    *,
+    spirit_id: uuid.UUID,
+    event_id: uuid.UUID,
+    status: SpiritStatus,
+    timezone: str,
+    snapshot_version: int,
+    client_payload_hash: str,
+    now: datetime,
+) -> None:
+    from datetime import UTC
+    from zoneinfo import ZoneInfo
+
+    moment = now if now.tzinfo is not None else now.replace(tzinfo=UTC)
+    decision = await publish_user_action(
+        session,
+        user,
+        spirit_id=spirit_id,
+        action_type="recall",
+        event_type="recall.completed",
+        event_id=event_id,
+        payload={"method": "food"},
+        status=status,
+        active_promise=False,
+        knowledge_moderated=False,
+        pact_accepted=False,
+        usage_date=moment.astimezone(ZoneInfo(timezone)).date(),
+        timezone=timezone,
+        now=moment,
+        client_payload_hash=client_payload_hash,
+        snapshot_version=snapshot_version,
     )
-
-
-def _memory_type(value: str) -> MemoryType:
-    mapping: dict[str, MemoryType] = {
-        "preference": "preference",
-        "knowledge": "knowledge",
-        "emotion": "emotion",
-        "relation": "relation",
-        "speech": "speech",
-        "sight": "sight",
-    }
-    mapped = mapping.get(value)
-    if mapped is None:
-        raise RuntimeError("invalid memory type")
-    return mapped
-
-
-def _memory_status(value: str) -> MemoryStatus:
-    if value == "active":
-        return "active"
-    if value == "sealed":
-        return "sealed"
-    if value == "deleted":
-        return "deleted"
-    raise RuntimeError("invalid memory status")
+    if not decision.accepted:
+        raise _api_error(decision.rejection_code or "INVALID_INPUT", status_code=422)

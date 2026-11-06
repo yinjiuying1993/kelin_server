@@ -1,6 +1,6 @@
 # 刻灵 P16–P20 联调说明（iOS 接入）
 
-V0 全量入口：[`ios-integration.md`](ios-integration.md)。
+现行字段以 [`ios-integration.md`](ios-integration.md) 为准。本文不是现行 OpenAPI 锁。
 
 面向 iOS ↔ 本机 FastAPI，覆盖 **社交串门、设备通知、七日鉴定、设置/注销、找回与 Debug**。  
 前置：已按 [`p01-p07-integration.md`](p01-p07-integration.md) 孵化（`hatched_at` 有值）。房间/Chat [`p08-p10-integration.md`](p08-p10-integration.md)；记忆 [`p11-integration.md`](p11-integration.md)；投喂 [`p12-integration.md`](p12-integration.md)；成长 [`p13-integration.md`](p13-integration.md)；语音 [`p14-integration.md`](p14-integration.md) / 语音 Chat TTS [`p14-chat-voice-tts.md`](p14-chat-voice-tts.md)；共学 [`p15-integration.md`](p15-integration.md)。  
@@ -8,7 +8,7 @@ V0 全量入口：[`ios-integration.md`](ios-integration.md)。
 
 | 项 | 值 |
 | :--- | :--- |
-| OpenAPI SHA-256 | `98d1c74287949966df83779e5188f90eb408ec50bef6ee472ea707472fbdc0af` |
+| OpenAPI SHA-256 | `d688d428886a79e3f1d6b50a2ccf332191643ba497863412e7f2a7c35d6d0c7e` |
 | Alembic head | `20260908_0019`（P20 **未改库**） |
 | `schema_version` / `api_version` | `2` / `v1` |
 | Fixture 根 | `4_server/fixtures/`（与 SHA 同锁） |
@@ -20,7 +20,7 @@ P15 文档里的 SHA `743b462b…` 在 **P16 起加社交 / 设备 / 鉴定 / �
 | 阶段 | 文档 | 公开写/读 |
 | :--- | :--- | :--- |
 | P16 | [`p16-integration.md`](p16-integration.md) | 好友、明信片；串门只由 worker 规划/结算 |
-| P17 | [`p17-integration.md`](p17-integration.md) | `POST /devices`；服务端 **不发 APNs** |
+| P17 | [`p17-integration.md`](p17-integration.md) | 设备登记不在公开路由 |
 | P18 | [`p18-integration.md`](p18-integration.md) | `GET /report`、`POST /report/line` |
 | P19 | [`p19-integration.md`](p19-integration.md) | `PATCH /spirit`、`DELETE /account` |
 | P20 | [`p20-integration.md`](p20-integration.md) | `POST /recall`；Debug **仅 dev** |

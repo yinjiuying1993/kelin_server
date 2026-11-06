@@ -21,7 +21,6 @@ from app.schemas.debug import (
     DebugMemoryCreateRequest,
     DebugMutationPatch,
     DebugMutationResult,
-    DebugReportEligibilityRequest,
     DebugResetRequest,
     DebugSpiritStateRequest,
     DebugSpiritTimeRequest,
@@ -30,7 +29,6 @@ from app.schemas.debug import (
 )
 from app.services.debug import (
     DebugSettlement,
-    apply_report_eligibility,
     apply_spirit_state,
     apply_spirit_time,
     create_memory,
@@ -154,27 +152,6 @@ async def post_memories(
     now = datetime.now(UTC)
     async with claimed_transaction(factory, user) as session:
         settled = await create_memory(session, user, body, now=now)
-    return DebugSuccessEnvelope(
-        data=_mutation_payload(settled),
-        request_id=request_id_of(request),
-        server_time=utc_server_time(),
-    )
-
-
-@router.post(
-    "/report/eligibility",
-    response_model=DebugSuccessEnvelope,
-    responses=_ERRORS,
-)
-async def post_report_eligibility(
-    request: Request,
-    body: DebugReportEligibilityRequest,
-    user: Annotated[CurrentUser, Depends(require_debug_user)],
-) -> DebugSuccessEnvelope:
-    factory = session_factory_from_app(request.app)
-    now = datetime.now(UTC)
-    async with claimed_transaction(factory, user) as session:
-        settled = await apply_report_eligibility(session, user, body, now=now)
     return DebugSuccessEnvelope(
         data=_mutation_payload(settled),
         request_id=request_id_of(request),

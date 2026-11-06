@@ -80,7 +80,6 @@ def test_chat_turn_hash_ignores_client_id_and_changes_with_content() -> None:
             "client_message_id": str(uuid4()),
             "content": "你好",
             "source": "text",
-            "onboarding": True,
             "context": context,
         }
     )
@@ -89,7 +88,6 @@ def test_chat_turn_hash_ignores_client_id_and_changes_with_content() -> None:
             "client_message_id": str(uuid4()),
             "content": "你好",
             "source": "text",
-            "onboarding": True,
             "context": {**context, "local_hour": 8},
         }
     )
@@ -98,7 +96,6 @@ def test_chat_turn_hash_ignores_client_id_and_changes_with_content() -> None:
             "client_message_id": str(first.client_message_id),
             "content": "换一句",
             "source": "text",
-            "onboarding": True,
             "context": context,
         }
     )
@@ -121,7 +118,6 @@ def test_settle_command_does_not_accept_user_id() -> None:
         "client_message_id": str(uuid4()),
         "content": "你好",
         "source": "text",
-        "onboarding": True,
         "context": {
             "timezone": "Asia/Shanghai",
             "local_hour": 21,
@@ -140,7 +136,6 @@ def test_chat_request_rejects_client_window_bounds() -> None:
         "client_message_id": str(uuid4()),
         "content": "你好",
         "source": "text",
-        "onboarding": False,
         "context": {
             "timezone": "Asia/Shanghai",
             "local_hour": 21,
@@ -154,13 +149,12 @@ def test_chat_request_rejects_client_window_bounds() -> None:
             ChatRequest.model_validate(payload)
 
 
-def _request(*, onboarding: bool, content: str = "你好") -> ChatRequest:
+def _request(*, content: str = "你好") -> ChatRequest:
     return ChatRequest.model_validate(
         {
             "client_message_id": str(uuid4()),
             "content": content,
             "source": "text",
-            "onboarding": onboarding,
             "context": {
                 "timezone": "Asia/Shanghai",
                 "local_hour": 21,
@@ -171,14 +165,12 @@ def _request(*, onboarding: bool, content: str = "你好") -> ChatRequest:
     )
 
 
-def test_replay_source_follows_factory_for_onboarding_and_ordinary() -> None:
-    assert _replay_generation_source(_request(onboarding=True), None) == "stub"
-    assert _replay_generation_source(_request(onboarding=False), None) == "stub"
+def test_replay_source_follows_factory_for_stub_and_provider() -> None:
+    assert _replay_generation_source(_request(), None) == "stub"
     live = Settings(
         app_env="test",
         bailian_api_key=SecretStr("test-only-key"),
         bailian_chat_model="chat",
         bailian_app_id="test-app",
     )
-    assert _replay_generation_source(_request(onboarding=True), live) == "provider"
-    assert _replay_generation_source(_request(onboarding=False), live) == "provider"
+    assert _replay_generation_source(_request(), live) == "provider"

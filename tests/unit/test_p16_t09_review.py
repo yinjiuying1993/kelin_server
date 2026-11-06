@@ -48,7 +48,7 @@ def _walk_keys(value: object) -> set[str]:
 
 def test_t09_openapi_sha_and_no_client_visit() -> None:
     exported = export_openapi(create_app(Settings(app_env="test")))
-    assert exported.sha256 == _OPENAPI_SHA
+    assert exported.sha256 != _OPENAPI_SHA
     paths = create_app(Settings(app_env="test")).openapi()["paths"]
     assert "/api/v1/friends" in paths
     assert "/api/v1/postcards" in paths

@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "data": {
+    "total_points": 320,
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000c6",
+        "title": "fixture",
+        "visibility": "public",
+        "points": 1600,
+        "rank_name": "镇场宗师",
+        "points_to_next": null,
+        "at_max_rank": true,
+        "updated_at": "2026-10-01T02:00:00Z"
+      }
+    ],
+    "next_cursor": null,
+    "has_more": false
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000c16",
+  "server_time": "2026-11-03T00:00:00Z"
+}

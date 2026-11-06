@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "data": {
+    "id": "00000000-0000-4000-8000-0000000000a8",
+    "name": "fixture",
+    "help_count": 2,
+    "skills": [
+      {
+        "title": "fixture",
+        "rank_name": "掌作名匠"
+      },
+      {
+        "title": "fixture",
+        "rank_name": null
+      }
+    ]
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-000000000a91",
+  "server_time": "2026-11-03T00:00:00Z"
+}

@@ -12,8 +12,6 @@ from app.schemas.memory import MemoryPublic
 from app.schemas.spirit import MutationEvent, MutationPatch, QuotaUsage
 
 ExtractResourceStatus = Literal["processing", "extracted"]
-StyleKind = Literal["user_dialect", "user_filler", "spirit_catchphrase"]
-StyleStatus = Literal["active", "inactive"]
 
 
 class _ForbidExtra(BaseModel):
@@ -30,20 +28,11 @@ class ExtractRequest(_ForbidExtra):
     )
 
 
-class StyleSamplePublic(_ForbidExtra):
-    id: UUID
-    kind: StyleKind
-    text: str = Field(min_length=1, max_length=100)
-    weight: int = Field(ge=1)
-    status: StyleStatus
-
-
 class ExtractResource(_ForbidExtra):
     type: Literal["extract"] = "extract"
     conversation_window_id: UUID
     status: ExtractResourceStatus
     memories: list[MemoryPublic] = Field(default_factory=list, max_length=2)
-    style_samples: list[StyleSamplePublic] = Field(default_factory=list, max_length=1)
 
 
 class ExtractResult(_ForbidExtra):

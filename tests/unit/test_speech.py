@@ -13,7 +13,6 @@ from app.domain.speech import (
     ASR_TEMP_PREFIX,
     TTS_BUCKET,
     TTS_CACHE_TTL,
-    TTS_MAX_CHARS,
     TTS_OUTPUT_MIME,
     TTS_PLAYBACK_TTL,
     TTS_VOICE_DEFAULT,
@@ -119,9 +118,8 @@ def test_tts_cache_hit_does_not_count_quota() -> None:
     )
     with raises(InvalidSpeech, match="voice_profile"):
         require_voice_profile("warm")
-    with raises(InvalidSpeech, match="200"):
-        require_tts_text("字" * (TTS_MAX_CHARS + 1))
-    assert len(require_tts_text("字" * TTS_MAX_CHARS)) == TTS_MAX_CHARS
+    long_text = "字" * 2000
+    assert require_tts_text(long_text) == long_text
 
 
 def test_temporary_asr_audio_is_gone_after_success_and_error() -> None:

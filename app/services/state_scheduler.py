@@ -16,7 +16,6 @@ from app.core.security import CurrentUser
 from app.db.session import claimed_transaction
 from app.domain.spirit_state import require_aware
 from app.repositories import spirit_state as spirit_state_repo
-from app.services.growth import record_and_apply
 from app.services.spirit_state import settle_spirit_state
 
 _SCHEDULER_ROLE = "kelin_scheduler"
@@ -70,26 +69,13 @@ async def process_due_state_ticks(
         user = CurrentUser(id=job.owner_id)
         async with claimed_transaction(factory, user, db_role=_WORKER_ROLE) as session:
             settled = await settle_spirit_state(session, user, now=now)
-            applied = False
-            if settled.spirit_id is not None:
-                recorded = await record_and_apply(
-                    session,
-                    owner_id=user.id,
-                    spirit_id=settled.spirit_id,
-                    event_type="time_passed",
-                    source_id=job.id,
-                    payload={},
-                    now=now,
-                    touch_interact=False,
-                )
-                applied = recorded.applied
             await spirit_state_repo.mark_state_tick_done(session, job_id=job.id, now=now)
         results.append(
             StateTickResult(
                 job_id=job.id,
                 spirit_id=job.spirit_id,
                 changed=settled.changed,
-                applied_time_passed=applied,
+                applied_time_passed=False,
             )
         )
     return tuple(results)

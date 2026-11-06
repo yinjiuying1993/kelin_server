@@ -41,7 +41,6 @@ SCHEMA_INVENTORY: tuple[TableAudit, ...] = (
             "ck_egg_warm_cold_wild",
             "ck_stage_whelp_formed_awake",
             "ck_status_home_away_study_lost",
-            "ck_trait_ranges",
             "ck_onboarding_step_0_5",
             "ck_onboarding_complete_invariant",
         ),
@@ -151,22 +150,6 @@ SCHEMA_INVENTORY: tuple[TableAudit, ...] = (
         indexes=("uq_spirit_id_kind_text",),
     ),
     TableAudit(
-        name="feeds",
-        spec_section="6.4",
-        owner_path="user_id + spirit_id; RLS owner",
-        constraints=(
-            "pk_id",
-            "fk_user_id",
-            "fk_spirit_id",
-            "uq_user_id_client_id",
-            "uq_spirit_id_one_active_promise",
-            "ck_kind",
-            "ck_status",
-            "ck_promise_status",
-        ),
-        indexes=("feeds_pending", "uq_user_id_client_id", "uq_spirit_id_one_active_promise"),
-    ),
-    TableAudit(
         name="sight_uploads",
         spec_section="6.4",
         owner_path="user_id + spirit_id + feed_id; RLS owner read; client no direct write",
@@ -174,7 +157,6 @@ SCHEMA_INVENTORY: tuple[TableAudit, ...] = (
             "pk_id",
             "fk_user_id",
             "fk_spirit_id",
-            "fk_feed_id",
             "uq_user_id_client_id",
             "uq_bucket_object_path",
             "ck_status",
@@ -182,18 +164,6 @@ SCHEMA_INVENTORY: tuple[TableAudit, ...] = (
             "ck_expected_size",
         ),
         indexes=("uploads_expire", "uq_user_id_client_id", "uq_bucket_object_path"),
-    ),
-    TableAudit(
-        name="growth_events",
-        spec_section="6.4",
-        owner_path="spirit_id; RLS enabled, deny client; API/worker only",
-        constraints=(
-            "pk_id",
-            "fk_spirit_id",
-            "uq_source_type_source_id_event_type",
-            "ck_event_type_whitelist",
-        ),
-        indexes=("uq_source_type_source_id_event_type",),
     ),
     TableAudit(
         name="daily_usage",
@@ -362,8 +332,152 @@ SCHEMA_INVENTORY: tuple[TableAudit, ...] = (
 )
 
 
+SCHEMA_INVENTORY_V3: tuple[TableAudit, ...] = (
+    TableAudit(
+        name="craft_skills",
+        spec_section="v3/4.1",
+        owner_path="spirit_id → spirits.user_id; RLS owner; no DELETE grant",
+        constraints=(
+            "pk_craft_skills",
+            "fk_craft_skills_spirit_id",
+            "uq_craft_skills_skill_slug",
+            "ck_craft_skills_skill_slug",
+            "ck_craft_skills_visibility",
+            "ck_craft_skills_points",
+            "ck_craft_skills_rank",
+            "ck_craft_skills_keywords",
+            "ck_craft_skills_title",
+            "ck_craft_skills_detail",
+            "ck_craft_skills_body",
+            "ck_craft_skills_draft",
+        ),
+        indexes=("uq_craft_skills_skill_slug", "craft_skills_owner_recent"),
+        open_questions=(
+            "skill slug is unique across spirits so a returned id maps to one row; "
+            "the spec requires uniqueness inside one spirit, including deleted skills",
+        ),
+    ),
+    TableAudit(
+        name="craft_match_index",
+        spec_section="v3/4.3",
+        owner_path="spirit_id → spirits.user_id; active projection is readable",
+        constraints=(
+            "pk_craft_match_index",
+            "fk_craft_match_index_spirit_id",
+            "fk_craft_match_index_craft_skill_id",
+            "uq_craft_match_index_skill",
+            "uq_craft_match_index_skill_slug",
+            "ck_craft_match_index_skill_slug",
+            "ck_craft_match_index_active_pair",
+            "ck_craft_match_index_staged_pair",
+        ),
+        indexes=("uq_craft_match_index_skill", "craft_match_index_active"),
+        open_questions=(
+            "clearing the last slot leaves the row in place; "
+            "questions only read rows whose active title is present",
+        ),
+    ),
+    TableAudit(
+        name="craft_self_test_tickets",
+        spec_section="v3/4.2",
+        owner_path="spirit_id → spirits.user_id; API insert-only snapshot",
+        constraints=(
+            "pk_craft_self_test_tickets",
+            "fk_craft_self_test_tickets_spirit_id",
+            "fk_craft_self_test_tickets_craft_skill_id",
+            "ck_craft_self_test_tickets_skill_slug",
+            "ck_craft_self_test_tickets_snapshot_body",
+        ),
+        indexes=("craft_self_test_tickets_expires",),
+    ),
+    TableAudit(
+        name="ask_questions",
+        spec_section="v3/4.4",
+        owner_path="asker_user_id = auth.uid(); skill snapshot is a copy",
+        constraints=(
+            "pk_ask_questions",
+            "fk_ask_questions_asker_user_id",
+            "uq_ask_questions_id_asker",
+            "uq_ask_questions_asker_client",
+            "ck_ask_questions_not_own_spirit",
+            "ck_ask_questions_question_text",
+            "ck_ask_questions_skill_slug",
+            "ck_ask_questions_rank_name",
+            "ck_ask_questions_snapshot_title",
+            "ck_ask_questions_snapshot_detail",
+            "ck_ask_questions_snapshot_body",
+        ),
+        indexes=("uq_ask_questions_asker_client", "ask_questions_history"),
+        open_questions=(
+            "§11 create, save, visibility, delete, and settlement uniques stay on "
+            "V3-S2-T03 and V3-S2-T04; this table covers submit-question uniqueness",
+        ),
+    ),
+    TableAudit(
+        name="ask_turns",
+        spec_section="v3/4.4",
+        owner_path="asker_user_id = auth.uid() via the dialogue",
+        constraints=(
+            "pk_ask_turns",
+            "fk_ask_turns_question_asker",
+            "uq_ask_turns_question_client",
+            "ck_ask_turns_user_text",
+            "ck_ask_turns_status",
+            "ck_ask_turns_reply",
+        ),
+        indexes=("uq_ask_turns_question_client",),
+    ),
+    TableAudit(
+        name="ask_ratings",
+        spec_section="v3/4.4",
+        owner_path="asker_user_id = auth.uid(); one row per dialogue",
+        constraints=(
+            "pk_ask_ratings",
+            "fk_ask_ratings_question_asker",
+            "uq_ask_ratings_question",
+            "ck_ask_ratings_points",
+        ),
+        indexes=("uq_ask_ratings_question",),
+    ),
+    TableAudit(
+        name="craft_ledgers",
+        spec_section="v3/4.6",
+        owner_path="spirit_id → spirits.user_id; API select; worker adds points",
+        constraints=(
+            "pk_craft_ledgers",
+            "fk_craft_ledgers_spirit_id",
+            "uq_craft_ledgers_spirit",
+            "ck_craft_ledgers_total_points",
+            "ck_craft_ledgers_help_count",
+        ),
+        indexes=("uq_craft_ledgers_spirit",),
+        open_questions=(
+            "redeemed_at is stored here and is not granted to the API or the settlement worker",
+        ),
+    ),
+    TableAudit(
+        name="craft_settlements",
+        spec_section="v3/4.7",
+        owner_path="worker insert only; one row per ask dialogue",
+        constraints=(
+            "pk_craft_settlements",
+            "fk_craft_settlements_ask_question_id",
+            "uq_craft_settlements_question",
+            "ck_craft_settlements_points",
+            "ck_craft_settlements_help_counted",
+            "ck_craft_settlements_skill_points",
+        ),
+        indexes=("uq_craft_settlements_question",),
+    ),
+)
+
+
 def inventory_names() -> frozenset[str]:
     return frozenset(row.name for row in SCHEMA_INVENTORY)
+
+
+def v3_inventory_names() -> frozenset[str]:
+    return frozenset(row.name for row in SCHEMA_INVENTORY_V3)
 
 
 def discover_present_tables() -> frozenset[str]:

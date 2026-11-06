@@ -3,48 +3,20 @@
 from __future__ import annotations
 
 from typing import Any, Literal, Self
-from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.envelope import EnvelopeError
-from app.schemas.report import ReportSnapshot
-from app.schemas.spirit import OnboardingState, QuotaUsage, SpiritPublic
-
-SightSource = Literal["photo", "location"]
-PendingSightStatus = Literal["pending", "processing"]
+from app.schemas.room import RoomPublic
+from app.schemas.spirit import QuotaUsage, SpiritPublic
 
 
 class _ForbidExtra(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class RoomLetter(_ForbidExtra):
-    type: str = Field(min_length=1)
-    resource_id: UUID
-    title_key: str = Field(min_length=1)
-    occurred_at: str
-
-
-class PendingSight(_ForbidExtra):
-    feed_id: UUID
-    source: SightSource
-    status: PendingSightStatus
-    updated_at: str
-
-
-class RoomPublic(_ForbidExtra):
-    weather: str = Field(min_length=1, max_length=32)
-    layers: list[str]
-    letter: RoomLetter | None = None
-    pending_sight: PendingSight | None = None
-    unread_footprint_count: int = Field(ge=0)
-    updated_at: str
-
-
 class FeatureFlags(_ForbidExtra):
     remote_search: bool
-    image_feed: bool
 
 
 class BootstrapSnapshot(_ForbidExtra):
@@ -53,11 +25,8 @@ class BootstrapSnapshot(_ForbidExtra):
     api_version: Literal["v1"] = "v1"
     spirit: SpiritPublic | None
     room: RoomPublic | None
-    onboarding: OnboardingState
     latest_memories: list[Any] = Field(default_factory=list)
     unread_postcards: list[Any] = Field(default_factory=list)
-    active_pact: Any | None = None
-    report: ReportSnapshot
     quotas: list[QuotaUsage] = Field(default_factory=list)
     feature_flags: FeatureFlags
 
