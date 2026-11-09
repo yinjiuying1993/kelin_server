@@ -16,6 +16,7 @@ import pytest
 from app.core.config import Settings
 from app.core.security import CurrentUser, require_current_user
 from app.db.session import claimed_transaction, create_runtime_engine, create_session_factory
+from app.domain.ask.official import OFFICIAL_NAME, OFFICIAL_SPIRIT_ID, OFFICIAL_TITLE
 from app.main import create_app
 from app.providers.stub import ControllableProviderStub
 from app.services.craft_ledger.worker import process_due_rating_settlements
@@ -268,13 +269,22 @@ async def test_http_routes_walk_the_craft_and_ask_flow() -> None:
         )
         assert hidden["visibility"] == "private"
         _ACTOR.set(asker)
-        unmatched = _ok(
+        fallback = _ok(
             await client.post(
                 "/api/v1/ask/questions",
                 json={"client_id": str(uuid4()), "text": "再问一次水温"},
             )
         )
-        assert unmatched == {"matched": False, "question": None}
+        assert fallback["matched"] is True
+        official = fallback["question"]
+        assert official["spirit_id"] == str(OFFICIAL_SPIRIT_ID)
+        assert official["spirit_name"] == OFFICIAL_NAME
+        assert official["skill_title"] == OFFICIAL_TITLE
+        assert official["rank_name"] is None
+        assert official["turns"][-1] == {"role": "spirit", "text": "官方回复"}
+        dumped = str(fallback)
+        assert "official-general" not in dumped
+        assert "0ead1e59e0254c50a3c2aa9dfc52733a" not in dumped
 
         _ACTOR.set(owner)
         removed = _ok(

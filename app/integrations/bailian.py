@@ -118,6 +118,7 @@ class BailianHttpAdapter:
         search_enabled: bool,
         mcp_enabled: bool,
         workspace_id: SecretStr | None,
+        official_app_id: str | None,
         timeout_seconds: float,
         client: httpx.AsyncClient | None = None,
         circuits: CapabilityCircuits | None = None,
@@ -136,6 +137,7 @@ class BailianHttpAdapter:
         self._search_enabled = search_enabled
         self._mcp_enabled = mcp_enabled
         self._workspace_id = workspace_id
+        self._official_app_id = official_app_id
         self._timeout_seconds = timeout_seconds
         self._timeout = httpx.Timeout(timeout_seconds)
         self._client = client
@@ -169,6 +171,7 @@ class BailianHttpAdapter:
             search_enabled=settings.bailian_search_enabled,
             mcp_enabled=settings.bailian_mcp_enabled,
             workspace_id=settings.bailian_workspace_id,
+            official_app_id=settings.bailian_official_app_id,
             timeout_seconds=float(PROVIDER_TIMEOUT_SECONDS["chat"]),
             client=client,
             circuits=circuits,
@@ -213,6 +216,23 @@ class BailianHttpAdapter:
             parse=_ask_reply,
         )
         return reply
+
+    async def complete_official(self, text: str, session_id: str | None) -> tuple[str, str | None]:
+        if not self._official_app_id:
+            raise ProviderCapabilityUnwired("official")
+        prompt = text.strip()
+        if not prompt:
+            raise ProviderError("MODEL_UNAVAILABLE")
+        incoming: dict[str, str] = {"prompt": prompt}
+        if session_id and session_id.strip():
+            incoming["session_id"] = session_id.strip()
+        return await self._complete_json(
+            capability="chat",
+            model="official",
+            url=f"https://dashscope.aliyuncs.com/api/v1/apps/{self._official_app_id}/completion",
+            payload={"input": incoming, "parameters": {}, "debug": {}},
+            parse=_official_completion,
+        )
 
     async def complete_match(self, instruction: str, user_text: str) -> list[str]:
         return await self._complete_json(
@@ -700,6 +720,22 @@ def _match_skill_ids(response: httpx.Response) -> list[str]:
     if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
         raise ProviderError("MODEL_UNAVAILABLE")
     return [str(item) for item in raw]
+
+
+def _official_completion(response: httpx.Response) -> tuple[str, str | None]:
+    try:
+        payload = response.json()
+    except json.JSONDecodeError as exc:
+        raise ProviderError("MODEL_UNAVAILABLE") from exc
+    output = payload.get("output") if isinstance(payload, dict) else None
+    if not isinstance(output, dict):
+        raise ProviderError("MODEL_UNAVAILABLE")
+    reply = output.get("text")
+    if not isinstance(reply, str) or not reply.strip():
+        raise ProviderError("MODEL_UNAVAILABLE")
+    session = output.get("session_id")
+    kept = session.strip() if isinstance(session, str) and session.strip() else None
+    return reply.strip(), kept
 
 
 def _ask_reply(response: httpx.Response) -> str:

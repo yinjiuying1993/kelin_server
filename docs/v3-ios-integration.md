@@ -24,7 +24,7 @@ App 不校验这段指纹。对 `data` 里的字段解码。多出来的键按 4
 6. 最近三条、全部记录、详情、追问、评分。再评一次仍是第一次的等级。
 7. 确认 worker 在跑，再拉主人的技能列表、`GET /api/v1/craft/redeem`、`GET /api/v1/ask/helped`。满意一次后总分是 5，帮助次数是 1。
 8. 提问者拉 `GET /api/v1/spirits/{spirit_id}/public`，能看到标题和职称，看不到正文。
-9. 主人把技能设为私密后再提问，`matched` 为 false，`question` 为 null。这是成功。
+9. 主人把技能设为私密后再提问，落到官方精灵。`matched` 为 true，`spirit_name` 是「官方精灵」，`skill_title` 是「万能应答」。这是成功。
 10. 删除后，主人列表为空；公开详情里 `skills` 为空，帮助次数还在。
 
 ---
@@ -250,7 +250,7 @@ App 不校验这段指纹。对 `data` 里的字段解码。多出来的键按 4
 }
 ```
 
-没有匹配到：`matched` 为 false，`question` 为 null。这是成功，不是错误。不要改问另一只精灵，也不要自动重试出新的 `client_id`。同一 `client_id` 重放返回第一次的结果。
+没有匹配到公开技艺时，服务端改问固定的官方精灵，仍然是 `matched` 为 true。`spirit_name` 是「官方精灵」，`skill_title` 是「万能应答」，`rank_name` 是 null。不要改问另一只精灵，也不要自动重试出新的 `client_id`。同一 `client_id` 重放返回第一次的结果。给这场对话评分只记在提问人的记录里，不加官方精灵的帮助次数。
 
 `turns` 里至少有一条 `role=spirit`。`rank_name`、`skill_title` 和 `spirit_id` 可以是 null。空字符串不会出现。
 

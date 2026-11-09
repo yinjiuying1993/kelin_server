@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.ask.official import OFFICIAL_SLUG
 from app.domain.ask.prompt import DialogueRole
 
 LOAD_SQL = """
@@ -16,6 +17,8 @@ SELECT
     q.question_text,
     q.snapshot_detail,
     q.snapshot_reference_links,
+    q.snapshot_skill_slug,
+    q.agent_session_id,
     q.first_reply_at,
     EXISTS (
         SELECT 1
@@ -48,6 +51,8 @@ class FollowDialogue:
     first_reply_at: datetime | None
     rated: bool
     turns: tuple[tuple[DialogueRole, str], ...]
+    official: bool = False
+    agent_session_id: str | None = None
 
 
 class SqlAskFollow:
@@ -82,4 +87,13 @@ class SqlAskFollow:
             first_reply_at=row.first_reply_at,
             rated=bool(row.rated),
             turns=tuple(turns),
+            official=str(row.snapshot_skill_slug) == OFFICIAL_SLUG,
+            agent_session_id=_session_id(row.agent_session_id),
         )
+
+
+def _session_id(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    return cleaned or None

@@ -22,6 +22,12 @@ class AskCompletion(Protocol):
     async def complete_ask(self, instruction: str, user_text: str) -> str: ...
 
 
+class OfficialCompletion(Protocol):
+    async def complete_official(
+        self, text: str, session_id: str | None
+    ) -> tuple[str, str | None]: ...
+
+
 class ProviderAsk:
     def __init__(self, provider: AskCompletion) -> None:
         self._provider = provider
@@ -44,6 +50,17 @@ class ProviderAsk:
         )
         try:
             return await self._provider.complete_ask(instruction, user_text)
+        except ProviderError as exc:
+            raise AnswerCallFailed from exc
+
+
+class ProviderOfficial:
+    def __init__(self, provider: OfficialCompletion) -> None:
+        self._provider = provider
+
+    async def reply(self, *, text: str, session_id: str | None) -> tuple[str, str | None]:
+        try:
+            return await self._provider.complete_official(text, session_id)
         except ProviderError as exc:
             raise AnswerCallFailed from exc
 

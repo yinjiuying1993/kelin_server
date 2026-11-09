@@ -6,6 +6,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app.core.errors import ApiError, public_error_message
+from app.domain.ask.official import OFFICIAL_SLUG
 from app.domain.craft_ledger.settle_outbox import craft_rating_settle_job
 from app.repositories.ask_rating import RateTarget, StoredRating
 from app.schemas.ask import AskRateResult, AskRating, points_for_rating
@@ -55,6 +56,8 @@ async def submit_rating(
         if saved is None:
             raise _missing()
         return _result(question_id, saved.rating)
+    if target.skill_slug == OFFICIAL_SLUG:
+        return _result(question_id, rating)
     await store.enqueue(
         craft_rating_settle_job(
             asker_user_id=asker_user_id,

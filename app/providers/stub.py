@@ -127,6 +127,10 @@ class ControllableProviderStub:
         del instruction, user_text
         return "问艺回复"
 
+    async def complete_official(self, text: str, session_id: str | None) -> tuple[str, str | None]:
+        del text, session_id
+        return "官方回复", "stub-session"
+
     async def complete_match(self, instruction: str, user_text: str) -> list[str]:
         del instruction
         try:

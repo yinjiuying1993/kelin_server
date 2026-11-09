@@ -10,6 +10,8 @@ from sqlalchemy import Text, bindparam, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.ask.official import OFFICIAL_SLUG
+
 FIND_SQL = """
 SELECT
     id,
@@ -19,7 +21,9 @@ SELECT
     snapshot_detail,
     snapshot_reference_links,
     snapshot_body,
-    first_reply_at
+    first_reply_at,
+    snapshot_skill_slug,
+    agent_session_id
 FROM public.ask_questions
 WHERE asker_user_id = :asker_user_id
   AND client_id = :client_id
@@ -54,6 +58,8 @@ INSERT INTO public.ask_questions (
 RETURNING id
 """
 
+OFFICIAL_SQL = "SELECT spirit_id, owner_user_id FROM public.v3_official_ask_target()"
+
 SNAPSHOT_SQL = """
 SELECT
     s.title,
@@ -83,6 +89,12 @@ class SkillSnapshot:
 
 
 @dataclass(frozen=True)
+class OfficialTarget:
+    spirit_id: UUID
+    owner_user_id: UUID
+
+
+@dataclass(frozen=True)
 class StoredAsk:
     question_id: UUID
     question_text: str
@@ -92,6 +104,8 @@ class StoredAsk:
     snapshot_reference_links: tuple[str, ...]
     snapshot_body: str
     first_reply_at: datetime | None
+    official: bool = False
+    agent_session_id: str | None = None
 
 
 class SqlAskDialogue:
@@ -143,6 +157,13 @@ class SqlAskDialogue:
         )
         return result.scalar_one()
 
+    async def official(self) -> OfficialTarget | None:
+        result = await self._session.execute(text(OFFICIAL_SQL))
+        row = result.one_or_none()
+        if row is None or row.spirit_id is None or row.owner_user_id is None:
+            return None
+        return OfficialTarget(spirit_id=row.spirit_id, owner_user_id=row.owner_user_id)
+
     async def snapshot(self, skill_slug: str, spirit_id: UUID) -> SkillSnapshot | None:
         result = await self._session.execute(
             text(SNAPSHOT_SQL),
@@ -172,4 +193,13 @@ def _stored(row: object) -> StoredAsk:
         snapshot_reference_links=tuple(row.snapshot_reference_links or ()),  # type: ignore[attr-defined]
         snapshot_body=str(row.snapshot_body),  # type: ignore[attr-defined]
         first_reply_at=row.first_reply_at,  # type: ignore[attr-defined]
+        official=str(row.snapshot_skill_slug) == OFFICIAL_SLUG,  # type: ignore[attr-defined]
+        agent_session_id=_session_id(row.agent_session_id),  # type: ignore[attr-defined]
     )
+
+
+def _session_id(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    return cleaned or None

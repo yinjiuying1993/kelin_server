@@ -9,6 +9,8 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.ask.official import OFFICIAL_SLUG
+
 FIND_SQL = """
 SELECT reply_text, status
 FROM public.ask_turns
@@ -37,6 +39,14 @@ INSERT INTO public.ask_turns (
 ON CONFLICT (ask_question_id, client_id)
 DO UPDATE SET reply_text = EXCLUDED.reply_text, status = 'succeeded'
 WHERE ask_turns.status <> 'succeeded'
+"""
+
+SESSION_SQL = """
+UPDATE public.ask_questions
+SET agent_session_id = :session_id
+WHERE id = :question_id
+  AND asker_user_id = :asker_user_id
+  AND snapshot_skill_slug = :skill_slug
 """
 
 HISTORY_SQL = """
@@ -178,6 +188,19 @@ class SqlAskTurns:
             },
         )
         return await self.mark_history(question_id, asker_user_id, answered_at)
+
+    async def save_session(
+        self, question_id: UUID, asker_user_id: UUID, session_id: str
+    ) -> None:
+        await self._session.execute(
+            text(SESSION_SQL),
+            {
+                "question_id": question_id,
+                "asker_user_id": asker_user_id,
+                "session_id": session_id,
+                "skill_slug": OFFICIAL_SLUG,
+            },
+        )
 
     async def mark_history(
         self, question_id: UUID, asker_user_id: UUID, answered_at: datetime

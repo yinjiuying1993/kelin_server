@@ -53,6 +53,9 @@ class _Dialogues:
         )
         return self.saved.question_id
 
+    async def official(self) -> None:
+        return None
+
     async def snapshot(self, skill_slug: str, spirit_id: UUID) -> SkillSnapshot | None:
         del skill_slug, spirit_id
         self.snapshot_reads += 1

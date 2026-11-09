@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     bailian_api_key: SecretStr | None = None
     bailian_workspace_id: SecretStr | None = None
     bailian_app_id: str | None = None
+    bailian_official_app_id: str | None = "0ead1e59e0254c50a3c2aa9dfc52733a"
     bailian_chat_model: str | None = None
     bailian_extract_model: str | None = None
     bailian_asr_model: str | None = None
@@ -81,6 +82,7 @@ class Settings(BaseSettings):
         "bailian_api_key",
         "bailian_workspace_id",
         "bailian_app_id",
+        "bailian_official_app_id",
         "bailian_chat_model",
         "bailian_extract_model",
         "bailian_asr_model",
@@ -184,6 +186,7 @@ class Settings(BaseSettings):
             "bailian_api_key": _presence(self.bailian_api_key),
             "bailian_workspace_id": _presence(self.bailian_workspace_id),
             "bailian_app_id": _presence(self.bailian_app_id),
+            "bailian_official_app_id": _presence(self.bailian_official_app_id),
             "bailian_chat_model": _presence(self.bailian_chat_model),
             "bailian_extract_model": _presence(self.bailian_extract_model),
             "bailian_asr_model": _presence(self.bailian_asr_model),

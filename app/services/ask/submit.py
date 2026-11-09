@@ -8,7 +8,14 @@ from uuid import UUID
 
 from app.core.errors import ApiError, public_error_message
 from app.schemas.ask import AskSubmitResult
-from app.services.ask.first_reply import AnswerModel, FirstAnswer, FirstTurns, submit_first_reply
+from app.services.ask.first_reply import (
+    AnswerModel,
+    FirstAnswer,
+    FirstTurns,
+    OfficialModel,
+    submit_first_reply,
+)
+from app.services.ask.match import MatchCallFailed
 from app.services.ask.open import AskDialogues, AskMatcher
 
 _TEXT_LIMIT = 500
@@ -29,6 +36,7 @@ async def submit_question(
     client_id: UUID,
     question: str,
     now: datetime,
+    official_model: OfficialModel | None = None,
 ) -> AskSubmitResult | FirstAnswer:
     text = _question(question)
     decision = await moderator.decision(text)
@@ -36,16 +44,20 @@ async def submit_question(
         raise _error("MODERATION_REJECTED", 422)
     if decision != "allow":
         raise _error("DEPENDENCY_UNAVAILABLE", 503, retryable=True)
-    answer = await submit_first_reply(
-        dialogues,
-        matcher,
-        turns,
-        model,
-        asker_user_id=asker_user_id,
-        client_id=client_id,
-        question=text,
-        now=now,
-    )
+    try:
+        answer = await submit_first_reply(
+            dialogues,
+            matcher,
+            turns,
+            model,
+            asker_user_id=asker_user_id,
+            client_id=client_id,
+            question=text,
+            now=now,
+            official_model=official_model,
+        )
+    except MatchCallFailed:
+        raise _error("DEPENDENCY_UNAVAILABLE", 503, retryable=True) from None
     if answer is not None:
         return answer
     if await dialogues.find(asker_user_id, client_id) is None:

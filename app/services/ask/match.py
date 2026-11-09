@@ -56,10 +56,7 @@ async def match_published_skill(
     limit = {} if request_limit is None else {"limit": request_limit}
     if not payload_fits(payload, **limit):
         return None
-    try:
-        returned = await model.think(payload)
-    except MatchCallFailed:
-        return None
+    returned = await model.think(payload)
     by_slug = {item.skill_slug: item for item in loaded}
     ordered = _known_ids(returned, by_slug)
     if not ordered:

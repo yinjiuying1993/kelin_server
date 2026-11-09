@@ -117,12 +117,10 @@ async def test_changed_skill_or_model_failure_has_no_match() -> None:
     )
     assert confirmer.calls == [("pour-tea",)]
     failed = _Model(fail=True)
-    assert (
+    with pytest.raises(MatchCallFailed):
         await match_published_skill(
             materials, confirmer, failed, asker_spirit_id=_ASKER, question="倒茶"
         )
-        is None
-    )
     assert failed.payloads != []
     assert materials.loads == 2
 

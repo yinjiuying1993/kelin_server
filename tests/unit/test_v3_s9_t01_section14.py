@@ -333,9 +333,10 @@ async def test_section14_match_does_not_substitute_a_spirit() -> None:
     assert unknown.calls == 1
     failed = _Model([])
     failed.think = _raise_match  # type: ignore[method-assign]
-    assert await match_published_skill(
-        materials, confirm, failed, asker_spirit_id=_SPIRIT, question="怎么泡"
-    ) is None
+    with pytest.raises(MatchCallFailed):
+        await match_published_skill(
+            materials, confirm, failed, asker_spirit_id=_SPIRIT, question="怎么泡"
+        )
     assert "complete_ask" not in inspect.getsource(match_published_skill)
 
 

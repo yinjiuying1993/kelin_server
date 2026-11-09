@@ -44,7 +44,7 @@ from app.services.ask.history import (
     read_answered_question,
 )
 from app.services.ask.match import MatchChoice, match_published_skill
-from app.services.ask.provider import ProviderAsk, ProviderMatch
+from app.services.ask.provider import ProviderAsk, ProviderMatch, ProviderOfficial
 from app.services.ask.rate import submit_rating
 from app.services.ask.submit import submit_question
 from app.services.craft_ledger.helped import read_helped
@@ -58,6 +58,10 @@ class _Provider(Protocol):
     async def moderate_text(self, text: str) -> str: ...
 
     async def complete_ask(self, instruction: str, user_text: str) -> str: ...
+
+    async def complete_official(
+        self, text: str, session_id: str | None
+    ) -> tuple[str, str | None]: ...
 
     async def complete_match(self, instruction: str, user_text: str) -> list[str]: ...
 
@@ -90,6 +94,10 @@ class _Dialogues(_Bound):
         async with self._tx() as session:
             return await SqlAskDialogue(session).snapshot(skill_slug, spirit_id)
 
+    async def official(self):  # type: ignore[no-untyped-def]
+        async with self._tx() as session:
+            return await SqlAskDialogue(session).official()
+
 
 class _Turns(_Bound):
     async def find(self, question_id: UUID, asker_user_id: UUID, client_id: UUID):  # type: ignore[no-untyped-def]
@@ -115,6 +123,10 @@ class _Turns(_Bound):
             return await SqlAskTurns(session).mark_history(
                 question_id, asker_user_id, answered_at
             )
+
+    async def save_session(self, question_id: UUID, asker_user_id: UUID, session_id: str) -> None:
+        async with self._tx() as session:
+            await SqlAskTurns(session).save_session(question_id, asker_user_id, session_id)
 
 
 class _Loaded:
@@ -184,6 +196,7 @@ async def submit_http(
         client_id=client_id,
         question=text,
         now=now,
+        official_model=ProviderOfficial(provider),
     )
     if isinstance(result, FirstAnswer):
         return AskSubmitResult(
@@ -213,6 +226,7 @@ async def follow_http(
         client_id=client_id,
         text=text,
         now=now,
+        official_model=ProviderOfficial(provider),
     )
     return AskTurnResult(question_id=reply.question_id, reply=reply.reply_text)
 

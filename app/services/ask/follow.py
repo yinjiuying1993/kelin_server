@@ -10,7 +10,12 @@ from uuid import UUID
 from app.core.errors import ApiError, public_error_message
 from app.repositories.ask_follow import FollowDialogue
 from app.repositories.ask_turns import TurnClaim
-from app.services.ask.first_reply import AnswerCallFailed, AnswerModel
+from app.services.ask.first_reply import (
+    AnswerCallFailed,
+    AnswerModel,
+    OfficialModel,
+    _official_reply,
+)
 
 _TEXT_LIMIT = 500
 
@@ -53,6 +58,10 @@ class FollowTurns(Protocol):
         self, question_id: UUID, asker_user_id: UUID, answered_at: datetime
     ) -> datetime: ...
 
+    async def save_session(
+        self, question_id: UUID, asker_user_id: UUID, session_id: str
+    ) -> None: ...
+
 
 class FollowModerator(Protocol):
     async def decision(self, text: str) -> Literal["allow", "block"]: ...
@@ -76,6 +85,7 @@ async def send_follow_up(
     client_id: UUID,
     text: str,
     now: datetime,
+    official_model: OfficialModel | None = None,
 ) -> FollowReply:
     utterance = _utterance(text)
     dialogue = await dialogues.load(asker_user_id, question_id)
@@ -101,7 +111,7 @@ async def send_follow_up(
         return FollowReply(question_id, claim.reply_text, answered_at)
     if claim.kind != "owned":
         raise _error("IDEMPOTENCY_IN_PROGRESS", 409, retryable=True)
-    reply = await _reply(model, dialogue, claim.user_text)
+    reply, session_id = await _answer(model, official_model, dialogue, claim.user_text)
     if reply is None:
         await turns.fail(
             question_id=question_id,
@@ -118,6 +128,8 @@ async def send_follow_up(
         reply_text=reply,
         answered_at=now,
     )
+    if session_id is not None:
+        await turns.save_session(question_id, asker_user_id, session_id)
     return FollowReply(question_id, reply, answered_at)
 
 
@@ -126,6 +138,18 @@ def _utterance(text: str) -> str:
     if not cleaned or len(cleaned) > _TEXT_LIMIT:
         raise _error("INVALID_INPUT", 422)
     return cleaned
+
+
+async def _answer(
+    model: AnswerModel,
+    official_model: OfficialModel | None,
+    dialogue: FollowDialogue,
+    text: str,
+) -> tuple[str | None, str | None]:
+    if dialogue.official:
+        return await _official_reply(official_model, text, dialogue.agent_session_id)
+    reply = await _reply(model, dialogue, text)
+    return reply, None
 
 
 async def _reply(model: AnswerModel, dialogue: FollowDialogue, text: str) -> str | None:
