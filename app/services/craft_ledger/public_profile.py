@@ -23,6 +23,8 @@ async def read_public_profile(
     return SpiritPublicProfile(
         id=row.spirit_id,
         name=row.name,
+        display_name=row.display_name,
+        avatar_url=row.avatar_url,
         help_count=row.help_count,
         skills=[
             PublicSkill(title=skill.title, rank_name=skill.rank_name) for skill in row.skills

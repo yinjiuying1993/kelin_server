@@ -167,6 +167,18 @@ class Spirit(Base):
             "(onboarding_completed_at IS NULL) OR (onboarding_step = 5 AND hatched_at IS NOT NULL)",
             name="ck_spirits_onboarding_complete",
         ),
+        CheckConstraint(
+            "nickname IS NULL OR char_length(nickname) BETWEEN 1 AND 12",
+            name="ck_spirits_nickname",
+        ),
+        CheckConstraint(
+            "char_length(default_avatar_key) BETWEEN 1 AND 200",
+            name="ck_spirits_default_avatar_key",
+        ),
+        CheckConstraint(
+            "custom_avatar_key IS NULL OR char_length(custom_avatar_key) BETWEEN 1 AND 200",
+            name="ck_spirits_custom_avatar_key",
+        ),
         {"schema": "public"},
     )
 
@@ -183,6 +195,11 @@ class Spirit(Base):
     )
     client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'未名'"))
+    nickname: Mapped[str | None] = mapped_column(Text, nullable=True)
+    default_avatar_key: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'spirit-avatar/default-1'")
+    )
+    custom_avatar_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     egg: Mapped[str] = mapped_column(Text, nullable=False)
     invite_code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     stage: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'whelp'"))

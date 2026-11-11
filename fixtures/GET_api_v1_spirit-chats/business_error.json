@@ -1,0 +1,12 @@
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "INVALID_CURSOR",
+    "message": "invalid cursor",
+    "retryable": false,
+    "details": null
+  },
+  "request_id": "00000000-0000-4000-8000-0000000000c9",
+  "server_time": "2026-11-10T00:00:00Z"
+}

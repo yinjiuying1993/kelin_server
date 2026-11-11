@@ -16,6 +16,7 @@ from app.domain.quota import QuotaSnapshot, quota_usage
 from app.domain.recall import (
     RECALL_MUTATION_EVENT,
     recall_request_hash,
+    spirit_can_be_recalled,
 )
 from app.domain.user_actions.types import SpiritStatus
 from app.repositories import bootstrap as bootstrap_repo
@@ -26,8 +27,8 @@ from app.schemas.recall import RecallMethod, RecallRequest
 from app.schemas.room import RoomPublic
 from app.schemas.spirit import MutationEvent, QuotaUsage, SpiritPublic
 from app.services.bootstrap import room_public_from_aggregate, spirit_public_from_bootstrap_row
-from app.services.central.lifecycle import settle_then_resolve
 from app.services.central import publish_user_action
+from app.services.central.lifecycle import settle_then_resolve
 from app.services.memory.event_memory import load_event_memory
 
 
@@ -102,7 +103,11 @@ async def recall_spirit(
         return await _replay(session, user, body, claim, request_hash, now=now)
     if body.method != "food":
         raise _api_error("INVALID_INPUT", status_code=422)
-    if locked.status != "away":
+    if not spirit_can_be_recalled(
+        awareness_status=locked.status,
+        spirit_status=locked.spirit_status,
+        visiting=locked.visiting,
+    ):
         raise _api_error("SPIRIT_NOT_AWAY", status_code=409)
     await _forward_recall(
         session,

@@ -35,6 +35,7 @@ class CurrentUser:
     id: uuid.UUID
     auth_role: Literal["authenticated"] = "authenticated"
     session_id: str | None = None
+    expires_at: datetime | None = None
 
 
 class JwksFetcher(Protocol):
@@ -169,7 +170,16 @@ class JwtVerifier:
             raise JwtAuthError
         session_raw = claims.get("session_id")
         session_id = session_raw if isinstance(session_raw, str) else None
-        return CurrentUser(id=user_id, auth_role="authenticated", session_id=session_id)
+        exp = claims.get("exp")
+        expires_at = None
+        if isinstance(exp, int | float):
+            expires_at = datetime.fromtimestamp(int(exp), UTC)
+        return CurrentUser(
+            id=user_id,
+            auth_role="authenticated",
+            session_id=session_id,
+            expires_at=expires_at,
+        )
 
 
 async def require_current_user(

@@ -140,7 +140,7 @@ server_time: ISO-8601 UTC
 
 约定不是进行中时是 `PROMISE_NOT_ACTIVE`。
 
-`POST /recall`：`client_id`，`method` 只能是 `food`。精灵不是 `lost` 时 `SPIRIT_NOT_LOST`。
+`POST /recall` 的现行接法见 [`recall-ios-integration.md`](recall-ios-integration.md)。
 
 ---
 

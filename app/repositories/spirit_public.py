@@ -11,14 +11,18 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.spirit_profile import avatar_url
+
 PROFILE_SQL = """
 SELECT
     :spirit_id AS spirit_id,
     public.v3_spirit_public_name(:spirit_id) AS name,
+    face.display_name AS display_name,
+    face.avatar_key AS avatar_key,
     public.v3_ledger_help_count(:spirit_id) AS help_count,
     skill.title AS title,
     skill.rank_name AS rank_name
-FROM (SELECT 1) AS anchor
+FROM public.v4_spirit_public_face(:spirit_id) AS face
 LEFT JOIN public.craft_skills skill
     ON skill.spirit_id = :spirit_id
    AND skill.deleted_at IS NULL
@@ -40,6 +44,8 @@ class PublicProfileRow:
     name: str
     help_count: int
     skills: tuple[PublicSkillRow, ...]
+    display_name: str
+    avatar_url: str
 
 
 class SqlPublicProfile:
@@ -57,4 +63,12 @@ class SqlPublicProfile:
             for row in rows
             if row.title is not None
         )
-        return PublicProfileRow(first.spirit_id, str(first.name), int(first.help_count), skills)
+        shown = first.display_name if first.display_name else first.name
+        return PublicProfileRow(
+            first.spirit_id,
+            str(first.name),
+            int(first.help_count),
+            skills,
+            str(shown),
+            avatar_url(str(first.avatar_key)),
+        )

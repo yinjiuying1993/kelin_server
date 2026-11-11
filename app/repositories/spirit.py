@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.spirit import SPIRIT_CREATE_OPERATION, SpiritCreateResult
+from app.domain.spirit_profile import default_avatar_key
 
 CREATE_LOCK_NS = 5389876
 SPIRIT_USER_UNIQUE = "spirits_user_id_key"
@@ -244,9 +245,9 @@ async def insert_spirit(
     await session.execute(
         text(
             "INSERT INTO public.spirits ("
-            "user_id, client_id, name, egg, invite_code"
+            "user_id, client_id, name, egg, invite_code, default_avatar_key"
             ") VALUES ("
-            ":user_id, :client_id, :name, :egg, :invite)"
+            ":user_id, :client_id, :name, :egg, :invite, :avatar)"
         ),
         {
             "user_id": owner_id,
@@ -254,6 +255,7 @@ async def insert_spirit(
             "name": name,
             "egg": egg,
             "invite": invite_code,
+            "avatar": default_avatar_key(owner_id),
         },
     )
 

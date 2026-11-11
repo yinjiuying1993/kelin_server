@@ -22,6 +22,8 @@ POSTCARDS_CURSOR_PREFIX = "kelin.card.v1."
 VISIT_CARDS_CURSOR_PREFIX = "kelin.vcard.v1."
 CRAFT_CURSOR_PREFIX = "kelin.craft.v1."
 ASK_CURSOR_PREFIX = "kelin.ask.v1."
+SPIRIT_CHAT_LIST_PREFIX = "kelin.schat.v1."
+SPIRIT_CHAT_MESSAGE_PREFIX = "kelin.schatmsg.v1."
 _MESSAGES_FILTER = "messages:v1:exclude_system"
 _MEMORIES_FILTER = "memories:v1"
 _FRIENDS_FILTER = "friends:v1"
@@ -188,6 +190,52 @@ def decode_craft_cursor(
         secret=secret,
         expected_filter_hash=expected_filter_hash,
         prefix=CRAFT_CURSOR_PREFIX,
+    )
+
+
+def spirit_chat_list_filter_hash(user_id: UUID) -> str:
+    material = f"spirit-chats:v1:{user_id}".encode("ascii")
+    return hashlib.sha256(material).hexdigest()
+
+
+def spirit_chat_message_filter_hash(user_id: UUID, thread_id: UUID) -> str:
+    material = f"spirit-chat-messages:v1:{user_id}:{thread_id}".encode("ascii")
+    return hashlib.sha256(material).hexdigest()
+
+
+def encode_spirit_chat_list_cursor(cursor: MessageCursor, *, secret: bytes) -> str:
+    return _encode_keyset(cursor, secret=secret, prefix=SPIRIT_CHAT_LIST_PREFIX)
+
+
+def decode_spirit_chat_list_cursor(
+    token: str,
+    *,
+    secret: bytes,
+    expected_filter_hash: str,
+) -> MessageCursor:
+    return _decode_keyset(
+        token,
+        secret=secret,
+        expected_filter_hash=expected_filter_hash,
+        prefix=SPIRIT_CHAT_LIST_PREFIX,
+    )
+
+
+def encode_spirit_chat_message_cursor(cursor: MessageCursor, *, secret: bytes) -> str:
+    return _encode_keyset(cursor, secret=secret, prefix=SPIRIT_CHAT_MESSAGE_PREFIX)
+
+
+def decode_spirit_chat_message_cursor(
+    token: str,
+    *,
+    secret: bytes,
+    expected_filter_hash: str,
+) -> MessageCursor:
+    return _decode_keyset(
+        token,
+        secret=secret,
+        expected_filter_hash=expected_filter_hash,
+        prefix=SPIRIT_CHAT_MESSAGE_PREFIX,
     )
 
 

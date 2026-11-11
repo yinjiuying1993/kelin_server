@@ -133,6 +133,8 @@ class PublicSkill(_ForbidExtra):
 class SpiritPublicProfile(_ForbidExtra):
     id: UUID
     name: str = Field(min_length=1)
+    display_name: str = Field(min_length=1)
+    avatar_url: str = Field(min_length=1)
     help_count: int = Field(ge=0)
     skills: list[PublicSkill]
 

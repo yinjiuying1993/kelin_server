@@ -12,6 +12,8 @@ from app.api.v1.settings_map import spirit_patch_result
 from app.core.envelope import request_id_of, utc_server_time
 from app.core.security import CurrentUser, require_current_user
 from app.db.session import claimed_transaction
+from app.domain.spirit_face import publish_spirit_face
+from app.repositories.spirit_profile import SqlSpiritProfile
 from app.schemas.settings import (
     PatchSpiritRequest,
     SpiritPatchErrorEnvelope,
@@ -51,8 +53,13 @@ async def patch_spirit_route(
 ) -> SpiritPatchSuccessEnvelope:
     factory = session_factory_from_app(request.app)
     now = datetime.now(UTC)
+    face = None
     async with claimed_transaction(factory, user) as session:
         projection = await patch_spirit(session, user, body, now=now)
+        if body.name is not None:
+            face = await SqlSpiritProfile(session).owner_face(user.id)
+    if face is not None:
+        await publish_spirit_face(face)
     return SpiritPatchSuccessEnvelope(
         data=spirit_patch_result(projection, now=now),
         request_id=request_id_of(request),

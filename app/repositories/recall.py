@@ -23,6 +23,8 @@ class LockedRecallSpirit:
     id: uuid.UUID
     version: int
     status: str
+    spirit_status: str
+    visiting: bool
     hunger: int
     energy: int
     mood: int
@@ -54,6 +56,12 @@ async def lock_owned_spirit(
             text(
                 "SELECT s.id, s.version, "
                 "COALESCE(a.status, s.status) AS status, "
+                "s.status AS spirit_status, "
+                "EXISTS ("
+                "SELECT 1 FROM public.visits v "
+                "WHERE v.visitor_spirit_id = s.id "
+                "AND v.status IN ('eligible', 'visiting')"
+                ") AS visiting, "
                 "60 AS mood, 0 AS bond, 50 AS closeness, "
                 "COALESCE(a.last_interact_at, s.last_interact_at) AS last_interact_at, "
                 "COALESCE(p.timezone, 'Asia/Shanghai') AS timezone "
@@ -71,6 +79,8 @@ async def lock_owned_spirit(
         id=row.id,
         version=int(row.version),
         status=str(row.status),
+        spirit_status=str(row.spirit_status),
+        visiting=bool(row.visiting),
         hunger=80,
         energy=80,
         mood=int(row.mood),

@@ -1088,6 +1088,134 @@ RLS_MATRIX_V3: tuple[RlsTableExpectation, ...] = (
 )
 
 
+_THREAD_VISIBLE = (
+    "EXISTS (SELECT 1 FROM public.spirits AS owned "
+    "WHERE owned.user_id = auth.uid() "
+    "AND owned.id IN (spirit_low_id, spirit_high_id))"
+)
+_PARTICIPANT_OWN = (
+    "user_id = auth.uid() AND EXISTS ("
+    "SELECT 1 FROM public.spirits AS owned "
+    "WHERE owned.id = my_spirit_id AND owned.user_id = auth.uid())"
+)
+_MESSAGE_VISIBLE = (
+    "EXISTS (SELECT 1 FROM public.spirit_chat_participants AS mine "
+    "WHERE mine.thread_id = spirit_chat_messages.thread_id "
+    "AND mine.user_id = auth.uid())"
+)
+_MESSAGE_INSERT = (
+    "EXISTS (SELECT 1 FROM public.spirit_chat_participants AS mine "
+    "WHERE mine.thread_id = spirit_chat_messages.thread_id "
+    "AND mine.user_id = auth.uid() AND mine.my_spirit_id = sender_spirit_id)"
+)
+_OUTBOX_INSERT = (
+    "EXISTS (SELECT 1 FROM public.spirit_chat_participants AS mine "
+    "JOIN public.spirit_chat_participants AS peer "
+    "ON peer.thread_id = mine.thread_id "
+    "WHERE mine.thread_id = spirit_chat_outbox.thread_id "
+    "AND mine.user_id = auth.uid() AND peer.user_id = recipient_user_id)"
+)
+
+
+RLS_MATRIX_V4: tuple[RlsTableExpectation, ...] = (
+    _t(
+        "spirit_chat_threads",
+        spec_section="v4/5.1",
+        owner_kind=OwnerKind.SPIRIT_OWNER,
+        owner="one of the paired spirits belongs to auth.uid()",
+        participant="the other spirit's owner",
+        owner_sql=_THREAD_VISIBLE,
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(select=True, insert=True),
+        worker=DENY,
+        test_cases=_read_only_owner_cases(),
+        notes="spirit pair is immutable; the rating worker has no grant",
+    ),
+    _t(
+        "spirit_chat_participants",
+        spec_section="v4/5.2",
+        owner_kind=OwnerKind.USER_COLUMN,
+        owner="user_id = auth.uid()",
+        participant="none",
+        owner_sql=_PARTICIPANT_OWN,
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(
+            select=True,
+            insert=True,
+            update=True,
+            update_columns=(
+                "clear_seq",
+                "last_read_seq",
+                "last_visible_seq",
+                "peer_display_name",
+                "peer_avatar_url",
+                "peer_available",
+            ),
+        ),
+        worker=DENY,
+        test_cases=_ask_owner_cases(update="allow"),
+        notes="unread is computed; the spirit pair on this row is not updatable",
+    ),
+    _t(
+        "spirit_chat_messages",
+        spec_section="v4/5.3",
+        owner_kind=OwnerKind.USER_COLUMN,
+        owner="sender spirit belongs to a participant row",
+        participant="the other participant can read",
+        owner_sql=_MESSAGE_VISIBLE,
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(
+            select=True,
+            insert=True,
+            using_sql=_MESSAGE_VISIBLE,
+            with_check_sql=_MESSAGE_INSERT,
+        ),
+        worker=DENY,
+        test_cases=_ask_owner_cases(update="deny"),
+        notes="no update or delete; hiding a message only moves clear_seq",
+    ),
+    _t(
+        "spirit_chat_idempotency",
+        spec_section="v4/5.4",
+        owner_kind=OwnerKind.USER_COLUMN,
+        owner="user_id = auth.uid()",
+        participant="none",
+        owner_sql=_uid("user_id"),
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(
+            select=True,
+            insert=True,
+            update=True,
+            delete=True,
+            update_columns=("status", "thread_id", "message_id", "message_seq"),
+        ),
+        worker=DENY,
+        test_cases=_owner_isolation_cases(writes=True, association=False),
+        notes="chat client_id lives only here, not on idempotency_records",
+    ),
+    _t(
+        "spirit_chat_outbox",
+        spec_section="v4/5.5",
+        owner_kind=OwnerKind.USER_COLUMN,
+        owner="recipient_user_id = auth.uid()",
+        participant="a participant may insert the peer's event",
+        owner_sql="recipient_user_id = auth.uid()",
+        write_path=WritePath.OWNER_DML,
+        api=RoleAccess(
+            select=True,
+            insert=True,
+            update=True,
+            using_sql="recipient_user_id = auth.uid()",
+            with_check_sql=_OUTBOX_INSERT,
+            update_columns=("processed_at",),
+        ),
+        worker=DENY,
+        test_cases=_ask_owner_cases(update="allow"),
+        notes="separate from outbox_events; the rating worker does not consume it",
+    ),
+)
+
+
 @dataclass(frozen=True)
 class V3WriteIdempotency:
     action: str

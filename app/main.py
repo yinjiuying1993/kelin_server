@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from time import perf_counter
@@ -19,6 +20,7 @@ from app.api.v1.settings import router as settings_router
 from app.api.v1.social import router as social_router
 from app.api.v1.speech import playback_router
 from app.api.v1.speech import router as speech_router
+from app.api.v1.spirit_chats import router as spirit_chats_router
 from app.api.v1.spirits import router as spirits_router
 from app.api.v1.v3_shell import router as v3_shell_router
 from app.api.v1.visit_cards import router as visit_card_router
@@ -41,7 +43,26 @@ RequestResponseEndpoint = Callable[[Request], Awaitable[Response]]
 
 @asynccontextmanager
 async def _lifespan(application: FastAPI) -> AsyncIterator[None]:
+    from app.domain.spirit_face import subscribe_spirit_face
+    from app.services.spirit_chat.gateway import RateGate
+    from app.services.spirit_chat.hub import Hub
+    from app.services.spirit_chat.runtime import deliver_loop
+
+    hub = Hub()
+    application.state.spirit_chat_hub = hub
+    application.state.spirit_chat_gate = RateGate()
+    stop = asyncio.Event()
+    task = None
+    cancel_face = None
+    if getattr(application.state.settings, "app_env", "test") != "test":
+        task = asyncio.create_task(_deliver_chat(application, hub, stop, deliver_loop))
+        cancel_face = subscribe_spirit_face(_face_listener(application, hub))
     yield
+    if cancel_face is not None:
+        cancel_face()
+    stop.set()
+    if task is not None:
+        await task
     backend = getattr(application.state, "object_backend", None)
     if backend is not None:
         backend.close()
@@ -111,6 +132,7 @@ def create_app(
     application.include_router(visit_card_router)
     application.include_router(speech_router)
     application.include_router(playback_router)
+    application.include_router(spirit_chats_router)
     application.include_router(spirits_router)
     application.include_router(v3_shell_router)
     if debug_router_enabled(resolved):
@@ -123,6 +145,36 @@ def create_app(
     application.add_middleware(RequestIdMiddleware)
     get_logger(capability="http").info("app_boot", **resolved.config_presence())
     return application
+
+
+def _face_listener(application: FastAPI, hub):
+    async def published(face) -> None:
+        from app.api.deps import session_factory_from_app
+        from app.services.spirit_chat.faces import apply_published_face
+        from app.services.spirit_chat.runtime import deliver_available
+
+        try:
+            factory = session_factory_from_app(application)
+            changed = await apply_published_face(factory, face)
+            if changed:
+                await deliver_available(factory, hub)
+        except Exception:
+            get_logger(capability="spirit_chat").info(
+                "spirit_chat_face",
+                error_code="DEPENDENCY_UNAVAILABLE",
+            )
+
+    return published
+
+
+async def _deliver_chat(application: FastAPI, hub, stop: asyncio.Event, deliver_loop) -> None:
+    from app.api.deps import session_factory_from_app
+
+    try:
+        factory = session_factory_from_app(application)
+    except Exception:
+        return
+    await deliver_loop(factory, hub, stop)
 
 
 def _build_jwt_verifier(settings: Settings) -> JwtVerifier | None:

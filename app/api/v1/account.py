@@ -14,6 +14,8 @@ from app.core.envelope import request_id_of, utc_server_time
 from app.core.errors import ApiError, public_error_message
 from app.core.security import CurrentUser, require_current_user
 from app.db.session import claimed_transaction
+from app.domain.spirit_face import SpiritFace, publish_spirit_face
+from app.repositories.spirit_profile import SqlSpiritProfile
 from app.schemas.account import (
     AccountDeleteErrorEnvelope,
     AccountDeleteSuccessEnvelope,
@@ -71,6 +73,7 @@ async def delete_account(
     if settings.app_env == "prod" and secret is None:
         raise _unavailable()
     now = datetime.now(UTC)
+    face = None
     async with claimed_transaction(factory, user, allow_account_deleting=True) as session:
         accepted = await accept_account_deletion(
             session,
@@ -80,8 +83,18 @@ async def delete_account(
             now=now,
             hmac_secret=hmac_secret,
         )
+        loaded = await SqlSpiritProfile(session).owner_face(user.id, available=False)
+        if loaded is not None:
+            face = SpiritFace(
+                spirit_id=loaded.spirit_id,
+                display_name=loaded.display_name,
+                avatar_url=loaded.avatar_url,
+                available=False,
+            )
     assert accepted.deletion_id is not None
     assert accepted.requested_at is not None
+    if face is not None:
+        await publish_spirit_face(face)
     return AccountDeleteSuccessEnvelope(
         data=DeletionResult(
             deletion_id=accepted.deletion_id,

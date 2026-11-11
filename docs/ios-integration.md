@@ -142,7 +142,7 @@ Health 无 JWT：`GET /health/live`、`GET /health/ready`。
 | POST | `/api/v1/report/line` | 只重试签名句 |
 | PATCH | `/api/v1/spirit` | 设置 |
 | DELETE | `/api/v1/account` | 注销，成功是 202 |
-| POST | `/api/v1/recall` | 口粮找回。`method` 只有 `food`，且精灵必须是 `lost` |
+| POST | `/api/v1/recall` | 外出召回。字段见 [`recall-ios-integration.md`](recall-ios-integration.md) |
 
 `/api/v1/debug/*` 只在 `APP_ENV=dev` 注册。Release 必须当成不存在。
 
@@ -164,7 +164,7 @@ Chat body：`client_message_id`、`content`、`source`（`text` / `voice`）、`
 
 `should_extract=true` 表示窗口已满 3 个普通轮次，可以 `POST /extract`。抽取失败不回滚已经落库的聊天。记忆类型只有 `preference`、`knowledge`、`emotion`、`relationship`。封存或删除后，下一轮召回不含该条。迟到抽取不会把已封存或已删除的记忆写回来。
 
-投喂 `kind=sight`、召回 `method=sight` 在校验阶段就被拒绝。走失时用口粮 `POST /recall`。精灵不是 `lost` 时得到 `SPIRIT_NOT_LOST`。
+投喂 `kind=sight`、召回 `method=sight` 在校验阶段就被拒绝。精灵外出时用 `POST /api/v1/recall`，接法见 [`recall-ios-integration.md`](recall-ios-integration.md)。
 
 语音 Chat 自己带 TTS。`speech_audio` 为空时仍是 200，界面回退到文字。不要把 `generation_source=stub` 显示成已接通的模型。
 

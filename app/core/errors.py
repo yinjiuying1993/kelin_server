@@ -53,6 +53,7 @@ KNOWN_ERROR_CODES = frozenset(
         "VISIT_CARD_CLOSED",
         "NOT_VISIT_HOST",
         "ASK_CLOSED",
+        "SPIRIT_UNAVAILABLE",
     }
 )
 
@@ -122,4 +123,5 @@ def public_error_message(code: str) -> str:
         "NOT_VISIT_HOST": "not the visit host",
         "NOT_IMPLEMENTED": "not implemented",
         "ASK_CLOSED": "question is closed",
+        "SPIRIT_UNAVAILABLE": "spirit unavailable",
     }.get(code, "request failed")

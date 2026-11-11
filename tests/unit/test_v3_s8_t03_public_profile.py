@@ -36,13 +36,24 @@ async def test_public_titles_and_current_ranks_only() -> None:
                         PublicSkillRow("倒茶", "掌作名匠"),
                         PublicSkillRow("烧水", None),
                     ),
+                    "小名",
+                    "https://kelin.invalid/spirit-avatar/default-1",
                 )
             }
         ),
         spirit_id=_SPIRIT,
     )
-    assert set(shown.model_dump()) == {"id", "name", "help_count", "skills"}
+    assert set(shown.model_dump()) == {
+        "id",
+        "name",
+        "display_name",
+        "avatar_url",
+        "help_count",
+        "skills",
+    }
     assert shown.name == "雾生"
+    assert shown.display_name == "小名"
+    assert shown.avatar_url == "https://kelin.invalid/spirit-avatar/default-1"
     assert shown.help_count == 2
     assert [(skill.title, skill.rank_name) for skill in shown.skills] == [
         ("倒茶", "掌作名匠"),
@@ -51,14 +62,34 @@ async def test_public_titles_and_current_ranks_only() -> None:
     for skill in shown.skills:
         assert set(skill.model_dump()) == {"title", "rank_name"}
     dumped = shown.model_dump_json()
-    for hidden in ("skill_slug", "keywords", "points", "body", "question"):
+    for hidden in (
+        "skill_slug",
+        "keywords",
+        "points",
+        "body",
+        "question",
+        "invite_code",
+        "stage",
+        "companion_days",
+    ):
         assert hidden not in dumped
 
 
 @pytest.mark.asyncio
 async def test_no_public_skill_still_returns_the_spirit() -> None:
     shown = await read_public_profile(
-        _Profiles({_SPIRIT: PublicProfileRow(_SPIRIT, "雾生", 0, ())}),
+        _Profiles(
+            {
+                _SPIRIT: PublicProfileRow(
+                    _SPIRIT,
+                    "雾生",
+                    0,
+                    (),
+                    "雾生",
+                    "https://kelin.invalid/spirit-avatar/default-1",
+                )
+            }
+        ),
         spirit_id=_SPIRIT,
     )
     assert shown.skills == []

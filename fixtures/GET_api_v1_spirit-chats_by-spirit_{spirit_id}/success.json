@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "data": {
+    "thread_id": null,
+    "spirit_id": "00000000-0000-4000-8000-0000000000c4",
+    "display_name": "对方",
+    "avatar_url": "https://kelin.invalid/spirit-avatar/default-1",
+    "peer_available": true,
+    "own_display_name": "原名",
+    "own_avatar_url": "https://kelin.invalid/spirit-avatar/default-1",
+    "messages": [],
+    "has_more": false,
+    "next_cursor": null
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000c9",
+  "server_time": "2026-11-10T00:00:00Z"
+}

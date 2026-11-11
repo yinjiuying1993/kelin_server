@@ -64,7 +64,14 @@ def test_unmatched_submit_has_no_dialogue() -> None:
 
 
 def test_public_and_helped_fields_stay_narrow() -> None:
-    assert set(SpiritPublicProfile.model_fields) == {"id", "name", "help_count", "skills"}
+    assert set(SpiritPublicProfile.model_fields) == {
+        "id",
+        "name",
+        "display_name",
+        "avatar_url",
+        "help_count",
+        "skills",
+    }
     assert set(PublicSkill.model_fields) == {"title", "rank_name"}
     assert set(HelpedRow.model_fields) == {"spirit_name", "help_count"}
     assert set(HelpedResult.model_fields) == {"item"}

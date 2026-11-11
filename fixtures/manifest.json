@@ -400,8 +400,78 @@
       ]
     },
     {
+      "endpoint": "GET /api/v1/spirit-chats",
+      "id": "GET_api_v1_spirit-chats",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/spirit-chats/by-spirit/{spirit_id}",
+      "id": "GET_api_v1_spirit-chats_by-spirit_{spirit_id}",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/spirit-chats/{thread_id}/messages",
+      "id": "GET_api_v1_spirit-chats_{thread_id}_messages",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
       "endpoint": "POST /api/v1/spirits",
       "id": "POST_api_v1_spirits",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "GET /api/v1/spirits/me",
+      "id": "GET_api_v1_spirits_me",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/spirits/me/avatar",
+      "id": "POST_api_v1_spirits_me_avatar",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "POST /api/v1/spirits/me/avatar/default",
+      "id": "POST_api_v1_spirits_me_avatar_default",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
+      "endpoint": "PUT /api/v1/spirits/me/nickname",
+      "id": "PUT_api_v1_spirits_me_nickname",
       "kind": "endpoint",
       "scenarios": [
         "success",
@@ -521,9 +591,9 @@
       ]
     }
   ],
-  "generated_at": "2026-11-03T02:44:03Z",
-  "openapi_sha256": "ddd96b5a4f4b6350747a4561618d33fce193432221e13cf13fa2f82178921fdb",
+  "generated_at": "2026-11-10T06:07:45Z",
+  "openapi_sha256": "357c2656f55d035debba7a03122143170ac1f32767eebab65b007cc3b9c2238f",
   "schema_version": 2,
   "source_app": "app.main:create_app",
-  "source_commit": "b4b65c4b2a94120d0f6f003de0788a57e5bfbd2e"
+  "source_commit": "3d7bbfff262852b29152dfdc67f58a65994a253a"
 }

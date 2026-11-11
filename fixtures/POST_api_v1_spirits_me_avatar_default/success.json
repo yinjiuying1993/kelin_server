@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "data": {
+    "id": "00000000-0000-4000-8000-0000000000b2",
+    "name": "原名",
+    "nickname": null,
+    "avatar_url": "https://kelin.invalid/spirit-avatar/default-1",
+    "avatar_is_default": true,
+    "stage": "whelp",
+    "companion_days": 2,
+    "invite_code": "ABCDEFGH",
+    "help_count": 0,
+    "skills": []
+  },
+  "error": null,
+  "request_id": "00000000-0000-4000-8000-0000000000b3",
+  "server_time": "2026-11-10T00:00:00Z"
+}

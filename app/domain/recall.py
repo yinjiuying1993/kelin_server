@@ -22,6 +22,16 @@ RECALL_CLOSENESS_DELTA: Final[int] = 2
 RECALL_MEMORY_NS = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
 
 
+def spirit_can_be_recalled(
+    *,
+    awareness_status: str,
+    spirit_status: str,
+    visiting: bool,
+) -> bool:
+    """Away on either row, or a trip still open, can be called home."""
+    return awareness_status == "away" or spirit_status == "away" or visiting
+
+
 def recall_request_hash(request: RecallRequest) -> str:
     payload = request.model_dump(mode="json", exclude={"client_id"})
     canonical = json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)

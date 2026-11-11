@@ -75,6 +75,12 @@ from app.schemas.social_api import (
 )
 from app.schemas.speech import SynthesizeRequest, SynthesizeResult, TranscribeForm, TranscribeResult
 from app.schemas.spirit import CreateSpiritRequest, MutationResult
+from app.schemas.spirit_chat import SpiritChatList, SpiritChatMessagePage, SpiritChatWindow
+from app.schemas.spirit_profile import (
+    AvatarUploadRequest,
+    NicknameSaveRequest,
+    SpiritOwnerPage,
+)
 from app.schemas.visit_card import (
     VisitCardDraft,
     VisitCardReadResult,
@@ -688,6 +694,49 @@ def evaluate_entry(root: Path, entry: CatalogEntry) -> None:
     if entry.id == SPIRIT_PUBLIC_ENTRY_ID:
         _evaluate_spirit_public_entry(root)
         return
+    if entry.id == "GET_api_v1_spirit-chats":
+        _evaluate_visit_card_model_entry(
+            root, entry.id, SpiritChatList, frozenset({"INVALID_CURSOR"})
+        )
+        return
+    if entry.id == "GET_api_v1_spirit-chats_by-spirit_{spirit_id}":
+        _evaluate_visit_card_model_entry(
+            root, entry.id, SpiritChatWindow, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == "GET_api_v1_spirit-chats_{thread_id}_messages":
+        _evaluate_visit_card_model_entry(
+            root, entry.id, SpiritChatMessagePage, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == "GET_api_v1_spirits_me":
+        _evaluate_visit_card_model_entry(
+            root, entry.id, SpiritOwnerPage, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == "PUT_api_v1_spirits_me_nickname":
+        _evaluate_visit_card_write_entry(
+            root,
+            entry.id,
+            SpiritOwnerPage,
+            NicknameSaveRequest,
+            frozenset({"MODERATION_REJECTED"}),
+        )
+        return
+    if entry.id == "POST_api_v1_spirits_me_avatar":
+        _evaluate_visit_card_write_entry(
+            root,
+            entry.id,
+            SpiritOwnerPage,
+            AvatarUploadRequest,
+            frozenset({"MODERATION_REJECTED"}),
+        )
+        return
+    if entry.id == "POST_api_v1_spirits_me_avatar_default":
+        _evaluate_visit_card_model_entry(
+            root, entry.id, SpiritOwnerPage, frozenset({"NOT_FOUND"})
+        )
+        return
     if entry.id == OPS_REDEEM_ENTRY_ID:
         _evaluate_visit_card_write_entry(
             root, entry.id, CraftRedeemMark, CraftRedeemMarkRequest, frozenset({"INVALID_INPUT"})
@@ -852,7 +901,7 @@ def _evaluate_spirit_public_entry(root: Path) -> None:
         profile = SpiritPublicProfile.model_validate(success.data)
     except ValidationError as exc:
         raise FixtureValidationError(f"spirit public success data is invalid: {exc}") from exc
-    allowed = {"id", "name", "help_count", "skills"}
+    allowed = {"id", "name", "display_name", "avatar_url", "help_count", "skills"}
     if set(success.data) != allowed:
         raise FixtureValidationError("spirit public profile has fields outside the whitelist")
     if not any(skill.rank_name is None for skill in profile.skills):

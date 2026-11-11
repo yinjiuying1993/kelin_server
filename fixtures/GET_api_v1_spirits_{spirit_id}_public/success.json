@@ -3,6 +3,8 @@
   "data": {
     "id": "00000000-0000-4000-8000-0000000000a8",
     "name": "fixture",
+    "display_name": "fixture",
+    "avatar_url": "https://kelin.invalid/spirit-avatar/default-1",
     "help_count": 2,
     "skills": [
       {
