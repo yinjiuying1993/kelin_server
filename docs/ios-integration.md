@@ -65,7 +65,7 @@ Chat、记忆、投喂、Pact、设置只要 api。明信片落地、鉴定离�
 
 1. 匿名登录，拿到 RS256 access token。
 2. `POST /api/v1/spirits`。body：`client_id`、`egg`（`warm` / `cold` / `wild`）、`name`（1–20 字）、`consents`。  
-   `consents.ai_disclosure.explicitly_accepted` 必须是 `true`，且不能在 UI 上预勾。`data_notice` 与 `user_terms` 的 `displayed` 必须是 `true`，并带 `document_version`。
+   `consents.ai_disclosure.explicitly_accepted` 必须是 `true`，且不能在 UI 上预勾。`data_notice` 与 `user_terms` 的 `displayed` 必须是 `true`。三份 `document_version` 都是 `2026-11-12`。意见书见 [`feedback-ios-integration.md`](feedback-ios-integration.md)。
 3. 响应 `data.patch.spirit.hatched_at` 有值，`stage` 为 `whelp`，`status` 为 `home`。邀请码 8 位，字符集 `A-H`、`J-N`、`P-Z`、`2-9`。
 4. `GET /api/v1/bootstrap` 整包替换本地会话。房间在 `data.room`，精灵在 `data.spirit`，与 `snapshot_version` 同级。写接口才用 `data.patch`。房间读四件套，不要自己算阶段或情绪。
 
@@ -143,6 +143,7 @@ Health 无 JWT：`GET /health/live`、`GET /health/ready`。
 | PATCH | `/api/v1/spirit` | 设置 |
 | DELETE | `/api/v1/account` | 注销，成功是 202 |
 | POST | `/api/v1/recall` | 外出召回。字段见 [`recall-ios-integration.md`](recall-ios-integration.md) |
+| POST | `/api/v1/feedback` | 意见书。字段见 [`feedback-ios-integration.md`](feedback-ios-integration.md) |
 
 `/api/v1/debug/*` 只在 `APP_ENV=dev` 注册。Release 必须当成不存在。
 

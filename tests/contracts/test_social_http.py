@@ -67,9 +67,9 @@ def _spirit_body(*, name: str) -> dict[str, Any]:
         "egg": "warm",
         "name": name,
         "consents": {
-            "ai_disclosure": {"document_version": "2026-09", "explicitly_accepted": True},
-            "data_notice": {"document_version": "2026-09", "displayed": True},
-            "user_terms": {"document_version": "2026-09", "displayed": True},
+            "ai_disclosure": {"document_version": "2026-11-12", "explicitly_accepted": True},
+            "data_notice": {"document_version": "2026-11-12", "displayed": True},
+            "user_terms": {"document_version": "2026-11-12", "displayed": True},
         },
     }
 

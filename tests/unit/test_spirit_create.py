@@ -23,11 +23,11 @@ def _request(
             "name": name,
             "consents": {
                 "ai_disclosure": {
-                    "document_version": "2026-09",
+                    "document_version": "2026-11-12",
                     "explicitly_accepted": True,
                 },
-                "data_notice": {"document_version": "2026-09", "displayed": True},
-                "user_terms": {"document_version": "2026-09", "displayed": True},
+                "data_notice": {"document_version": "2026-11-12", "displayed": True},
+                "user_terms": {"document_version": "2026-11-12", "displayed": True},
             },
         }
     )

@@ -227,6 +227,16 @@
       ]
     },
     {
+      "endpoint": "POST /api/v1/feedback",
+      "id": "POST_api_v1_feedback",
+      "kind": "endpoint",
+      "scenarios": [
+        "success",
+        "business_error",
+        "missing_required_field"
+      ]
+    },
+    {
       "endpoint": "GET /api/v1/friends",
       "id": "GET_api_v1_friends",
       "kind": "endpoint",
@@ -591,9 +601,9 @@
       ]
     }
   ],
-  "generated_at": "2026-11-10T06:07:45Z",
-  "openapi_sha256": "357c2656f55d035debba7a03122143170ac1f32767eebab65b007cc3b9c2238f",
+  "generated_at": "2026-11-12T08:57:16Z",
+  "openapi_sha256": "5a0f709480d4bec06ca3065578cb1c8134f440ceb17b59211936ee7de7561f7f",
   "schema_version": 2,
   "source_app": "app.main:create_app",
-  "source_commit": "3d7bbfff262852b29152dfdc67f58a65994a253a"
+  "source_commit": "4217a45c14820eb402a0f521e7d980ef5e0dbc5c"
 }

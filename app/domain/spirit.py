@@ -11,6 +11,7 @@ from datetime import datetime, time
 from app.schemas.spirit import CreateSpiritRequest
 
 SPIRIT_CREATE_OPERATION = "spirits.create"
+CURRENT_CONSENT_DOCUMENT_VERSION = "2026-11-12"
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +47,16 @@ class SpiritCreateResult:
     default_city: str | None
     location_weather_on: bool
     remote_search_on: bool
+
+
+def consent_document_versions_are_current(request: CreateSpiritRequest) -> bool:
+    current = CURRENT_CONSENT_DOCUMENT_VERSION
+    consents = request.consents
+    return (
+        consents.ai_disclosure.document_version == current
+        and consents.data_notice.document_version == current
+        and consents.user_terms.document_version == current
+    )
 
 
 def create_spirit_request_hash(request: CreateSpiritRequest) -> str:

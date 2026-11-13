@@ -8,7 +8,7 @@
 
 HTTP 字段以 `fixtures/manifest.json` 的 `openapi_sha256` 为准：
 
-`357c2656f55d035debba7a03122143170ac1f32767eebab65b007cc3b9c2238f`
+`5a0f709480d4bec06ca3065578cb1c8134f440ceb17b59211936ee7de7561f7f`
 
 WebSocket 不在这份 OpenAPI 里。事件包以本文第 4 节为准。App 不校验指纹。`data` 里多出来的键先留原始 JSON，不要当成失败。
 

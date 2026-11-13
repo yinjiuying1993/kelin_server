@@ -12,6 +12,7 @@ from app.api.v1.bootstrap import router as bootstrap_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.craft import router as craft_router
 from app.api.v1.extract import router as extract_router
+from app.api.v1.feedback import router as feedback_router
 from app.api.v1.memories import router as memories_router
 from app.api.v1.messages import router as messages_router
 from app.api.v1.ops import router as ops_router
@@ -123,6 +124,7 @@ def create_app(
     application.include_router(craft_router)
     application.include_router(ops_router)
     application.include_router(extract_router)
+    application.include_router(feedback_router)
     application.include_router(memories_router)
     application.include_router(messages_router)
     application.include_router(recall_router)

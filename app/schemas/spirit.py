@@ -23,14 +23,14 @@ class _ForbidExtra(BaseModel):
 class AiDisclosureConsent(_ForbidExtra):
     """S02 explicit AI disclosure. Must not be pre-checked. Spec §6.3."""
 
-    document_version: str = Field(min_length=1, max_length=32)
+    document_version: str = Field(min_length=1, max_length=32, examples=["2026-11-12"])
     explicitly_accepted: Literal[True]
 
 
 class DisplayedDocumentConsent(_ForbidExtra):
     """Shown-document record. displayed is not an explicit checkbox. Spec §6.3."""
 
-    document_version: str = Field(min_length=1, max_length=32)
+    document_version: str = Field(min_length=1, max_length=32, examples=["2026-11-12"])
     displayed: Literal[True]
 
 

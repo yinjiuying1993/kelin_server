@@ -1216,6 +1216,23 @@ RLS_MATRIX_V4: tuple[RlsTableExpectation, ...] = (
 )
 
 
+RLS_MATRIX_FEEDBACK: tuple[RlsTableExpectation, ...] = (
+    _t(
+        "feedback_submissions",
+        spec_section="v4/feedback",
+        owner_kind=OwnerKind.USER_COLUMN,
+        owner="user_id = auth.uid()",
+        participant="none",
+        owner_sql=_uid("user_id"),
+        write_path=WritePath.API_OWNER_WRITE,
+        api=RoleAccess(select=True, insert=True),
+        worker=DENY,
+        test_cases=_ask_owner_cases(update="deny"),
+        notes="no client grant; account deletion cascades from auth.users",
+    ),
+)
+
+
 @dataclass(frozen=True)
 class V3WriteIdempotency:
     action: str

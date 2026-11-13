@@ -197,6 +197,7 @@ async def test_http_routes_walk_the_craft_and_ask_flow() -> None:
         question_id = question["id"]
         assert question["spirit_name"] == "雾生"
         assert question["spirit_id"] == str(owner_spirit)
+        assert question["official"] is False
         assert question["skill_title"] == "泡好茶"
         assert question["turns"][1]["text"] == "问艺回复"
         recent = _ok(await client.get("/api/v1/ask/questions/recent"))
@@ -278,6 +279,7 @@ async def test_http_routes_walk_the_craft_and_ask_flow() -> None:
         assert fallback["matched"] is True
         official = fallback["question"]
         assert official["spirit_id"] == str(OFFICIAL_SPIRIT_ID)
+        assert official["official"] is True
         assert official["spirit_name"] == OFFICIAL_NAME
         assert official["skill_title"] == OFFICIAL_TITLE
         assert official["rank_name"] is None

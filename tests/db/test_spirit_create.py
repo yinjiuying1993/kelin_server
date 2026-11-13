@@ -33,11 +33,11 @@ def _request(
             "name": name,
             "consents": {
                 "ai_disclosure": {
-                    "document_version": "2026-09",
+                    "document_version": "2026-11-12",
                     "explicitly_accepted": True,
                 },
-                "data_notice": {"document_version": "2026-09", "displayed": True},
-                "user_terms": {"document_version": "2026-09", "displayed": True},
+                "data_notice": {"document_version": "2026-11-12", "displayed": True},
+                "user_terms": {"document_version": "2026-11-12", "displayed": True},
             },
         }
     )
@@ -116,9 +116,9 @@ async def _assert_three_eggs(url: str) -> None:
         _assert_defaults(result, request)
         assert counts == (1, 3, 1)
         assert consents == [
-            ("ai_disclosure", "2026-09", "explicitly_accepted"),
-            ("data_notice", "2026-09", "displayed"),
-            ("user_terms", "2026-09", "displayed"),
+            ("ai_disclosure", "2026-11-12", "explicitly_accepted"),
+            ("data_notice", "2026-11-12", "displayed"),
+            ("user_terms", "2026-11-12", "displayed"),
         ]
     await engine.dispose()
 
@@ -241,6 +241,42 @@ async def _assert_rollback(url: str) -> None:
     with pytest.raises(RuntimeError, match="preferences failed"):
         async with claimed_transaction(factory, user) as session:
             await create_spirit_if_absent(session, user, _request())
+    async with claimed_transaction(factory, user) as session:
+        assert await _counts(session, user_id) == (0, 0, 0)
+    await engine.dispose()
+
+
+def test_new_create_rejects_the_previous_consent_version() -> None:
+    url = upgrade_empty_kelin_test_to_head()
+    asyncio.run(_assert_old_version_writes_nothing(url))
+
+
+async def _assert_old_version_writes_nothing(url: str) -> None:
+    engine = create_runtime_engine(url)
+    factory = create_session_factory(engine)
+    user_id = uuid.uuid4()
+    await _insert_auth_user(url, user_id)
+    user = CurrentUser(id=user_id)
+    previous = "2026" + "-09"
+    request = CreateSpiritRequest.model_validate(
+        {
+            "client_id": str(uuid.uuid4()),
+            "egg": "warm",
+            "name": "未名",
+            "consents": {
+                "ai_disclosure": {
+                    "document_version": previous,
+                    "explicitly_accepted": True,
+                },
+                "data_notice": {"document_version": previous, "displayed": True},
+                "user_terms": {"document_version": previous, "displayed": True},
+            },
+        }
+    )
+    with pytest.raises(ApiError) as rejected:
+        async with claimed_transaction(factory, user) as session:
+            await create_spirit_if_absent(session, user, request)
+    assert rejected.value.code == "INVALID_INPUT"
     async with claimed_transaction(factory, user) as session:
         assert await _counts(session, user_id) == (0, 0, 0)
     await engine.dispose()

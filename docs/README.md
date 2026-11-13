@@ -14,9 +14,13 @@ V3 传艺/问艺复用点（`V3-S0-T01`）：[`v3-s0-reuse.md`](v3-s0-reuse.md)
 
 V3 iOS 开发与联调（传艺 / 问艺）：[`v3-ios-integration.md`](v3-ios-integration.md)
 
+问艺官方精灵标识：[`ask-official-ios-integration.md`](ask-official-ios-integration.md)
+
 V4 精灵聊天 iOS 联调：[`v4-ios-integration.md`](v4-ios-integration.md)。服务端开发说明：[`v4-spirit-chat.md`](v4-spirit-chat.md)。
 
 外出召回 iOS 接入：[`recall-ios-integration.md`](recall-ios-integration.md)。
+
+意见书 iOS 联调：[`feedback-ios-integration.md`](feedback-ios-integration.md)。
 
 模块实现（按现行代码整理）：
 

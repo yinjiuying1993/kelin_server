@@ -13,7 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ApiError, public_error_message
 from app.core.security import CurrentUser
 from app.domain.invite_code import invite_code_is_valid
-from app.domain.spirit import SpiritCreateResult, create_spirit_request_hash
+from app.domain.spirit import (
+    SpiritCreateResult,
+    consent_document_versions_are_current,
+    create_spirit_request_hash,
+)
 from app.repositories import spirit as spirit_repo
 from app.schemas.spirit import CreateSpiritRequest
 from app.services.invite_code import InviteCodeAllocationError, allocate_invite_code
@@ -46,6 +50,8 @@ async def create_spirit_if_absent(
     )
     if not claim.inserted:
         return await _from_claimed_record(session, owner_id, request_hash, claim)
+    if not consent_document_versions_are_current(request):
+        raise _api_error("INVALID_INPUT", status_code=422)
 
     await spirit_repo.insert_consents(
         session,

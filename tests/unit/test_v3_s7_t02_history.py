@@ -8,6 +8,7 @@ from uuid import UUID
 
 import pytest
 from app.core.errors import ApiError
+from app.domain.ask.official import OFFICIAL_SPIRIT_ID
 from app.domain.cursor import MessageCursor, ask_filter_hash, encode_ask_cursor
 from app.repositories import ask_history as history_sql
 from app.repositories.ask_history import HistoryRow
@@ -229,6 +230,7 @@ async def test_detail_returns_turns_and_the_opening_rank() -> None:
         ("spirit", "先烧水。"),
     ]
     assert detail.spirit_name == "雾生"
+    assert detail.official is False
     with pytest.raises(ApiError) as missing:
         await read_answered_question(
             history,
@@ -237,6 +239,29 @@ async def test_detail_returns_turns_and_the_opening_rank() -> None:
         )
     assert missing.value.code == "NOT_FOUND"
     assert missing.value.message == "not found"
+
+
+@pytest.mark.asyncio
+async def test_official_spirit_is_flagged_without_a_slug() -> None:
+    history = _History(
+        [
+            _row(
+                _A,
+                _T1,
+                rank=None,
+                name="官方精灵",
+                question="再问一次",
+                skill_title="万能应答",
+                spirit_id=OFFICIAL_SPIRIT_ID,
+            )
+        ]
+    )
+    detail = await read_answered_question(history, asker_user_id=_ASKER, question_id=_A)
+    assert detail.official is True
+    assert detail.spirit_id == OFFICIAL_SPIRIT_ID
+    dumped = detail.model_dump_json()
+    assert "official-general" not in dumped
+    assert "skill_id" not in dumped
 
 
 def test_history_queries_hide_skill_text() -> None:

@@ -49,6 +49,7 @@ from app.schemas.craft import (
 from app.schemas.devices import DeviceRegistration, RegisterDeviceRequest
 from app.schemas.envelope import Envelope
 from app.schemas.extract import ExtractRequest, ExtractResult
+from app.schemas.feedback import FeedbackAccepted, FeedbackRequest
 from app.schemas.memory import (
     MemoryClearRequest,
     MemoryDeleteRequest,
@@ -106,6 +107,7 @@ SPIRITS_ENTRY_ID = "POST_api_v1_spirits"
 BOOTSTRAP_ENTRY_ID = "GET_api_v1_bootstrap"
 CHAT_ENTRY_ID = "POST_api_v1_chat"
 EXTRACT_ENTRY_ID = "POST_api_v1_extract"
+FEEDBACK_ENTRY_ID = "POST_api_v1_feedback"
 FEED_ENTRY_ID = "POST_api_v1_feed"
 FEED_PATCH_ENTRY_ID = "PATCH_api_v1_feeds_{feed_id}"
 FEED_COMPLETE_ENTRY_ID = "POST_api_v1_feeds_{feed_id}_complete"
@@ -735,6 +737,15 @@ def evaluate_entry(root: Path, entry: CatalogEntry) -> None:
     if entry.id == "POST_api_v1_spirits_me_avatar_default":
         _evaluate_visit_card_model_entry(
             root, entry.id, SpiritOwnerPage, frozenset({"NOT_FOUND"})
+        )
+        return
+    if entry.id == FEEDBACK_ENTRY_ID:
+        _evaluate_visit_card_write_entry(
+            root,
+            entry.id,
+            FeedbackAccepted,
+            FeedbackRequest,
+            frozenset({"MODERATION_REJECTED"}),
         )
         return
     if entry.id == OPS_REDEEM_ENTRY_ID:

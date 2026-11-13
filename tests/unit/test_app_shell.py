@@ -33,6 +33,7 @@ def test_api_v1_registers_bootstrap_and_spirits() -> None:
         "/api/v1/craft/skills/{craft_id}/self-test",
         "/api/v1/craft/skills/{craft_id}/visibility",
         "/api/v1/extract",
+        "/api/v1/feedback",
         "/api/v1/friends",
         "/api/v1/friends/{friend_id}",
         "/api/v1/memories",

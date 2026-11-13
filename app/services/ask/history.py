@@ -7,6 +7,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app.core.errors import ApiError, public_error_message
+from app.domain.ask.official import OFFICIAL_SPIRIT_ID
 from app.domain.cursor import (
     CURSOR_VERSION,
     InvalidCursor,
@@ -125,6 +126,7 @@ async def read_answered_question(
         question=summary.question,
         spirit_name=summary.spirit_name,
         spirit_id=summary.spirit_id,
+        official=summary.official,
         rank_name=summary.rank_name,
         skill_title=summary.skill_title,
         rated=summary.rated,
@@ -140,6 +142,7 @@ def _summary(row: HistoryRow) -> AskQuestionSummary:
         question=row.question_text,
         spirit_name=row.spirit_name,
         spirit_id=row.spirit_id,
+        official=row.spirit_id == OFFICIAL_SPIRIT_ID,
         rank_name=row.rank_name,  # type: ignore[arg-type]
         skill_title=None if row.skill_title in (None, "") else row.skill_title,
         rated=rated,

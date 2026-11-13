@@ -94,9 +94,9 @@ def test_create_spirit_request_rejects_client_invite_code() -> None:
         "name": "未名",
         "invite_code": "ABCD2345",
         "consents": {
-            "ai_disclosure": {"document_version": "2026-09", "explicitly_accepted": True},
-            "data_notice": {"document_version": "2026-09", "displayed": True},
-            "user_terms": {"document_version": "2026-09", "displayed": True},
+            "ai_disclosure": {"document_version": "2026-11-12", "explicitly_accepted": True},
+            "data_notice": {"document_version": "2026-11-12", "displayed": True},
+            "user_terms": {"document_version": "2026-11-12", "displayed": True},
         },
     }
     with pytest.raises(ValidationError):

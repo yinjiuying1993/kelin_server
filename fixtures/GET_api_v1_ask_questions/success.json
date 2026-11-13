@@ -7,6 +7,7 @@
         "question": "fixture",
         "spirit_name": "fixture",
         "spirit_id": "00000000-0000-4000-8000-0000000000a8",
+        "official": false,
         "rank_name": "门边学徒",
         "skill_title": "茶室品茗冲泡手记",
         "rated": false,

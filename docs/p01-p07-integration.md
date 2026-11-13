@@ -367,9 +367,9 @@ Chat 的 `patch.room` **恒为 null**；房间看 bootstrap 或 complete 的 pat
   "egg": "wild",
   "name": "未名",
   "consents": {
-    "ai_disclosure": { "document_version": "2026-09", "explicitly_accepted": true },
-    "data_notice": { "document_version": "2026-09", "displayed": true },
-    "user_terms": { "document_version": "2026-09", "displayed": true }
+    "ai_disclosure": { "document_version": "2026-11-12", "explicitly_accepted": true },
+    "data_notice": { "document_version": "2026-11-12", "displayed": true },
+    "user_terms": { "document_version": "2026-11-12", "displayed": true }
   }
 }
 ```

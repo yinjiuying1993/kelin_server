@@ -4,7 +4,7 @@
 
 字段以 `fixtures/manifest.json` 的 `openapi_sha256` 为准：
 
-`357c2656f55d035debba7a03122143170ac1f32767eebab65b007cc3b9c2238f`
+`5a0f709480d4bec06ca3065578cb1c8134f440ceb17b59211936ee7de7561f7f`
 
 App 不校验这段指纹。对 `data` 里的字段解码。多出来的键按 422 处理，调试时把原始 JSON 留下来。
 
@@ -209,6 +209,8 @@ App 不校验这段指纹。对 `data` 里的字段解码。多出来的键按 4
 
 ## 3. 问艺
 
+`official` 与精灵对话按钮见 [`ask-official-ios-integration.md`](ask-official-ios-integration.md)。
+
 没配真实模型时，精灵回复文本是 `问艺回复`。下面示例里的长句是字段形状，不是本机固定文案。
 
 提问者必须已经有自己的精灵。问自己的精灵按 404 处理，不要做「不能问自己」的单独错误码。
@@ -238,6 +240,7 @@ App 不校验这段指纹。对 `data` 里的字段解码。多出来的键按 4
     "question": "茶叶用多少度的水",
     "spirit_name": "雾生",
     "spirit_id": "00000000-0000-4000-8000-0000000000a8",
+    "official": false,
     "rank_name": "门边学徒",
     "skill_title": "茶室品茗冲泡手记",
     "rated": false,
@@ -250,7 +253,7 @@ App 不校验这段指纹。对 `data` 里的字段解码。多出来的键按 4
 }
 ```
 
-没有匹配到公开技艺时，服务端改问固定的官方精灵，仍然是 `matched` 为 true。`spirit_name` 是「官方精灵」，`skill_title` 是「万能应答」，`rank_name` 是 null。不要改问另一只精灵，也不要自动重试出新的 `client_id`。同一 `client_id` 重放返回第一次的结果。给这场对话评分只记在提问人的记录里，不加官方精灵的帮助次数。
+没有匹配到公开技艺时，服务端改问固定的官方精灵，仍然是 `matched` 为 true。`spirit_name` 是「官方精灵」，`skill_title` 是「万能应答」，`rank_name` 是 null，`official` 为 true。`official` 为 true 时隐藏精灵对话按钮，不要向这只精灵发起精灵聊天。普通匹配 `official` 为 false，可以按 `spirit_id` 打开对话。不要改问另一只精灵，也不要自动重试出新的 `client_id`。同一 `client_id` 重放返回第一次的结果。给这场对话评分只记在提问人的记录里，不加官方精灵的帮助次数。
 
 `turns` 里至少有一条 `role=spirit`。`rank_name`、`skill_title` 和 `spirit_id` 可以是 null。空字符串不会出现。
 
@@ -274,6 +277,7 @@ App 不校验这段指纹。对 `data` 里的字段解码。多出来的键按 4
   "question": "茶叶用多少度的水",
   "spirit_name": "雾生",
   "spirit_id": "00000000-0000-4000-8000-0000000000a8",
+  "official": false,
   "rank_name": "门边学徒",
   "skill_title": "茶室品茗冲泡手记",
   "rated": false,

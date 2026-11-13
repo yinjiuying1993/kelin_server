@@ -32,6 +32,7 @@ class AskQuestionSummary(_ForbidExtra):
     question: str = Field(min_length=1, max_length=500)
     spirit_name: str = Field(min_length=1)
     spirit_id: UUID | None
+    official: bool
     rank_name: RankName | None = None
     skill_title: str | None = Field(min_length=1)
     rated: bool
